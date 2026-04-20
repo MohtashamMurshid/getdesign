@@ -7,7 +7,7 @@ export function HowItWorksSection() {
         <h2 className="display-md">How it works</h2>
         <p className="mt-3 text-[14px] leading-relaxed text-muted">
           Pick a site, then switch between web, api, cli, and sdk. Every
-          surface calls the same agent core — only the transport changes.
+          surface calls the same agent core; only the transport changes.
         </p>
       </div>
 

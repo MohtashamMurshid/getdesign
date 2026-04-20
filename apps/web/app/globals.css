@@ -49,7 +49,7 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* Strip serif entirely — never use serif fonts anywhere */
+/* Strip serif entirely: never use serif fonts anywhere */
 * {
   font-family: inherit;
 }
@@ -216,7 +216,7 @@ samp,
   animation: caret-blink 1.1s steps(1) infinite;
 }
 
-/* Logo — draw-on animation for the [md] mark */
+/* Logo: draw-on animation for the [md] mark */
 .gd-logo .gd-bracket {
   stroke-dasharray: 80;
   stroke-dashoffset: 80;

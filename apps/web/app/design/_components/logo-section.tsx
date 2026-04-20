@@ -40,7 +40,7 @@ export function LogoSection() {
 
       <div className="grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--border)] sm:grid-cols-2">
         <div className="bg-[var(--surface-100)] p-8">
-          <Caption>Animated — hero variant</Caption>
+          <Caption>Animated · hero variant</Caption>
           <div className="mt-6 flex items-center gap-6">
             <div key={replayKey}>
               <Logo variant="animated" size="xl" />
@@ -75,7 +75,7 @@ export function LogoSection() {
         />
         <Rule
           kind="dont"
-          text="Don't recolor the brackets — they always inherit currentColor."
+          text="Don't recolor the brackets; they always inherit currentColor."
         />
         <Rule
           kind="do"

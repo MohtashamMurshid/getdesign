@@ -140,7 +140,7 @@ export function buildSteps(site: Site): Step[] {
 export const CHROME_LABELS: Record<Surface, string> = {
   web: "getdesign.app",
   api: "api.getdesign.app/?url={url}",
-  cli: "~ — zsh",
-  sdk: "app.ts — @getdesign/sdk",
+  cli: "~ · zsh",
+  sdk: "app.ts · @getdesign/sdk",
   skill: "claude-code · skill: getdesign",
 };

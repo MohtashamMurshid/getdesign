@@ -21,7 +21,7 @@ export function TypographySection() {
       <Specimen tag="body" spec="14.5px / 1.6 / -0.005em / 400">
         <p className="max-w-[620px] text-[14.5px] leading-relaxed text-muted">
           getdesign opens a site in a real browser, extracts palette,
-          typography, and components, and returns a production-grade design.md —
+          typography, and components, and returns a production-grade design.md,
           grounded in the site&apos;s actual CSS.
         </p>
       </Specimen>

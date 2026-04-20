@@ -14,7 +14,7 @@ export function SiteFooter({ variant = "marketing" }: SiteFooterProps) {
         <div className="flex items-center gap-3">
           <Logo size="sm" />
           <span className="text-[var(--subtle)]">
-            {isDesign ? "— design.md, rendered" : `— ${SITE_TAGLINE}`}
+            {isDesign ? "· design.md, rendered" : `· ${SITE_TAGLINE}`}
           </span>
         </div>
 

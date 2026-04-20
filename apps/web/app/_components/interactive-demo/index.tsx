@@ -116,7 +116,7 @@ export default function InteractiveDemo() {
                         : "border-transparent text-muted hover:bg-[var(--surface-200)] hover:text-foreground"
                     }`}
                   >
-                    <span className="font-mono">— {entry.label}</span>
+                    <span className="font-mono">· {entry.label}</span>
                     {isActive ? (
                       <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
                     ) : null}

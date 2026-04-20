@@ -27,7 +27,7 @@ const SURFACE_ITEMS = [
     tag: "05",
     title: "Skill",
     domain: "skills add MohtashamMurshid/getdesign",
-    body: "Portable SKILL.md. Runs inside Claude Code, Codex, Cursor — using your agent's own tools.",
+    body: "Portable SKILL.md. Runs inside Claude Code, Codex, Cursor, using your agent's own tools.",
   },
 ] as const;
 

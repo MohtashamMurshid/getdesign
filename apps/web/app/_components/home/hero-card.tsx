@@ -9,10 +9,10 @@ Warm minimalism meets code-editor elegance.
 Off-white canvas, warm-brown text, tight kerning.
 
 ## 2. Color Palette
-- #26251e — primary text
-- #f2f1ed — page background
-- #f54e00 — brand accent
-- #cf2d56 — semantic error
+- #26251e · primary text
+- #f2f1ed · page background
+- #f54e00 · brand accent
+- #cf2d56 · semantic error
 
 ## 3. Typography
 CursorGothic display + Berkeley Mono code.

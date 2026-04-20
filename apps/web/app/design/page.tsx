@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { MarketingShell } from "../_components/marketing-shell";
 import { SiteFooter } from "../_components/site-footer";
 import { ComponentsSection } from "./_components/components-section";
@@ -9,6 +11,26 @@ import { PaletteSection } from "./_components/palette-section";
 import { SpacingSection } from "./_components/spacing-section";
 import { TypographySection } from "./_components/typography-section";
 import { VoiceSection } from "./_components/voice-section";
+
+export const metadata: Metadata = {
+  title: "Design",
+  description:
+    "The living design.md behind getdesign. Logo, palette, typography, spacing, components, motion, and voice, rendered as the real product.",
+  alternates: { canonical: "/design" },
+  openGraph: {
+    title: "Design · getdesign",
+    description:
+      "The living design.md behind getdesign. Tokens, components, motion, and voice.",
+    url: "/design",
+    type: "article",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Design · getdesign",
+    description:
+      "The living design.md behind getdesign. Tokens, components, motion, and voice.",
+  },
+};
 
 export default function DesignPage() {
   return (

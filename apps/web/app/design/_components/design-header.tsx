@@ -14,7 +14,7 @@ export function DesignHeader() {
       </h1>
 
       <p className="mt-6 max-w-[560px] text-[14.5px] leading-relaxed text-muted">
-        A living <span className="text-foreground">design.md</span> — rendered.
+        A living <span className="text-foreground">design.md</span>, rendered.
         Every swatch copies its CSS variable. Every component is the real
         component. If you&apos;d like this for your site, that&apos;s the whole
         product.
