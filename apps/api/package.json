@@ -1,0 +1,24 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP API for getdesign. Bun + Hono; deploys as a Vercel Node function.",
+  "main": "./src/app.ts",
+  "scripts": {
+    "dev": "bun run --hot src/dev.ts",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@getdesign/agent": "workspace:*",
+    "@getdesign/types": "workspace:*",
+    "hono": "^4.6.14",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.12",
+    "@types/node": "^20"
+  }
+}

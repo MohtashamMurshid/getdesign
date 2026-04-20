@@ -1,0 +1,10 @@
+{
+  "extends": "@getdesign/config/tsconfig.base.json",
+  "include": ["src/**/*", "api/**/*", "test/**/*"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "types": ["node", "bun"],
+    "noEmit": true
+  }
+}
