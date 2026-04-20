@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
 
+import { JsonLd } from "./_components/json-ld";
 import { SITE_DOMAIN, SITE_GITHUB_URL, SITE_NAME } from "./_lib/site";
 
 import "./globals.css";
@@ -149,10 +150,7 @@ export default function RootLayout({
     <html lang="en" className={`${geist.variable} ${jetbrains.variable}`}>
       <body>
         {children}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <JsonLd data={jsonLd} />
       </body>
     </html>
   );

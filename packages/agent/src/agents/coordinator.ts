@@ -2,6 +2,7 @@ import { ToolLoopAgent, tool, stepCountIs, type LanguageModel } from "ai";
 import { z } from "zod";
 
 import type { CrawlSiteResult } from "@getdesign/tools";
+import { renderDesignMd } from "@getdesign/tools/render";
 import type { DesignTokens } from "@getdesign/types";
 
 import { createCrawlerTool } from "./crawler";
@@ -74,7 +75,6 @@ export function createCoordinator(options: CreateCoordinatorOptions = {}) {
         model,
       });
 
-      const { renderDesignMd } = await import("@getdesign/tools/render");
       const markdown = renderDesignMd(doc);
       context.markdown = markdown;
 

@@ -56,11 +56,14 @@ export async function runSynthesize(
     output: Output.object({ schema: designDocSchema }),
   });
 
-  const doc = designDocSchema.parse({
+  // `output` is already validated against `designDocSchema` by Output.object.
+  // We only patch in the caller-provided siteName/sourceUrl when the model
+  // didn't supply them.
+  const doc: DesignDoc = {
     ...output,
     siteName: output.siteName ?? input.siteName,
     sourceUrl: output.sourceUrl ?? input.sourceUrl,
-  });
+  };
 
   return { doc };
 }

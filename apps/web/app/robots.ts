@@ -2,6 +2,11 @@ import type { MetadataRoute } from "next";
 
 import { SITE_DOMAIN } from "./_lib/site";
 
+// Explicitly allow AI answer engines and training crawlers. These rules are
+// identical to the wildcard `*` rule today, but listing the user agents
+// explicitly makes the site's opt-in policy unambiguous to bots that look for
+// their own name first and fall back to `*` only when absent. Flip any entry
+// to `disallow: ["/"]` to opt that crawler out.
 const AI_CRAWLERS = [
   "GPTBot",
   "OAI-SearchBot",

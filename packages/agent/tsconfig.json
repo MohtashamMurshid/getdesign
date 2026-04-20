@@ -4,6 +4,6 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": ".",
-    "types": ["node", "bun-types"]
+    "types": ["node", "bun"]
   }
 }
