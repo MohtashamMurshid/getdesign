@@ -1,0 +1,26 @@
+---
+title: Use getdesign with Cursor
+description: Install the getdesign skill in Cursor and generate a design.md from any URL.
+---
+
+## Install the skill
+
+In Cursor's chat, run:
+
+```bash
+skills add MohtashamMurshid/getdesign
+```
+
+Cursor will download the `SKILL.md` and register it as an available capability.
+
+## Ask your agent
+
+> Use the getdesign skill on https://vercel.com and save the result to `vercel.design.md`.
+
+The agent navigates with Cursor's built-in browser tools, extracts tokens, and writes the Markdown to your workspace.
+
+## Tips
+
+- Pin the target site's URL in the prompt so the agent does not re-navigate.
+- Ask for a subset ("palette only") if you do not need the full nine sections.
+- Commit the generated `design.md` alongside your theme file so diffs show style drift over time.

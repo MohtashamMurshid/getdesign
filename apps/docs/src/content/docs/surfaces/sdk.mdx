@@ -1,0 +1,32 @@
+---
+title: SDK
+description: Typed TypeScript client. getDesign(url) and streamDesign(url).
+---
+
+Install from npm:
+
+```bash
+npm i @getdesign/sdk
+```
+
+## Usage
+
+```ts
+import { getDesign, streamDesign } from "@getdesign/sdk";
+
+const md = await getDesign("https://stripe.com");
+
+for await (const chunk of streamDesign("https://stripe.com")) {
+  process.stdout.write(chunk);
+}
+```
+
+## Options
+
+```ts
+await getDesign("https://stripe.com", {
+  viewport: "1440x900",
+});
+```
+
+Full auto-generated reference lives at [SDK reference](/reference/sdk/).

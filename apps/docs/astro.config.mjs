@@ -9,7 +9,6 @@ const SITE = "https://docs.getdesign.app";
 
 export default defineConfig({
   site: SITE,
-  trailingSlash: "never",
   build: {
     format: "directory",
   },

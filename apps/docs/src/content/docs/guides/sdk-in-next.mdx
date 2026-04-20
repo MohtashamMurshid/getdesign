@@ -1,0 +1,66 @@
+---
+title: SDK in a Next.js app
+description: Call @getdesign/sdk from a Next.js Route Handler to stream a design.md.
+---
+
+## Install
+
+```bash
+npm i @getdesign/sdk
+```
+
+## Route handler
+
+Create `app/api/design/route.ts`:
+
+```ts
+import { streamDesign } from "@getdesign/sdk";
+
+export const runtime = "nodejs";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const target = searchParams.get("url");
+
+  if (!target) {
+    return new Response("missing ?url=", { status: 400 });
+  }
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      try {
+        for await (const chunk of streamDesign(target)) {
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "text/markdown; charset=utf-8" },
+  });
+}
+```
+
+## Client
+
+```ts
+const response = await fetch(`/api/design?url=${encodeURIComponent(target)}`);
+const reader = response.body!.getReader();
+const decoder = new TextDecoder();
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  process.stdout.write(decoder.decode(value));
+}
+```
+
+## Notes
+
+- Use the Node runtime (`runtime = "nodejs"`), not Edge, because the SDK depends on a headless browser under the hood.
+- Cache results server-side when possible. Extraction is not cheap.

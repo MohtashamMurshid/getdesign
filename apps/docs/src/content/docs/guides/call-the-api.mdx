@@ -1,0 +1,29 @@
+---
+title: Call the API from curl
+description: One-command usage of the getdesign HTTP API.
+---
+
+## Fetch a design.md
+
+```bash
+curl "https://api.getdesign.app/?url=https://stripe.com" \
+  -H "Accept: text/markdown" \
+  -o stripe.design.md
+```
+
+## Pipe it straight into a file
+
+```bash
+curl -sS "https://api.getdesign.app/?url=https://linear.app" > linear.design.md
+```
+
+## Use with jq for palette only
+
+The response is Markdown, not JSON, so `jq` does not apply directly. For palette-only extraction today, grep the `## 2. Color Palette` section:
+
+```bash
+curl -sS "https://api.getdesign.app/?url=https://stripe.com" \
+  | awk '/^## 2\./,/^## 3\./' > stripe.palette.md
+```
+
+A future release will add structured JSON output behind `Accept: application/json`.

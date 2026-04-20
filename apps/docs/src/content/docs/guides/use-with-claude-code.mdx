@@ -1,0 +1,26 @@
+---
+title: Use getdesign with Claude Code
+description: Install the getdesign skill in Claude Code and generate a design.md from any URL.
+---
+
+## Install
+
+In a Claude Code session:
+
+```bash
+skills add MohtashamMurshid/getdesign
+```
+
+## Invoke
+
+> Run the getdesign skill against https://stripe.com and save the output to `design/stripe.md`.
+
+Claude Code will open the page in its browser tool, extract tokens, and write the Markdown.
+
+## Compose with other skills
+
+The Skill surface is just a capability. You can ask Claude Code to:
+
+- Generate a `design.md`.
+- Diff it against a previous commit.
+- Open a pull request updating your theme tokens to match.

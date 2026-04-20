@@ -1,0 +1,43 @@
+---
+title: CLI
+description: One-shot or interactive REPL. Single Bun binary published to npm.
+---
+
+The CLI is published as `@getdesign/cli`. It runs under Bun or Node 18+.
+
+## Install
+
+```bash
+npm i -g @getdesign/cli
+```
+
+or run ad-hoc:
+
+```bash
+npx @getdesign/cli https://stripe.com
+```
+
+## One-shot
+
+```bash
+npx @getdesign/cli https://stripe.com
+npx @getdesign/cli https://stripe.com --out stripe.design.md
+```
+
+## Interactive REPL
+
+```bash
+npx @getdesign/cli
+```
+
+Opens a prompt where you can paste URLs and inspect the result inline.
+
+## Flags
+
+| Flag        | Description                                |
+| ----------- | ------------------------------------------ |
+| `--out`     | Write the result to a file path.            |
+| `--version` | Print the installed version.                |
+| `--help`    | Show help.                                  |
+
+Full auto-generated reference lives at [CLI reference](/reference/cli/).

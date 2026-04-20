@@ -1,0 +1,26 @@
+---
+title: Skill
+description: Portable SKILL.md. Runs inside Claude Code, Codex, and Cursor using your agent's own tools.
+---
+
+The Skill surface is a portable `SKILL.md` that slots into any agent that supports the skills protocol. It runs inside your agent using your agent's own browser and file tools, so no external service is needed.
+
+## Install
+
+```bash
+skills add MohtashamMurshid/getdesign
+```
+
+## Use it
+
+Inside Claude Code, Codex, or Cursor, ask your agent:
+
+> Use the getdesign skill to generate a design.md for https://linear.app
+
+The agent will navigate, extract tokens, and write `design.md` into your workspace.
+
+## When to use it
+
+- You already work in a coding agent and want `design.md` produced right next to your code.
+- You do not want to send any URL to a third-party service.
+- You want to compose getdesign with other agent tools (commit, open PR, write tests).

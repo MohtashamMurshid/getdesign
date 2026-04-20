@@ -1,41 +1,40 @@
 ---
 title: API
-description: HTTP endpoint at api.getdesign.app. GET /?url=... returns text/markdown. No auth in v1.
+description: HTTP endpoint that turns a URL into text/markdown. No auth in v1.
 ---
 
-The HTTP API lives at `api.getdesign.app`. It is a single endpoint in v1.
+The API lives at `api.getdesign.app`. One endpoint, one response type: `text/markdown`.
 
-## Request
+## Endpoint
+
+```http
+GET https://api.getdesign.app/?url=<target>
+Accept: text/markdown
+```
+
+## Example
 
 ```bash
 curl "https://api.getdesign.app/?url=https://stripe.com" \
-  -H "Accept: text/markdown"
+  -H "Accept: text/markdown" \
+  -o stripe.design.md
 ```
 
-| Parameter | Type   | Required | Description                     |
-| --------- | ------ | -------- | ------------------------------- |
-| `url`     | string | yes      | The public URL to extract from. |
+## Query parameters
+
+| Name       | Type   | Required | Description                                              |
+| ---------- | ------ | -------- | -------------------------------------------------------- |
+| `url`      | string | yes      | Absolute URL to extract from. Must be publicly reachable. |
+| `viewport` | string | no       | Target viewport, e.g. `1440x900`. Defaults to desktop.   |
 
 ## Response
 
-`200 OK` with `Content-Type: text/markdown; charset=utf-8` and the full `design.md` in the body.
+- `200 OK` with `Content-Type: text/markdown; charset=utf-8` and the full `design.md` body.
+- `400 Bad Request` if `url` is missing or invalid.
+- `429 Too Many Requests` if you exceed the public rate limit.
 
-## Errors
+## Notes
 
-| Status | Meaning                                         |
-| ------ | ----------------------------------------------- |
-| `400`  | Missing or malformed `url` parameter.           |
-| `404`  | Target URL could not be loaded.                 |
-| `429`  | Rate limit exceeded. Retry with backoff.        |
-| `5xx`  | Internal error. Safe to retry with backoff.     |
-
-## Auth and limits
-
-- No authentication is required in v1.
-- Public rate limits apply per IP.
-- For higher limits during the beta, reach out via the [waitlist](https://www.getdesign.app).
-
-## See also
-
-- [Call the API](/guides/call-the-api/)
-- [SDK](/surfaces/sdk/), which wraps the same endpoint.
+- No authentication in v1.
+- The extractor renders the target in a real browser. First-run latency can be a few seconds.
+- Respect the target site's terms when using the output.
