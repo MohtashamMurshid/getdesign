@@ -59,6 +59,12 @@ type CountedColor = ColorToken & { count: number };
 
 const CSS_SOURCE_LIMIT = 200_000;
 const FONT_ROLE_ORDER = ["display", "body", "mono", "ui", "accent"] as const;
+type NonSemanticColorBucket =
+  | "primary"
+  | "accent"
+  | "neutral"
+  | "surfaces"
+  | "borders";
 
 function createWeightedMap(): WeightedMap {
   return new Map<string, WeightedValue>();
@@ -213,6 +219,15 @@ function semanticRoleForSource(prop: string, source: string): "success" | "warni
   return null;
 }
 
+function classifyNonSemanticColor(
+  prop: string,
+  source: string,
+): NonSemanticColorBucket {
+  const bucket = classifyColor(prop, source);
+
+  return bucket === "semantic" ? "primary" : bucket;
+}
+
 function dedupeCountedColors(colors: CountedColor[]): ColorToken[] {
   return colors
     .sort((left, right) => {
@@ -271,7 +286,10 @@ function extractColorsFromRoot(root: Root): DesignTokens["colors"] {
         continue;
       }
 
-      const bucket = classifyColor(decl.prop, source);
+      const bucket = classifyNonSemanticColor(
+        decl.prop,
+        source,
+      );
       const targetMap = bucketed[bucket];
       const existing = targetMap.get(hex);
       if (existing) {

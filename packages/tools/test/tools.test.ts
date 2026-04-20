@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   crawlSite,
-  buildDaytonaOpenUrlCommand,
+  daytonaOpenUrlCommand,
   buildSnapshotTag,
   extractDesignTokens,
   renderDesignMd,
@@ -257,7 +257,7 @@ test("renderDesignMd outputs the required 9 sections in order", () => {
 });
 
 test("daytonaOpenUrlCommand quotes the target URL", () => {
-  const command = buildDaytonaOpenUrlCommand(
+  const command = daytonaOpenUrlCommand(
     "https://example.com/path?utm=1&name=test",
   );
 

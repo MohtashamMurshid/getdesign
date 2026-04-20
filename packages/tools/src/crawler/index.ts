@@ -121,7 +121,7 @@ export function extractCssImportUrls(css: string, stylesheetUrl: string): string
 
 export function deriveSiteName(html: string, pageUrl: string): string {
   const safeHtml = z.string().parse(html);
-  const baseUrl = crawlableUrlSchema.parse(pageUrl);
+  const baseUrl = new URL(crawlableUrlSchema.parse(pageUrl));
   const $ = load(safeHtml);
   const candidates = [
     $('meta[property="og:site_name"]').attr("content"),
@@ -351,7 +351,12 @@ function isPrivateIpv4(hostname: string): boolean {
     return false;
   }
 
-  const [first, second] = octets;
+  const first = octets[0];
+  const second = octets[1];
+
+  if (first === undefined || second === undefined) {
+    return false;
+  }
 
   return (
     first === 10 ||
