@@ -1,5 +1,4 @@
 import { PRODUCT_SURFACES } from "../../_lib/site";
-import { SkillInstallCommand } from "../skill-install-command";
 import WaitlistForm from "../waitlist-form";
 import HeroCard from "./hero-card";
 
@@ -30,13 +29,6 @@ export function HeroSection() {
           <p className="mt-2.5 text-[11px] text-[var(--subtle)]">
             Private beta · Early access · No spam
           </p>
-        </div>
-
-        <div className="mt-6 flex items-center gap-3">
-          <span className="text-[11px] uppercase tracking-[0.16em] text-[var(--subtle)]">
-            or
-          </span>
-          <SkillInstallCommand compact />
         </div>
 
         <div className="mt-8 flex items-center gap-4 text-[11.5px] text-[var(--subtle)]">

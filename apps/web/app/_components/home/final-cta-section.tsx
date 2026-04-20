@@ -1,3 +1,4 @@
+import { SkillInstallCommand } from "../skill-install-command";
 import WaitlistForm from "../waitlist-form";
 
 export function FinalCtaSection() {
@@ -18,6 +19,13 @@ export function FinalCtaSection() {
 
       <div className="mt-8 flex justify-center">
         <WaitlistForm variant="compact" />
+      </div>
+
+      <div className="mt-6 flex flex-col items-center gap-3">
+        <span className="text-[11px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+          or try the skill today
+        </span>
+        <SkillInstallCommand compact />
       </div>
     </div>
   );
