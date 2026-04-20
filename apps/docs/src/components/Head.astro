@@ -1,0 +1,43 @@
+---
+import Default from "@astrojs/starlight/components/Head.astro";
+
+const SITE_URL = "https://docs.getdesign.app";
+const ORIGIN_URL = "https://www.getdesign.app";
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${ORIGIN_URL}#organization`,
+      name: "getdesign",
+      url: ORIGIN_URL,
+      logo: `${ORIGIN_URL}/icon.svg`,
+      sameAs: ["https://github.com/MohtashamMurshid/getdesign"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}#website`,
+      url: SITE_URL,
+      name: "getdesign docs",
+      description:
+        "Documentation for getdesign: the design system for any URL.",
+      publisher: { "@id": `${ORIGIN_URL}#organization` },
+      inLanguage: "en-US",
+    },
+    {
+      "@type": "TechArticle",
+      "@id": `${Astro.url.href}#article`,
+      url: Astro.url.href,
+      headline: (Astro.props.entry?.data?.title as string | undefined) ?? "getdesign docs",
+      inLanguage: "en-US",
+      isPartOf: { "@id": `${SITE_URL}#website` },
+    },
+  ],
+};
+---
+
+<Default {...Astro.props}><slot /></Default>
+<meta name="robots" content="index,follow,max-image-preview:large" />
+<meta name="theme-color" content="#0a0a0b" />
+<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />

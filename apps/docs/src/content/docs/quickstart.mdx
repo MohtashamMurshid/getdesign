@@ -1,0 +1,58 @@
+---
+title: Quickstart
+description: Get your first design.md in under a minute using the surface you prefer.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+Pick a surface and paste a URL. Every surface returns the same `design.md`.
+
+<Tabs>
+  <TabItem label="Web">
+    Open [getdesign.app](https://www.getdesign.app), paste a URL, and watch the streaming chat panel write a live `design.md`.
+  </TabItem>
+  <TabItem label="API">
+    ```bash
+    curl "https://api.getdesign.app/?url=https://stripe.com" \
+      -H "Accept: text/markdown" \
+      -o stripe.design.md
+    ```
+    No auth is required in v1. Rate limits apply.
+  </TabItem>
+  <TabItem label="CLI">
+    ```bash
+    npx @getdesign/cli https://stripe.com
+    npx @getdesign/cli https://stripe.com --out stripe.design.md
+    ```
+    Run without arguments to open the interactive REPL.
+  </TabItem>
+  <TabItem label="SDK">
+    ```bash
+    npm i @getdesign/sdk
+    ```
+    ```ts
+    import { getDesign, streamDesign } from "@getdesign/sdk";
+
+    const md = await getDesign("https://stripe.com");
+
+    for await (const chunk of streamDesign("https://stripe.com")) {
+      process.stdout.write(chunk);
+    }
+    ```
+  </TabItem>
+  <TabItem label="Skill">
+    Inside Claude Code, Codex, or Cursor:
+
+    ```bash
+    skills add MohtashamMurshid/getdesign
+    ```
+
+    Then ask your agent: "use the getdesign skill on https://linear.app".
+  </TabItem>
+</Tabs>
+
+## Next steps
+
+- Learn what a `design.md` contains in [Concepts](/concepts/).
+- Pick a surface to go deeper: [Web](/surfaces/web/), [API](/surfaces/api/), [CLI](/surfaces/cli/), [SDK](/surfaces/sdk/), [Skill](/surfaces/skill/).
+- Integrate in an app with [SDK in Next.js](/guides/sdk-in-next/).

@@ -1,0 +1,58 @@
+---
+title: getdesign
+description: The design system for any URL. Paste a URL, get a production-grade design.md.
+template: splash
+hero:
+  tagline: Paste a URL. An agent opens it in a real browser, extracts tokens and components, and returns a production-grade design.md.
+  actions:
+    - text: Quickstart
+      link: /quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: GitHub
+      link: https://github.com/MohtashamMurshid/getdesign
+      icon: external
+---
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+## Five surfaces, one agent
+
+getdesign ships five surfaces that share one agent core. Only the transport changes between them.
+
+<CardGrid>
+  <LinkCard
+    title="Web"
+    description="Streaming chat UI with a live design.md artifact panel."
+    href="/surfaces/web/"
+  />
+  <LinkCard
+    title="API"
+    description="GET /?url=... returns text/markdown. No auth in v1."
+    href="/surfaces/api/"
+  />
+  <LinkCard
+    title="CLI"
+    description="One-shot or interactive REPL. Single Bun binary."
+    href="/surfaces/cli/"
+  />
+  <LinkCard
+    title="SDK"
+    description="Typed client. getDesign(url) + streamDesign(url)."
+    href="/surfaces/sdk/"
+  />
+  <LinkCard
+    title="Skill"
+    description="Portable SKILL.md. Runs inside Claude Code, Codex, Cursor."
+    href="/surfaces/skill/"
+  />
+</CardGrid>
+
+## Start here
+
+<CardGrid>
+  <LinkCard title="Quickstart" href="/quickstart/" description="Get your first design.md in 60 seconds." />
+  <LinkCard title="Concepts" href="/concepts/" description="What a design.md is, what is in it, and how it is grounded." />
+  <LinkCard title="SDK reference" href="/reference/sdk/" description="Auto-generated from the @getdesign/sdk source." />
+  <LinkCard title="CLI reference" href="/reference/cli/" description="Auto-extracted from @getdesign/cli --help." />
+</CardGrid>

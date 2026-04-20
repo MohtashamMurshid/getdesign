@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 32" fill="none">
+  <g>
+    <path d="M11 7 L6 7 L6 25 L11 25" stroke="#ededee" stroke-width="2.25" stroke-linecap="square"/>
+    <path d="M21 7 L26 7 L26 25 L21 25" stroke="#ededee" stroke-width="2.25" stroke-linecap="square"/>
+    <text x="16" y="21" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="700" letter-spacing="-0.5" fill="#a3e635">md</text>
+  </g>
+  <g font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto" font-size="16" font-weight="500" letter-spacing="-0.3">
+    <text x="40" y="21" fill="rgba(237,237,238,0.5)">get</text>
+    <text x="64" y="21" fill="#ededee">design</text>
+    <text x="119" y="21" fill="rgba(237,237,238,0.38)">/ docs</text>
+  </g>
+</svg>

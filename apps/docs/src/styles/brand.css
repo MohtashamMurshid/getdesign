@@ -1,0 +1,155 @@
+/*
+ * getdesign docs brand theme
+ * Ports tokens from apps/web/app/globals.css onto Starlight's theming hooks.
+ * All values sourced from the web app so docs stays visually consistent.
+ */
+
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
+
+:root,
+:root[data-theme="dark"] {
+  /* getdesign palette */
+  --gd-background: #0a0a0b;
+  --gd-surface-100: #101012;
+  --gd-surface-200: #141418;
+  --gd-surface-300: #1a1a20;
+  --gd-foreground: #ededee;
+  --gd-muted: rgba(237, 237, 238, 0.6);
+  --gd-subtle: rgba(237, 237, 238, 0.38);
+  --gd-faint: rgba(237, 237, 238, 0.12);
+  --gd-accent: #a3e635;
+  --gd-accent-dim: #65a30d;
+  --gd-accent-glow: rgba(163, 230, 53, 0.18);
+  --gd-border: rgba(255, 255, 255, 0.07);
+  --gd-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Starlight base surfaces */
+  --sl-color-bg: var(--gd-background);
+  --sl-color-bg-nav: var(--gd-background);
+  --sl-color-bg-sidebar: var(--gd-background);
+  --sl-color-bg-inline-code: var(--gd-surface-200);
+  --sl-color-bg-accent: var(--gd-accent-glow);
+  --sl-color-bg-selection: var(--gd-accent);
+
+  /* Starlight text */
+  --sl-color-white: var(--gd-foreground);
+  --sl-color-gray-1: var(--gd-foreground);
+  --sl-color-gray-2: rgba(237, 237, 238, 0.85);
+  --sl-color-gray-3: var(--gd-muted);
+  --sl-color-gray-4: var(--gd-subtle);
+  --sl-color-gray-5: var(--gd-faint);
+  --sl-color-gray-6: var(--gd-surface-200);
+  --sl-color-gray-7: var(--gd-surface-300);
+  --sl-color-black: var(--gd-background);
+  --sl-color-text: var(--gd-foreground);
+  --sl-color-text-accent: var(--gd-accent);
+  --sl-color-text-invert: #0a0a0b;
+
+  /* Starlight accents */
+  --sl-color-accent-low: color-mix(in srgb, var(--gd-accent) 12%, transparent);
+  --sl-color-accent: var(--gd-accent);
+  --sl-color-accent-high: var(--gd-accent-dim);
+
+  /* Starlight borders */
+  --sl-color-hairline: var(--gd-border);
+  --sl-color-hairline-light: var(--gd-border);
+  --sl-color-hairline-shade: var(--gd-border-strong);
+
+  /* Typography */
+  --sl-font:
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  --sl-font-system:
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --sl-font-mono:
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  --sl-font-system-mono: var(--sl-font-mono);
+
+  /* Sizing */
+  --sl-content-width: 48rem;
+  --sl-sidebar-width: 18rem;
+  --sl-nav-height: 3.75rem;
+}
+
+/* Force dark scheme; the getdesign brand is dark-first. */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--gd-background);
+  color: var(--gd-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Selection matches the web app */
+*::selection {
+  background: var(--gd-accent);
+  color: #0a0a0b;
+}
+
+/* Subtle dashed rail under the top nav to echo the marketing site */
+header.header {
+  border-bottom: 1px dashed var(--gd-faint) !important;
+}
+
+/* Accent dot after top-level headings */
+.sl-markdown-content h1::after,
+.sl-markdown-content h2::after {
+  content: ".";
+  color: var(--gd-accent);
+  margin-left: 2px;
+}
+
+/* Sidebar headings feel like the marketing eyebrows */
+starlight-menu-button,
+.sidebar nav a[aria-current="page"] {
+  color: var(--gd-foreground);
+}
+
+.sidebar nav a {
+  color: var(--gd-muted);
+}
+
+.sidebar nav a:hover {
+  color: var(--gd-foreground);
+  background: var(--gd-surface-100);
+}
+
+.sidebar nav a[aria-current="page"] {
+  background: var(--gd-surface-200);
+  color: var(--gd-foreground);
+  border-left: 2px solid var(--gd-accent);
+}
+
+/* Inline code, kbd, samp */
+.sl-markdown-content :not(pre) > code {
+  background: var(--gd-surface-200);
+  border: 1px solid var(--gd-border);
+  color: var(--gd-accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Code blocks */
+.expressive-code,
+.expressive-code .frame {
+  border-radius: 10px;
+}
+
+/* Cards and panels */
+.sl-container {
+  max-width: 72rem;
+}
+
+/* Footer echoes the marketing site */
+.sl-footer,
+footer {
+  border-top: 1px dashed var(--gd-faint);
+  color: var(--gd-muted);
+}

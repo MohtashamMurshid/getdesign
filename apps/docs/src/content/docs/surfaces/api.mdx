@@ -1,0 +1,41 @@
+---
+title: API
+description: HTTP endpoint at api.getdesign.app. GET /?url=... returns text/markdown. No auth in v1.
+---
+
+The HTTP API lives at `api.getdesign.app`. It is a single endpoint in v1.
+
+## Request
+
+```bash
+curl "https://api.getdesign.app/?url=https://stripe.com" \
+  -H "Accept: text/markdown"
+```
+
+| Parameter | Type   | Required | Description                     |
+| --------- | ------ | -------- | ------------------------------- |
+| `url`     | string | yes      | The public URL to extract from. |
+
+## Response
+
+`200 OK` with `Content-Type: text/markdown; charset=utf-8` and the full `design.md` in the body.
+
+## Errors
+
+| Status | Meaning                                         |
+| ------ | ----------------------------------------------- |
+| `400`  | Missing or malformed `url` parameter.           |
+| `404`  | Target URL could not be loaded.                 |
+| `429`  | Rate limit exceeded. Retry with backoff.        |
+| `5xx`  | Internal error. Safe to retry with backoff.     |
+
+## Auth and limits
+
+- No authentication is required in v1.
+- Public rate limits apply per IP.
+- For higher limits during the beta, reach out via the [waitlist](https://www.getdesign.app).
+
+## See also
+
+- [Call the API](/guides/call-the-api/)
+- [SDK](/surfaces/sdk/), which wraps the same endpoint.
