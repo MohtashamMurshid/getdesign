@@ -112,7 +112,7 @@ function Hero() {
           getdesign opens a site in a real browser, extracts palette,
           typography, and components, and returns a production-grade{" "}
           <span className="text-foreground">design.md</span> — grounded in the
-          site&apos;s actual CSS. Runs inside your agent.
+          site&apos;s actual CSS. Five surfaces, one agent.
         </p>
 
         <div className="mt-8">
@@ -130,6 +130,8 @@ function Hero() {
           <span>CLI</span>
           <Dot />
           <span>SDK</span>
+          <Dot />
+          <span>Skill</span>
         </div>
       </div>
 
@@ -194,17 +196,23 @@ function Surfaces() {
       domain: "npm i @getdesign/sdk",
       body: "Typed client. getDesign(url) + streamDesign(url).",
     },
+    {
+      tag: "05",
+      title: "Skill",
+      domain: "npx skills add getdesign",
+      body: "Portable SKILL.md. Runs inside Claude Code, Codex, Cursor — using your agent's own tools.",
+    },
   ];
   return (
     <div>
       <div className="max-w-2xl">
-        <h2 className="display-md">Four surfaces, one agent.</h2>
+        <h2 className="display-md">Five surfaces, one agent.</h2>
         <p className="mt-3 text-[14px] leading-relaxed text-muted">
-          Every surface calls the same agent core. Only the transport differs.
+          Four surfaces call the same agent core. The fifth runs inside yours.
         </p>
       </div>
 
-      <div className="mt-10 grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-10 grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {items.map((it) => (
           <div
             key={it.tag}

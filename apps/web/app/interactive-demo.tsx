@@ -137,13 +137,14 @@ function buildSteps(site: Site): Step[] {
   ];
 }
 
-type Surface = "web" | "api" | "cli" | "sdk";
+type Surface = "web" | "api" | "cli" | "sdk" | "skill";
 
 const SURFACES: { id: Surface; label: string; hint: string }[] = [
   { id: "web", label: "web", hint: "getdesign.app" },
   { id: "api", label: "api", hint: "api.getdesign.app" },
   { id: "cli", label: "cli", hint: "npx @getdesign/cli" },
   { id: "sdk", label: "sdk", hint: "@getdesign/sdk" },
+  { id: "skill", label: "skill", hint: "skills.sh" },
 ];
 
 export default function InteractiveDemo() {
@@ -185,6 +186,7 @@ export default function InteractiveDemo() {
     api: `api.getdesign.app/?url=${site.url}`,
     cli: "~ — zsh",
     sdk: "app.ts — @getdesign/sdk",
+    skill: "claude-code · skill: getdesign",
   };
 
   return (
@@ -577,17 +579,112 @@ export default function InteractiveDemo() {
               </div>
             )}
 
+            {surface === "skill" && (
+              <div
+                ref={chatScrollRef}
+                className="code-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-[12.5px] leading-relaxed"
+              >
+                <div className="fade-in-up">
+                  <div className="text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+                    install
+                  </div>
+                  <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-foreground">
+                    <span className="text-[var(--accent)]">$</span>{" "}
+                    <span className="tok-fn">npx</span>{" "}
+                    <span className="text-foreground">skills add getdesign</span>
+                    {"\n"}
+                    <span className="tok-com">
+                      ✓ installed to .claude/skills/ · .codex/skills/ · .cursor/skills/
+                    </span>
+                  </div>
+                </div>
+
+                {visible >= 1 && (
+                  <div className="fade-in-up mt-5">
+                    <div className="text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+                      agent prompt
+                    </div>
+                    <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-muted">
+                      <span className="text-foreground">
+                        extract the design system from {site.url}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {visible >= 2 && (
+                  <div className="fade-in-up mt-5">
+                    <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+                      agent trace
+                      <span className="rounded-[3px] border border-[var(--border-strong)] px-1 py-[1px] text-[9.5px] text-[var(--accent)]">
+                        skill: getdesign
+                      </span>
+                    </div>
+                    <div className="mt-2 space-y-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-muted">
+                      <div>
+                        <span className="tok-com">▶</span>{" "}
+                        <span className="tok-fn">WebFetch</span>
+                        <span className="tok-punc">(</span>
+                        <span className="tok-str">&quot;{site.url}&quot;</span>
+                        <span className="tok-punc">)</span>
+                      </div>
+                      {visible >= 3 && (
+                        <div>
+                          <span className="tok-com">▶</span>{" "}
+                          <span className="tok-fn">WebFetch</span>
+                          <span className="tok-punc">(</span>
+                          <span className="tok-str">&quot;/styles.css&quot;</span>
+                          <span className="tok-punc">)</span>
+                        </div>
+                      )}
+                      {visible >= 4 && (
+                        <div>
+                          <span className="tok-com">▶</span>{" "}
+                          <span className="tok-fn">browser.screenshot</span>
+                          <span className="tok-punc">({"{ viewport: 1440x900 }"})</span>
+                        </div>
+                      )}
+                      {visible >= 6 && (
+                        <div>
+                          <span className="tok-com">▶</span>{" "}
+                          <span className="tok-fn">Write</span>
+                          <span className="tok-punc">(</span>
+                          <span className="tok-str">&quot;design.md&quot;</span>
+                          <span className="tok-punc">)</span>
+                        </div>
+                      )}
+                      {done && (
+                        <div className="pt-1 text-foreground">
+                          <span className="tok-com">✓</span> wrote{" "}
+                          <span className="tok-str">design.md</span>{" "}
+                          <span className="text-[var(--subtle)]">
+                            · 9 sections · grounded in actual CSS
+                          </span>
+                        </div>
+                      )}
+                      <span className="caret" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* mini input / status */}
             <div className="border-t border-[var(--border)] px-4 py-3">
               <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] px-3 py-2 text-[12.5px]">
                 <span className="text-[var(--accent)]">
-                  {surface === "web" ? "›" : surface === "cli" ? "$" : "•"}
+                  {surface === "web"
+                    ? "›"
+                    : surface === "cli" || surface === "skill"
+                      ? "$"
+                      : "•"}
                 </span>
                 <span className="text-[var(--subtle)]">
                   {surface === "web" && `ask a follow-up about ${site.url}…`}
                   {surface === "api" && `curl api.getdesign.app/?url=${site.url}`}
                   {surface === "cli" && `npx @getdesign/cli ${site.url}`}
                   {surface === "sdk" && `streamDesign("${site.url}")`}
+                  {surface === "skill" && `npx skills add getdesign`}
                 </span>
                 <span className="ml-auto font-mono text-[10.5px] text-[var(--subtle)]">
                   {visible}/{allSteps.length}
