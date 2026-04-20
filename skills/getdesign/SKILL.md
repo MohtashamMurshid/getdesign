@@ -66,12 +66,18 @@ Use your built-in web fetch tool (`WebFetch`, `web.run`, `fetch`, `curl` via she
 - Follow `@import url(...)` chains one level deep.
 - Capture any `@font-face` blocks for font family + weight discovery.
 - Cap each stylesheet at ~200 KB; prefer files containing `:root`, CSS variables, or utility-class declarations.
+- Always check for both light and dark mode support while fetching. Look for `prefers-color-scheme`, `.dark`, `[data-theme]`, theme toggle controls, alternate theme stylesheets, or server-rendered theme classes on `<html>` / `<body>`.
+- If the site supports both modes, collect grounding for both and keep notes on which tokens are shared versus mode-specific.
 
 Record the exact URLs you fetched — you will cite them in the "Sources" section of your draft (internal, not in the final markdown).
 
 ### 3. Screenshot the page
 
-If your agent runtime has a browser tool (Playwright, Chrome DevTools, `agent-browser`, Antigravity browser, Codex web browser, a `screenshot` tool, etc.), open the URL at **1440×900** and capture one viewport screenshot. Prefer a full-page scroll-and-stitch if available.
+If your agent runtime has a browser tool (Playwright, Chrome DevTools, `agent-browser`, Antigravity browser, Codex web browser, a `screenshot` tool, etc.), you **must** use it. Open the URL at **1440×900** and capture screenshots for every available theme mode you can verify, starting with light mode and dark mode. Prefer a full-page scroll-and-stitch if available.
+
+- If the site exposes a theme toggle, use the browser to capture both modes.
+- If there is no explicit toggle, still check browser-emulated `prefers-color-scheme: light` and `prefers-color-scheme: dark` when possible.
+- Keep mode labels in your notes so you know which observations came from light mode vs dark mode.
 
 If you have no browser tool, skip this step — continue with CSS-only grounding — and note the limitation in your internal planning (the "Visual Theme" prose will be slightly thinner without a screenshot).
 
@@ -83,6 +89,7 @@ Produce an internal `DesignTokens` object with:
 
 - `colors`: `primary[]`, `accent[]`, `neutral[]`, `semantic { success, warning, error, info }`, `surfaces[]`, `borders[]`.
   - Every entry is `{ hex, role, source }` where `source` is the CSS selector or variable name you found it in.
+  - If the site supports multiple themes, annotate whether each token is `light`, `dark`, or shared.
 - `typography`: `fontFamilies[]` (display / body / mono), `scale[]` (`{ role, px, weightRange, lineHeight, letterSpacing }`).
 - `spacing`: the step values actually used (e.g. 4, 8, 12, 16, 24, 32, 48, 64 px).
 - `radii`: named scale you can infer (`sm`, `md`, `lg`, `pill`).
@@ -106,6 +113,7 @@ Key per-section reminders:
 - **Depth & Elevation** — named elevation levels with their shadow values and a 1-sentence philosophy.
 - **Interaction & Motion** — hover states, focus states, transition durations/easings you observed or can infer. Mark inferences explicitly.
 - **Responsive Behavior** — breakpoint table from the `@media` queries, touch-target minimum, how navigation collapses, image behavior.
+- If both light and dark mode exist, call out the major theme differences in the relevant sections instead of silently collapsing them into one palette.
 - **Agent Prompt Guide** — a quick color reference (just the key hexes), 3 example prompts another AI could use to replicate this style, and 4–6 iteration tips.
 
 ### 6. Render to markdown
@@ -125,6 +133,8 @@ Before writing the final file, run this self-check:
 - [ ] Every hex code in the Color Palette section appears in your internal notes with a CSS source.
 - [ ] The font families in Typography appear in the fetched CSS or `@font-face` blocks.
 - [ ] Breakpoints match actual `@media (min-width: …)` queries.
+- [ ] Light mode and dark mode were both checked whenever the site exposes or implies dual-theme support.
+- [ ] A browser screenshot was taken whenever a browser tool was available.
 - [ ] No placeholder text like "TBD", "(example)", or "Lorem ipsum".
 
 If any check fails, fix before writing. Then write the file to `design.md` (or the path the user requested). Report a one-paragraph summary plus the absolute file path.
@@ -133,7 +143,7 @@ If any check fails, fix before writing. Then write the file to `design.md` (or t
 
 | Missing tool | Degrade to |
 | --- | --- |
-| No browser / screenshot | CSS-only grounding; keep the Visual Theme brief and fact-based. Skip pixel-level observations. |
+| No browser / screenshot | CSS-only grounding; keep the Visual Theme brief and fact-based. Skip pixel-level observations. If dual themes exist, still inspect fetched CSS for both light and dark mode selectors. |
 | Fetch blocked (403 / Cloudflare) | Report the failure, try the site's `/` and `/about` as alternates, otherwise stop and surface the error to the user. No guessing. |
 | CSS-in-JS only, no stylesheets | Parse inline `<style>` tags; if still empty, use the screenshot plus HTML class names to infer only what is visible. State the limitation at the top of `design.md`. |
 
