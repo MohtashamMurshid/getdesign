@@ -24,11 +24,26 @@ export function runExtractTokens(
   });
 }
 
+function countColors(tokens: DesignTokens): number {
+  const { primary, accent, neutral, surfaces, borders, semantic } = tokens.colors;
+  return (
+    primary.length +
+    accent.length +
+    neutral.length +
+    surfaces.length +
+    borders.length +
+    semantic.success.length +
+    semantic.warning.length +
+    semantic.error.length +
+    semantic.info.length
+  );
+}
+
 export function summarizeTokens(tokens: DesignTokens): Record<string, unknown> {
   return {
     siteName: tokens.siteName,
     sourceUrl: tokens.sourceUrl,
-    colorCount: tokens.colors.length,
+    colorCount: countColors(tokens),
     fontFamilies: tokens.typography.fontFamilies.map((font) => font.family),
     typeScaleCount: tokens.typography.scale.length,
     spacingCount: tokens.spacing.length,

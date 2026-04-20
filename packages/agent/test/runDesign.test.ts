@@ -70,7 +70,7 @@ test("runDesign end-to-end with stubbed fetch and mocked LLM", async () => {
   expect(phases).toEqual(["crawl", "visual", "extract", "synthesize", "render"]);
   expect(result.visual.status).toBe("skipped");
   expect(result.doc.siteName).toBe("Acme");
-  expect(result.tokens.colors.length).toBeGreaterThan(0);
+  expect(result.tokens.typography.fontFamilies.length).toBeGreaterThan(0);
   expect(result.markdown).toContain("# Acme Design System");
   expect(result.markdown).toContain("## 1. Visual Theme & Atmosphere");
   expect(result.markdown).toContain("## 9. Agent Prompt Guide");

@@ -1,4 +1,4 @@
-import { generateText, Output, type LanguageModel, type ModelMessage } from "ai";
+import { generateText, Output, type LanguageModel, type UserContent } from "ai";
 
 import { designDocSchema, type DesignDoc, type DesignTokens } from "@getdesign/types";
 
@@ -37,7 +37,7 @@ export async function runSynthesize(
   const model = input.model ?? resolveModel();
 
   const userText = buildUserPrompt(input);
-  const content: ModelMessage["content"] = [{ type: "text", text: userText }];
+  const content: UserContent = [{ type: "text", text: userText }];
 
   if (input.hero) {
     content.push({

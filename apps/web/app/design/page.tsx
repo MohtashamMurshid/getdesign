@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
+import { JsonLd } from "../_components/json-ld";
 import { MarketingShell } from "../_components/marketing-shell";
 import { SiteFooter } from "../_components/site-footer";
+import { SITE_DOMAIN } from "../_lib/site";
 import { ComponentsSection } from "./_components/components-section";
 import { DesignHeader } from "./_components/design-header";
 import { DesignSection } from "./_components/design-section";
@@ -32,9 +34,24 @@ export const metadata: Metadata = {
   },
 };
 
+const breadcrumbJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [
+    { "@type": "ListItem", position: 1, name: "Home", item: SITE_DOMAIN },
+    {
+      "@type": "ListItem",
+      position: 2,
+      name: "Design",
+      item: `${SITE_DOMAIN}/design`,
+    },
+  ],
+};
+
 export default function DesignPage() {
   return (
     <MarketingShell footer={<SiteFooter variant="design" />}>
+      <JsonLd data={breadcrumbJsonLd} />
       <DesignHeader />
       <DesignSection id="logo" tag="01" title="Logo">
         <LogoSection />

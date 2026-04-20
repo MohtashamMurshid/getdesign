@@ -3,6 +3,7 @@
   "include": ["src/**/*", "smoke.ts", "test/**/*"],
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "types": ["node", "bun-types"]
   }
 }

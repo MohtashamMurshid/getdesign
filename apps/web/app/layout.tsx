@@ -61,6 +61,12 @@ export const metadata: Metadata = {
   category: "technology",
   alternates: {
     canonical: "/",
+    types: {
+      "text/plain": [
+        { url: "/llms.txt", title: `${SITE_NAME} llms.txt` },
+        { url: "/llms-full.txt", title: `${SITE_NAME} llms-full.txt` },
+      ],
+    },
   },
   robots: {
     index: true,

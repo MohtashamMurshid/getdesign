@@ -46,7 +46,7 @@ async function main() {
           break;
         case "extract":
           process.stderr.write(
-            `[${elapsed}s] extract: ${event.tokens.colors.length} colors, ${event.tokens.typography.fontFamilies.length} fonts\n`,
+            `[${elapsed}s] extract: ${event.tokens.typography.fontFamilies.length} font families, ${event.tokens.spacing.length} spacing steps\n`,
           );
           break;
         case "synthesize":
