@@ -23,7 +23,8 @@
     "zod": "^4.3.6"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test"
   },
   "devDependencies": {
     "@getdesign/config": "workspace:*",
