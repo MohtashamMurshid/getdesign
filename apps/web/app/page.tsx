@@ -1,5 +1,6 @@
 import HeroCard from "./hero-card";
 import InteractiveDemo from "./interactive-demo";
+import { Logo } from "./logo";
 import Nav from "./nav";
 import WaitlistForm from "./waitlist-form";
 
@@ -65,27 +66,6 @@ function FrameSection({
     >
       <div className={fullHeight ? "w-full" : undefined}>{children}</div>
     </section>
-  );
-}
-
-function Logo() {
-  return (
-    <span className="relative inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-md border border-[var(--border-strong)] bg-[var(--surface-200)]">
-      <svg
-        viewBox="0 0 16 16"
-        className="h-3.5 w-3.5"
-        fill="none"
-        aria-hidden
-      >
-        <path
-          d="M2 8 L8 2 L14 8 L8 14 Z"
-          stroke="var(--accent)"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        <circle cx="8" cy="8" r="1.6" fill="var(--accent)" />
-      </svg>
-    </span>
   );
 }
 
@@ -272,9 +252,8 @@ function Footer() {
   return (
     <footer className="border-t border-[var(--border)]">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-[12.5px] text-muted md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2.5">
-          <Logo />
-          <span className="text-foreground">getdesign</span>
+        <div className="flex items-center gap-3">
+          <Logo size="sm" />
           <span className="text-[var(--subtle)]">
             — on-demand design systems
           </span>
@@ -285,6 +264,9 @@ function Footer() {
           </a>
           <a href="#surfaces" className="hover:text-foreground">
             Surfaces
+          </a>
+          <a href="/design" className="hover:text-foreground">
+            Design
           </a>
           <a
             href="https://github.com/MohtashamMurshid/getdesign"

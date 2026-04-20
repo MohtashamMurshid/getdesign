@@ -1,20 +1,26 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Logo } from "./logo";
 
-const LINKS = [
+type NavLink = { id: string; label: string; href?: string; external?: boolean };
+
+const LINKS: NavLink[] = [
   { id: "how", label: "HOW IT WORKS" },
   { id: "surfaces", label: "SURFACES" },
+  { id: "design", label: "DESIGN", href: "/design", external: true },
   { id: "cta", label: "WAITLIST" },
 ];
 
 export default function Nav() {
+  const pathname = usePathname();
   const [active, setActive] = useState<string | null>(null);
 
   useEffect(() => {
-    const targets = LINKS.map((l) => document.getElementById(l.id)).filter(
-      (el): el is HTMLElement => el !== null,
-    );
+    const targets = LINKS.filter((l) => !l.external)
+      .map((l) => document.getElementById(l.id))
+      .filter((el): el is HTMLElement => el !== null);
     if (targets.length === 0) return;
 
     const io = new IntersectionObserver(
@@ -43,25 +49,25 @@ export default function Nav() {
   return (
     <header className="dashed-bottom sticky top-0 z-30 bg-[var(--background)]/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <a href="/" className="flex items-center gap-2.5">
-          <Logo />
-          <span className="text-[14px] font-medium tracking-tight">
-            getdesign
-          </span>
+        <a href="/" className="flex items-center">
+          <Logo size="md" />
         </a>
 
         <nav className="hidden items-center gap-8 text-[12.5px] md:flex">
-          {LINKS.map((l) => (
-            <a
-              key={l.id}
-              href={`#${l.id}`}
-              className={`nav-link pb-[18px] ${
-                active === l.id ? "is-active" : ""
-              }`}
-            >
-              {l.label}
-            </a>
-          ))}
+          {LINKS.map((l) => {
+            const isActive = l.external
+              ? pathname === l.href
+              : pathname === "/" && active === l.id;
+            return (
+              <a
+                key={l.id}
+                href={l.external ? l.href : `/#${l.id}`}
+                className={`nav-link pb-[18px] ${isActive ? "is-active" : ""}`}
+              >
+                {l.label}
+              </a>
+            );
+          })}
         </nav>
 
         <a
@@ -75,22 +81,6 @@ export default function Nav() {
         </a>
       </div>
     </header>
-  );
-}
-
-function Logo() {
-  return (
-    <span className="relative inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-md border border-[var(--border-strong)] bg-[var(--surface-200)]">
-      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden>
-        <path
-          d="M2 8 L8 2 L14 8 L8 14 Z"
-          stroke="var(--accent)"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        <circle cx="8" cy="8" r="1.6" fill="var(--accent)" />
-      </svg>
-    </span>
   );
 }
 

@@ -2,19 +2,21 @@
 
 **On-demand design systems from any URL. Five surfaces, one agent.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](./LICENSE)
-[![Skill: skills.sh](https://img.shields.io/badge/skill-skills.sh-black)](https://skills.sh)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-black.svg)](./CONTRIBUTING.md)
+[License: MIT](./LICENSE)
+[Skill: skills.sh](https://skills.sh)
+[PRs Welcome](./CONTRIBUTING.md)
 
 Paste a URL. Get a production-grade `design.md` — palette, typography, components, layout, depth, motion, responsive rules, and an agent prompt guide — **grounded in the site's actual CSS**, not hallucinated.
 
-| Surface | How you use it |
-| --- | --- |
-| **Web** | [getdesign.app](https://getdesign.app) chat UI with a live `design.md` artifact panel |
-| **HTTP API** | `curl "https://api.getdesign.app/?url=https://cursor.com"` → `text/markdown` |
-| **CLI** | `npx getdesign <url>` — one-shot, or `getdesign chat` for an interactive REPL |
-| **TypeScript SDK** | `npm i getdesign` → `const { markdown, doc } = await getDesign(url)` |
-| **Agent skill** | `npx skills add MohtashamMurshid/getdesign` — runs inside Claude Code, Codex, Cursor using their built-in tools |
+
+| Surface            | How you use it                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------- |
+| **Web**            | [getdesign.app](https://getdesign.app) chat UI with a live `design.md` artifact panel                           |
+| **HTTP API**       | `curl "https://api.getdesign.app/?url=https://cursor.com"` → `text/markdown`                                    |
+| **CLI**            | `npx getdesign <url>` — one-shot, or `getdesign chat` for an interactive REPL                                   |
+| **TypeScript SDK** | `npm i getdesign` → `const { markdown, doc } = await getDesign(url)`                                            |
+| **Agent skill**    | `npx skills add MohtashamMurshid/getdesign` — runs inside Claude Code, Codex, Cursor using their built-in tools |
+
 
 See:
 
