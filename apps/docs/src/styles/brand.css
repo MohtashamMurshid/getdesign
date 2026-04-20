@@ -153,3 +153,166 @@ footer {
   border-top: 1px dashed var(--gd-faint);
   color: var(--gd-muted);
 }
+
+/* --------------------------------------------------------------------------
+ * Buttons — match the landing page (.btn-primary / .btn-ghost / .btn-accent)
+ * Starlight's <LinkButton> renders .sl-link-button with primary|secondary|minimal.
+ * We restyle those variants (plus hero .actions a, pagination, EditLink) so
+ * every CTA in the docs looks identical to the marketing site.
+ * ------------------------------------------------------------------------ */
+.sl-link-button,
+.hero .actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.25rem;
+  padding: 0 0.9rem;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+@media (min-width: 50rem) {
+  .sl-link-button,
+  .hero .actions a {
+    height: 2.5rem;
+    padding: 0 1.05rem;
+    font-size: 13.5px;
+  }
+}
+
+.sl-link-button:hover,
+.hero .actions a:hover {
+  transform: translateY(-1px);
+}
+
+/* Primary = marketing .btn-primary (solid foreground on dark) */
+.sl-link-button.primary,
+.hero .actions a.primary {
+  background: var(--gd-foreground);
+  color: var(--gd-background) !important;
+  border-color: var(--gd-foreground);
+}
+.sl-link-button.primary:hover,
+.hero .actions a.primary:hover {
+  filter: brightness(0.92);
+  background: var(--gd-foreground);
+  color: var(--gd-background) !important;
+}
+
+/* Secondary = marketing .btn-ghost (transparent, strong border) */
+.sl-link-button.secondary,
+.hero .actions a.secondary {
+  background: transparent;
+  color: var(--gd-foreground) !important;
+  border-color: var(--gd-border-strong);
+}
+.sl-link-button.secondary:hover,
+.hero .actions a.secondary:hover {
+  background: var(--gd-surface-200);
+  border-color: var(--gd-border-strong);
+  color: var(--gd-foreground) !important;
+}
+
+/* Minimal = naked link with accent caret, matches in-copy CTAs */
+.sl-link-button.minimal,
+.hero .actions a.minimal {
+  background: transparent;
+  color: var(--gd-foreground) !important;
+  border-color: transparent;
+  padding-inline: 0;
+  height: auto;
+}
+.sl-link-button.minimal:hover,
+.hero .actions a.minimal:hover {
+  color: var(--gd-accent) !important;
+  transform: none;
+}
+
+/* Normalize the icon size inside buttons — Starlight defaults to 1.5rem */
+.sl-link-button svg,
+.hero .actions a svg {
+  width: 0.95em;
+  height: 0.95em;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+ * Cards / LinkCards — tighten corners + align with surface tokens
+ * ------------------------------------------------------------------------ */
+.sl-link-card,
+.card {
+  border-radius: 10px !important;
+  border: 1px solid var(--gd-border) !important;
+  background: var(--gd-surface-100) !important;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+.sl-link-card:hover,
+.card:hover {
+  border-color: var(--gd-border-strong) !important;
+  background: var(--gd-surface-200) !important;
+  transform: translateY(-1px);
+}
+
+/* Pagination links at the bottom of doc pages */
+.pagination-links a {
+  border-radius: 10px !important;
+  border-color: var(--gd-border) !important;
+  background: var(--gd-surface-100) !important;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+.pagination-links a:hover {
+  border-color: var(--gd-border-strong) !important;
+  background: var(--gd-surface-200) !important;
+  transform: translateY(-1px);
+}
+
+/* "Edit page" / "Last updated" footer actions */
+.sl-markdown-content a[rel~="nofollow"][href*="github.com"],
+.meta a {
+  color: var(--gd-muted);
+}
+.sl-markdown-content a[rel~="nofollow"][href*="github.com"]:hover,
+.meta a:hover {
+  color: var(--gd-foreground);
+}
+
+/* Focus ring across interactive elements echoes the accent */
+.sl-link-button:focus-visible,
+.sl-link-card:focus-visible,
+.pagination-links a:focus-visible,
+.hero .actions a:focus-visible {
+  outline: 2px solid var(--gd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-link-button,
+  .hero .actions a,
+  .sl-link-card,
+  .pagination-links a {
+    transition: none;
+  }
+  .sl-link-button:hover,
+  .hero .actions a:hover,
+  .sl-link-card:hover,
+  .pagination-links a:hover {
+    transform: none;
+  }
+}
