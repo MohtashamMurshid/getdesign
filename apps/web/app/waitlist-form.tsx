@@ -42,53 +42,50 @@ export default function WaitlistForm({
   const compact = variant === "compact";
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className={
-        compact
-          ? "flex w-full max-w-md items-stretch gap-0 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-100)] p-1"
-          : "mx-auto flex w-full max-w-md items-stretch gap-0 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-100)] p-1"
-      }
-    >
-      <div className="flex flex-1 items-center gap-2 px-3">
-        <span className="text-xs text-[var(--accent)]">{">"}</span>
-        <input
-          type="email"
-          autoComplete="email"
-          spellCheck={false}
-          placeholder="you@domain.com"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            if (status !== "idle") setStatus("idle");
-          }}
-          disabled={status === "loading"}
-          className="h-10 w-full bg-transparent text-[14px] text-foreground placeholder:text-[var(--subtle)] focus:outline-none disabled:opacity-60"
-          aria-label="Email address"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={status === "loading" || status === "success"}
-        className="btn-accent inline-flex h-10 items-center rounded-md px-4 text-[13px] font-medium disabled:opacity-70"
+    <div className={compact ? "w-full max-w-md" : "mx-auto w-full max-w-md"}>
+      <form
+        onSubmit={onSubmit}
+        className="flex items-stretch gap-0 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-100)] p-1"
       >
-        {status === "loading"
-          ? "Joining…"
-          : status === "success"
-          ? "Joined ✓"
-          : "Join waitlist"}
-      </button>
-
+        <div className="flex flex-1 items-center gap-2 px-3">
+          <span className="font-mono text-xs text-[var(--accent)]">{">"}</span>
+          <input
+            type="email"
+            autoComplete="email"
+            spellCheck={false}
+            placeholder="you@domain.com"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (status !== "idle") setStatus("idle");
+            }}
+            disabled={status === "loading"}
+            className="h-9 w-full bg-transparent text-[13.5px] text-foreground placeholder:text-[var(--subtle)] focus:outline-none disabled:opacity-60"
+            aria-label="Email address"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={status === "loading" || status === "success"}
+          className="btn-primary inline-flex h-9 items-center rounded-md px-4 text-[12.5px] font-medium disabled:opacity-70"
+        >
+          {status === "loading"
+            ? "Joining…"
+            : status === "success"
+            ? "Joined ✓"
+            : "Join waitlist"}
+        </button>
+      </form>
       {message ? (
         <div
-          className={`absolute mt-12 text-xs ${
-            status === "error" ? "text-[#ff6d7a]" : "text-[var(--accent)]"
+          className={`mt-2 text-[11.5px] ${
+            status === "error" ? "text-[#f87171]" : "text-[var(--accent)]"
           }`}
           role="status"
         >
           {message}
         </div>
       ) : null}
-    </form>
+    </div>
   );
 }

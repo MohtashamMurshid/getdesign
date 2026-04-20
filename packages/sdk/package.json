@@ -1,0 +1,53 @@
+{
+  "name": "@getdesign/sdk",
+  "version": "0.0.1",
+  "description": "getdesign — the design system for any URL (TypeScript SDK). Coming soon.",
+  "keywords": [
+    "design-system",
+    "design.md",
+    "design-tokens",
+    "css",
+    "scraper",
+    "sdk",
+    "typescript",
+    "agent",
+    "getdesign"
+  ],
+  "homepage": "https://getdesign.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getdesign/getdesign.git"
+  },
+  "bugs": {
+    "url": "https://github.com/getdesign/getdesign/issues"
+  },
+  "license": "MIT",
+  "author": "getdesign",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

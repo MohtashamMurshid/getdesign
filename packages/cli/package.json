@@ -1,0 +1,41 @@
+{
+  "name": "@getdesign/cli",
+  "version": "0.0.1",
+  "description": "getdesign — the design system for any URL (CLI). Coming soon.",
+  "keywords": [
+    "design-system",
+    "design.md",
+    "design-tokens",
+    "css",
+    "scraper",
+    "cli",
+    "agent",
+    "getdesign"
+  ],
+  "homepage": "https://getdesign.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getdesign/getdesign.git"
+  },
+  "bugs": {
+    "url": "https://github.com/getdesign/getdesign/issues"
+  },
+  "license": "MIT",
+  "author": "getdesign",
+  "type": "module",
+  "bin": {
+    "getdesign": "./bin/getdesign.mjs"
+  },
+  "main": "./bin/getdesign.mjs",
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
