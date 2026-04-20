@@ -12,6 +12,8 @@ Changes that affect the public surfaces (HTTP API, `getdesign` npm package, `get
 
 ### Added
 
+- **[tools]** `@getdesign/tools` now ships concrete `crawler`, `extractors`, `render`, and `daytona` modules with deterministic URL/CSS resolution, token extraction, markdown rendering, and typed Daytona helpers.
+- **[infra]** `infra/daytona/Dockerfile` and `infra/daytona/README.md` define the first in-repo Daytona snapshot for Chromium + computer-use flows.
 - **[skill]** New fifth surface: portable `SKILL.md` at `skills/getdesign/` that reproduces the 9-section `design.md` contract using any coding agent's built-in tools (WebFetch, browser, file write). Installable via `npx skills add MohtashamMurshid/getdesign`.
 - **[skill]** `skills/getdesign/TEMPLATE.md` — field-by-field schema for each of the 9 sections, with example tables and a truncated worked example.
 - **[skill]** `skills/README.md` — overview, install commands, and link to the [skills.sh](https://skills.sh) leaderboard.
