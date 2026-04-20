@@ -1,16 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #000000;
-  --surface-100: #0a0a0a;
-  --surface-200: #111111;
-  --surface-300: #161616;
-  --foreground: #ededed;
-  --muted: rgba(237, 237, 237, 0.5);
-  --subtle: rgba(237, 237, 237, 0.28);
+  --background: #05080a;
+  --surface-100: #0a0f0d;
+  --surface-200: #0e1512;
+  --surface-300: #121a17;
+  --foreground: #e8f0ea;
+  --muted: rgba(232, 240, 234, 0.55);
+  --subtle: rgba(232, 240, 234, 0.35);
   --accent: #34e5a1;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.14);
+  --accent-dim: #1f8f67;
+  --accent-glow: rgba(52, 229, 161, 0.25);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.18);
 }
 
 @theme inline {
@@ -22,6 +24,7 @@
   --color-muted: var(--muted);
   --color-subtle: var(--subtle);
   --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --font-mono: var(--font-jetbrains-mono);
@@ -35,50 +38,114 @@ body {
     Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "ss02", "cv01";
 }
 
 *::selection {
   background: var(--accent);
-  color: #04110a;
+  color: var(--background);
+}
+
+/* Diagonal stripe separator (under nav) */
+.stripe-band {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0,
+    transparent 6px,
+    rgba(255, 255, 255, 0.06) 6px,
+    rgba(255, 255, 255, 0.06) 7px
+  );
+}
+
+/* Fine dotted grid for hero */
+.dot-grid {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    rgba(255, 255, 255, 0.06) 1px,
+    transparent 0
+  );
+  background-size: 24px 24px;
+}
+
+/* Radial glow behind headline */
+.glow-accent {
+  background: radial-gradient(
+    60% 50% at 50% 50%,
+    var(--accent-glow) 0%,
+    transparent 70%
+  );
 }
 
 .display-hero {
-  font-size: clamp(38px, 7.5vw, 84px);
+  font-size: clamp(36px, 7.5vw, 84px);
   line-height: 1.02;
   letter-spacing: -0.04em;
   font-weight: 500;
 }
 
 .display-md {
-  font-size: clamp(22px, 3vw, 30px);
+  font-size: clamp(22px, 3vw, 32px);
   line-height: 1.15;
   letter-spacing: -0.02em;
   font-weight: 500;
+}
+
+.caret::after {
+  content: "▍";
+  color: var(--accent);
+  margin-left: 2px;
+  animation: blink 1.1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
 }
 
 .btn-accent {
   background: var(--accent);
   color: #04110a;
   border: 1px solid var(--accent);
-  transition: filter 0.15s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
 }
 .btn-accent:hover {
-  filter: brightness(1.08);
+  box-shadow: 0 0 0 6px var(--accent-glow);
+  filter: brightness(1.05);
 }
 
 .btn-ghost {
-  background: transparent;
+  background: var(--surface-200);
   color: var(--foreground);
   border: 1px solid var(--border-strong);
 }
 .btn-ghost:hover {
-  background: var(--surface-200);
+  background: var(--surface-300);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  svg *,
-  .animated {
-    animation: none !important;
-    transition: none !important;
-  }
+.scanline-card {
+  position: relative;
+}
+.scanline-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.02) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+  animation: progress 3.2s ease-in-out infinite;
+}
+@keyframes progress {
+  0% { width: 12%; }
+  50% { width: 82%; }
+  100% { width: 12%; }
 }

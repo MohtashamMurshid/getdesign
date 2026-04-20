@@ -4,7 +4,11 @@ import { useState } from "react";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export default function WaitlistForm() {
+export default function WaitlistForm({
+  variant = "hero",
+}: {
+  variant?: "hero" | "compact";
+}) {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -35,13 +39,19 @@ export default function WaitlistForm() {
     }
   }
 
+  const compact = variant === "compact";
+
   return (
     <form
       onSubmit={onSubmit}
-      className="mx-auto flex w-full max-w-md items-stretch gap-0 rounded-lg border border-border bg-surface-100 p-1"
+      className={
+        compact
+          ? "flex w-full max-w-md items-stretch gap-0 rounded-lg border border-[var(--border-strong)] bg-[var(--surface-100)] p-1"
+          : "mx-auto flex w-full max-w-md items-stretch gap-0 rounded-xl border border-[var(--border-strong)] bg-[var(--surface-100)] p-1"
+      }
     >
       <div className="flex flex-1 items-center gap-2 px-3">
-        <span className="text-xs text-subtle">{">"}</span>
+        <span className="text-xs text-[var(--accent)]">{">"}</span>
         <input
           type="email"
           autoComplete="email"
@@ -53,7 +63,7 @@ export default function WaitlistForm() {
             if (status !== "idle") setStatus("idle");
           }}
           disabled={status === "loading"}
-          className="h-10 w-full bg-transparent text-[14px] text-foreground placeholder:text-subtle focus:outline-none disabled:opacity-60"
+          className="h-10 w-full bg-transparent text-[14px] text-foreground placeholder:text-[var(--subtle)] focus:outline-none disabled:opacity-60"
           aria-label="Email address"
         />
       </div>
@@ -72,7 +82,7 @@ export default function WaitlistForm() {
       {message ? (
         <div
           className={`absolute mt-12 text-xs ${
-            status === "error" ? "text-[#ff6d7a]" : "text-accent"
+            status === "error" ? "text-[#ff6d7a]" : "text-[var(--accent)]"
           }`}
           role="status"
         >
