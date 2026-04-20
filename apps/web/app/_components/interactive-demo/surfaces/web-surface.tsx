@@ -8,7 +8,7 @@ type WebSurfaceProps = {
 
 export function WebSurface({ site, visibleSteps, done }: WebSurfaceProps) {
   return (
-    <div className="code-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 text-[13px]">
+    <div className="space-y-4 px-4 py-4 text-[13px]">
       <div className="fade-in-up flex justify-end">
         <div className="max-w-[78%] rounded-lg rounded-br-sm border border-[var(--border)] bg-[var(--surface-200)] px-3 py-2 text-foreground">
           Extract the design system from{" "}

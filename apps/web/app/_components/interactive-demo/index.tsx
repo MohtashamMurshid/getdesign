@@ -22,6 +22,12 @@ export default function InteractiveDemo() {
   });
 
   useEffect(() => {
+    restart();
+    // Replay the agent trace whenever the user switches site or surface.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId, surface]);
+
+  useEffect(() => {
     const scrollOptions: ScrollToOptions = {
       top: Number.MAX_SAFE_INTEGER,
       behavior: "smooth",
@@ -37,7 +43,7 @@ export default function InteractiveDemo() {
       : CHROME_LABELS[surface];
 
   return (
-    <div className="grid items-stretch gap-5 lg:h-[560px] lg:grid-cols-[1.15fr_1fr]">
+    <div className="grid items-stretch gap-5 lg:h-[560px] lg:grid-cols-[1.7fr_1fr]">
       <div className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-100)]">
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-200)] px-3 py-2.5">
           <div className="flex items-center gap-1.5">
@@ -73,11 +79,14 @@ export default function InteractiveDemo() {
                     }`}
                   >
                     <span
-                      className={`flex h-5 w-5 items-center justify-center rounded-[4px] text-[10px] font-medium ${
-                        isActive
-                          ? "bg-[var(--accent)] text-black"
-                          : "bg-[var(--surface-300)] text-muted"
-                      }`}
+                      aria-hidden="true"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] p-[3px] transition-colors"
+                      style={{
+                        color: entry.brandColor,
+                        backgroundColor: isActive
+                          ? `color-mix(in srgb, ${entry.brandColor} 18%, transparent)`
+                          : "var(--surface-300)",
+                      }}
                     >
                       {entry.favicon}
                     </span>

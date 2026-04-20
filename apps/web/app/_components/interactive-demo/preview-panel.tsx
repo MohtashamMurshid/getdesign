@@ -40,7 +40,10 @@ export function PreviewPanel({
         <span className="text-[11px] text-[var(--subtle)]">design.md</span>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1">
+      <div
+        ref={scrollRef}
+        className="code-scroll min-h-0 flex-1 overflow-y-auto"
+      >
         {surface === "web" ? (
           <WebSurface site={site} visibleSteps={visibleSteps} done={done} />
         ) : null}

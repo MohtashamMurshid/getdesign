@@ -8,19 +8,19 @@ type ApiSurfaceProps = {
 
 export function ApiSurface({ site, visibleSteps, done }: ApiSurfaceProps) {
   return (
-    <div className="code-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-[12.5px] leading-relaxed">
+    <div className="px-4 py-4 font-mono text-[12.5px] leading-relaxed">
       <div className="fade-in-up">
         <div className="text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
           request
         </div>
-        <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-foreground">
+        <pre className="m-0 mt-2 whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 font-mono text-[12.5px] leading-relaxed text-foreground">
           <span className="tok-key">GET</span>{" "}
           <span className="tok-str">
             https://api.getdesign.app/?url={site.url}
           </span>
           {"\n"}
           <span className="tok-com">Accept: text/markdown</span>
-        </div>
+        </pre>
       </div>
 
       {visibleSteps >= 2 ? (
@@ -31,7 +31,7 @@ export function ApiSurface({ site, visibleSteps, done }: ApiSurfaceProps) {
               {done ? "200 OK" : "200 streaming"}
             </span>
           </div>
-          <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-muted">
+          <pre className="m-0 mt-2 whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 font-mono text-[12.5px] leading-relaxed text-muted">
             <span className="tok-com"># {site.url}</span>
             {"\n\n"}
             {visibleSteps >= 2 ? (
@@ -65,7 +65,7 @@ export function ApiSurface({ site, visibleSteps, done }: ApiSurfaceProps) {
               <span className="tok-com">{"\n"}… +5 sections · 14.3KB total</span>
             ) : null}
             <span className="caret" />
-          </div>
+          </pre>
         </div>
       ) : null}
     </div>

@@ -8,7 +8,7 @@ type CliSurfaceProps = {
 
 export function CliSurface({ site, visibleSteps, done }: CliSurfaceProps) {
   return (
-    <div className="code-scroll min-h-0 flex-1 overflow-y-auto bg-[var(--background)] px-4 py-4 font-mono text-[12.5px] leading-relaxed">
+    <div className="bg-[var(--background)] px-4 py-4 font-mono text-[12.5px] leading-relaxed">
       <div className="fade-in-up">
         <span className="text-[var(--accent)]">$</span>{" "}
         <span className="text-foreground">npx @getdesign/cli {site.url}</span>
@@ -42,7 +42,7 @@ export function CliSurface({ site, visibleSteps, done }: CliSurfaceProps) {
       ) : null}
 
       {visibleSteps >= 7 ? (
-        <div className="fade-in-up mt-3 text-foreground">
+        <pre className="fade-in-up m-0 mt-3 whitespace-pre-wrap break-words font-mono text-[12.5px] leading-relaxed text-foreground">
           <span className="tok-key"># {site.url}</span>
           {"\n"}
           <span className="text-muted">
@@ -52,7 +52,7 @@ export function CliSurface({ site, visibleSteps, done }: CliSurfaceProps) {
             {site.palette.map((color) => `- ${color}\n`).join("")}
           </span>
           <span className="caret" />
-        </div>
+        </pre>
       ) : null}
 
       {done ? (

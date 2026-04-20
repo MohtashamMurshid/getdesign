@@ -1,10 +1,17 @@
+import {
+  SiCursor,
+  SiLinear,
+  SiStripe,
+} from "@icons-pack/react-simple-icons";
+
 import type { Site, Step, Surface } from "./types";
 
 export const SITES: Site[] = [
   {
     id: "cursor",
     url: "cursor.com",
-    favicon: "C",
+    favicon: <SiCursor className="h-full w-full" />,
+    brandColor: "#ededed",
     theme: "Warm minimalism meets code-editor elegance",
     palette: ["#f2f1ed", "#26251e", "#f54e00", "#cf2d56"],
     fonts: ["CursorGothic Display", "Berkeley Mono"],
@@ -13,7 +20,8 @@ export const SITES: Site[] = [
   {
     id: "linear",
     url: "linear.app",
-    favicon: "L",
+    favicon: <SiLinear className="h-full w-full" />,
+    brandColor: "#5E6AD2",
     theme: "Hyper-precise dark UI with signal-gradient accents",
     palette: ["#0a0a0b", "#e6e6e8", "#5e6ad2", "#ff4d6d"],
     fonts: ["Inter Display", "Berkeley Mono"],
@@ -22,7 +30,8 @@ export const SITES: Site[] = [
   {
     id: "stripe",
     url: "stripe.com",
-    favicon: "S",
+    favicon: <SiStripe className="h-full w-full" />,
+    brandColor: "#635BFF",
     theme: "Bright, confident, dense information architecture",
     palette: ["#ffffff", "#0a2540", "#635bff", "#00d4ff"],
     fonts: ["Sohne", "Sohne Mono"],

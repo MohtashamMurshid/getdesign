@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 export type Site = {
   id: string;
   url: string;
-  favicon: string;
+  favicon: ReactNode;
+  brandColor: string;
   theme: string;
   palette: string[];
   fonts: [string, string];
