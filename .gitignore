@@ -1,0 +1,15 @@
+node_modules
+.turbo
+.next
+dist
+build
+out
+.DS_Store
+*.log
+.env
+.env.local
+.env.*.local
+bun.lockb.txt
+.vercel
+coverage
+.convex

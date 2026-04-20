@@ -1,0 +1,26 @@
+---
+description: How to add and manage dependencies in this monorepo
+alwaysApply: true
+---
+
+# Dependency Management
+
+- Use `bun add <pkg>` / `bun add -d <pkg>` / `bun add -D <pkg>` to add deps. Never hand-edit `package.json` `dependencies` / `devDependencies`.
+- In workspaces, add deps to a specific package with `bun add <pkg> --filter <pkgName>` or `cd <pkg-dir> && bun add <pkg>`.
+- Workspace links use `"workspace:*"`; add them via `bun add <internal-pkg>@workspace:*`.
+- Always use **Zod v4** (`zod@^4`). Do not install `zod@3`.
+- Use `bun install` (not `npm i` / `pnpm i` / `yarn`) at the repo root.
+- After installing, commit `bun.lock` (not `bun.lockb`).
+
+## Examples
+
+```bash
+# Root dev dep
+bun add -d turbo typescript
+
+# Scoped to a workspace package
+bun add zod --filter @getdesign/types
+
+# Workspace link
+bun add @getdesign/types@workspace:* --filter @getdesign/tools
+```
