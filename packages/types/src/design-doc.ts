@@ -49,7 +49,7 @@ export const buttonStyleSchema = z
 const namedComponentStyleSchema = z
   .object({
     description: markdownParagraphSchema,
-    tokens: markdownListSchema.default([]),
+    tokens: markdownListSchema,
   })
   .strict();
 

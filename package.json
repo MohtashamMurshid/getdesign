@@ -11,7 +11,8 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "postinstall": "bun run --cwd ./packages/types build"
   },
   "packageManager": "bun@1.3.10",
   "engines": {

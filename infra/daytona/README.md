@@ -16,8 +16,7 @@ Build and publish from a machine that has the Daytona CLI configured:
 
 ```bash
 docker build -t getdesign-daytona-snapshot infra/daytona
-daytona snapshot create getdesign-local --image getdesign-daytona-snapshot
-daytona snapshot push getdesign-local getdesign-<sha>
+daytona snapshot push getdesign-daytona-snapshot --name getdesign-<sha>
 ```
 
 The runtime code in `packages/tools/src/daytona` expects the published snapshot

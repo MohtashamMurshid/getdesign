@@ -64,6 +64,10 @@ function assertNonEmptyText(value: string, label: string): void {
   }
 }
 
+function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 function normalizeScreenshotResponse(
   response: DaytonaScreenshotResponse,
 ): ScreenshotArtifact {
@@ -174,26 +178,47 @@ export async function daytonaScreenshotFullPage(
     throw new Error("Expected at least one full-page screenshot tile.");
   }
 
-  const metadata = await sharp(Buffer.from(firstTile.imageBase64, "base64"))
-    .metadata();
-  const width = metadata.width;
-  const tileHeight = metadata.height;
+  const preparedTiles = await Promise.all(
+    tiles.map(async (tile) => {
+      const buffer = Buffer.from(tile.imageBase64, "base64");
+      const metadata = await sharp(buffer).metadata();
 
-  if (!width || !tileHeight) {
-    throw new Error("Unable to determine screenshot tile dimensions.");
+      if (!metadata.width || !metadata.height) {
+        throw new Error("Unable to determine screenshot tile dimensions.");
+      }
+
+      return {
+        ...tile,
+        buffer,
+        width: metadata.width,
+        height: metadata.height,
+      };
+    }),
+  );
+
+  const width = firstTile.width ?? preparedTiles[0]?.width;
+  if (!width) {
+    throw new Error("Unable to determine screenshot tile width.");
   }
 
-  const totalHeight = Math.max(
-    ...tiles.map((tile) => tile.offsetY + tileHeight),
-  );
+  for (const tile of preparedTiles) {
+    if (tile.width !== width) {
+      throw new Error("Full-page screenshot tiles must all share the same width.");
+    }
+  }
 
-  const compositeInput = await Promise.all(
-    tiles.map(async (tile) => ({
-      input: Buffer.from(tile.imageBase64, "base64"),
-      top: tile.offsetY,
-      left: 0,
-    })),
+  const dedupedTiles = preparedTiles.filter((tile, index, allTiles) => (
+    index === 0 || tile.imageBase64 !== allTiles[index - 1]?.imageBase64
+  ));
+
+  const totalHeight = Math.max(
+    ...dedupedTiles.map((tile) => tile.offsetY + tile.height),
   );
+  const compositeInput = dedupedTiles.map((tile) => ({
+    input: tile.buffer,
+    top: tile.offsetY,
+    left: 0,
+  }));
 
   const stitched = await sharp({
     create: {
@@ -238,15 +263,19 @@ export function daytonaOpenUrlCommand(
   options: OpenUrlOptions = {},
 ): string {
   const parsed = new URL(url);
+  if (parsed.protocol !== "https:") {
+    throw new Error(`Unsupported URL protocol: ${parsed.protocol}`);
+  }
+
   const chromiumBinary = options.chromiumBinary ?? "chromium";
   const display = options.display ?? ":1";
   const flags = [...DEFAULT_CHROMIUM_FLAGS, ...(options.extraFlags ?? [])];
-  const quotedUrl = JSON.stringify(parsed.toString());
+  const quotedUrl = shellSingleQuote(parsed.toString());
 
   return [
-    `DISPLAY=${display}`,
-    chromiumBinary,
-    ...flags,
+    `DISPLAY=${shellSingleQuote(display)}`,
+    shellSingleQuote(chromiumBinary),
+    ...flags.map(shellSingleQuote),
     quotedUrl,
   ].join(" ");
 }

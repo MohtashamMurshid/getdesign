@@ -5,6 +5,7 @@ import {
   crawlSite,
   daytonaOpenUrlCommand,
   buildSnapshotTag,
+  deriveSiteName,
   extractDesignTokens,
   renderDesignMd,
 } from "../src";
@@ -60,6 +61,40 @@ test("crawlSite resolves linked stylesheets and inline style blocks", async () =
   assert.equal(crawl.stylesheets.length, 3);
   assert.ok(crawl.stylesheets.some((asset) => asset.kind === "imported"));
   assert.ok(crawl.stylesheets.some((asset) => asset.kind === "inline"));
+});
+
+test("crawlSite blocks redirects to private targets", async () => {
+  await assert.rejects(
+    () =>
+      crawlSite({
+        url: "https://example.com",
+        fetch: async (url, init) => {
+          assert.equal(init?.redirect, "manual");
+          assert.equal(url, "https://example.com");
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: "https://127.0.0.1/private.css",
+            },
+          });
+        },
+      }),
+    /Blocked redirect target/,
+  );
+});
+
+test("deriveSiteName falls back when the cleaned title is empty", () => {
+  const html = `
+    <html>
+      <head><title>| Example</title></head>
+      <body></body>
+    </html>
+  `;
+
+  assert.equal(
+    deriveSiteName(html, "https://www.example.com"),
+    "example.com",
+  );
 });
 
 test("extractDesignTokens derives a grounded token set", () => {
@@ -131,6 +166,50 @@ test("extractDesignTokens derives a grounded token set", () => {
   assert.equal(tokens.breakpoints[0]?.minWidth, "1024px");
 });
 
+test("extractDesignTokens merges repeated font-face weights and preserves inline stylesheet sources", () => {
+  const tokens = extractDesignTokens({
+    sourceUrl: "https://example.com",
+    html: "<html><head><title>Example</title></head><body></body></html>",
+    stylesheets: [
+      {
+        kind: "linked",
+        source: "https://example.com/styles.css",
+        url: "https://example.com/styles.css",
+        content: `
+          @font-face {
+            font-family: "Inter";
+            src: url("/fonts/inter-regular.woff2") format("woff2");
+            font-weight: 400;
+          }
+
+          @font-face {
+            font-family: "Inter";
+            src: url("/fonts/inter-bold.woff2") format("woff2");
+            font-weight: 700;
+          }
+        `,
+      },
+      {
+        kind: "inline",
+        source: "inline-style-1",
+        content: `
+          body {
+            font-family: Inter, sans-serif;
+            font-size: 16px;
+            color: #111111;
+          }
+        `,
+      },
+    ],
+  });
+
+  assert.deepEqual(tokens.sources, [
+    "https://example.com/styles.css",
+    "https://example.com",
+  ]);
+  assert.deepEqual(tokens.typography.fontFamilies[0]?.weights, ["400", "700"]);
+});
+
 test("renderDesignMd outputs the required 9 sections in order", () => {
   const markdown = renderDesignMd({
     siteName: "Example",
@@ -153,7 +232,7 @@ test("renderDesignMd outputs the required 9 sections in order", () => {
       groups: [
         {
           heading: "Primary",
-          entries: [{ hex: "#0A0A0A", role: "Surface base", whereSeen: "body" }],
+          entries: [{ hex: "#0A0A0A", role: "Surface | base", whereSeen: "body\nhero" }],
         },
       ],
       notes: "Accent is reserved for buttons and active states.",
@@ -216,7 +295,7 @@ test("renderDesignMd outputs the required 9 sections in order", () => {
     },
     agentPromptGuide: {
       quickColorReference: [
-        "#0A0A0A // surface-base",
+        "#0A0A0A // surface ``` base",
         "#16171B // surface-raised",
         "#5E6AD2 // accent-primary",
         "#FAFAFA // text-inverse",
@@ -254,14 +333,19 @@ test("renderDesignMd outputs the required 9 sections in order", () => {
   }
 
   assert.ok(markdown.indexOf(headings[0]) < markdown.indexOf(headings[8]));
+  assert.ok(markdown.includes("Surface \\| base"));
+  assert.ok(markdown.includes("body hero"));
+  assert.match(markdown, /`\u200B``/u);
 });
 
 test("daytonaOpenUrlCommand quotes the target URL", () => {
   const command = daytonaOpenUrlCommand(
-    "https://example.com/path?utm=1&name=test",
+    "https://example.com/path?utm=1&name=$(id)",
   );
 
   assert.ok(command.includes("chromium"));
-  assert.ok(command.includes("\"https://example.com/path?utm=1&name=test\""));
+  assert.ok(command.includes("DISPLAY=':1'"));
+  assert.ok(command.includes("'https://example.com/path?utm=1&name=$(id)'"));
+  assert.ok(!command.includes("\"https://example.com/path?utm=1&name=$(id)\""));
   assert.equal(buildSnapshotTag("ac10286"), "getdesign-ac10286");
 });

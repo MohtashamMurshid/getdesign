@@ -5,10 +5,10 @@
  * Private beta. Join the waitlist at https://getdesign.app
  */
 
-import type { DesignDoc, DesignTokens } from "@getdesign/types";
+import type { RenderedDesignResult } from "@getdesign/types";
 
 export const version = "0.0.1";
-export type { DesignDoc, DesignTokens } from "@getdesign/types";
+export type { DesignDoc, DesignTokens, RenderedDesignResult } from "@getdesign/types";
 
 export type GetDesignOptions = {
   /** Target viewport width for the screenshot pass. */
@@ -17,12 +17,7 @@ export type GetDesignOptions = {
   apiKey?: string;
 };
 
-export type GetDesignResult = {
-  markdown: string;
-  doc: DesignDoc;
-  runId: string;
-  tokens?: DesignTokens;
-};
+export type GetDesignResult = RenderedDesignResult;
 
 /**
  * Placeholder. The real implementation is in private beta.

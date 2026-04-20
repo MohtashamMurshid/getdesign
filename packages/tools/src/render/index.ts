@@ -12,38 +12,56 @@ function joinLines(lines: string[]): string {
   return `${lines.join(EOL).trimEnd()}${EOL}`;
 }
 
+function escapeInlineMarkdown(value: string): string {
+  return value
+    .replace(/`/g, "\\`")
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapeTableCell(value: string): string {
+  return escapeInlineMarkdown(value).replace(/\|/g, "\\|");
+}
+
+function escapeFenceText(value: string): string {
+  return value
+    .replace(/```/g, "`\u200B``")
+    .replace(/\r?\n/g, " ");
+}
+
 function renderColorGroup(group: ColorPaletteGroup): string[] {
   return [
-    `### ${group.heading}`,
+    `### ${escapeInlineMarkdown(group.heading)}`,
     "| Hex | Role | Where seen |",
     "| --- | --- | --- |",
     ...group.entries.map(
       (entry) =>
-        `| \`${entry.hex}\` | ${entry.role} | ${entry.whereSeen} |`,
+        `| \`${entry.hex}\` | ${escapeTableCell(entry.role)} | ${escapeTableCell(entry.whereSeen)} |`,
     ),
     "",
   ];
 }
 
 function renderTypographyRow(entry: TypographyHierarchyEntry): string {
-  return `| ${entry.role} | ${entry.font} | ${entry.size} | ${entry.weight} | ${entry.lineHeight} | ${entry.letterSpacing} |`;
+  return `| ${escapeTableCell(entry.role)} | ${escapeTableCell(entry.font)} | ${escapeTableCell(entry.size)} | ${escapeTableCell(entry.weight)} | ${escapeTableCell(entry.lineHeight)} | ${escapeTableCell(entry.letterSpacing)} |`;
 }
 
 function renderButton(button: ButtonStyle): string[] {
   return [
-    `- **${button.variant}** — background: ${button.background}; text: ${button.textColor}; border: ${button.border}; radius: ${button.radius}; padding: ${button.padding}; hover: ${button.hoverShift}`,
+    `- **${escapeInlineMarkdown(button.variant)}** — background: ${escapeInlineMarkdown(button.background)}; text: ${escapeInlineMarkdown(button.textColor)}; border: ${escapeInlineMarkdown(button.border)}; radius: ${escapeInlineMarkdown(button.radius)}; padding: ${escapeInlineMarkdown(button.padding)}; hover: ${escapeInlineMarkdown(button.hoverShift)}`,
   ];
 }
 
 function renderBullets(items: string[]): string[] {
-  return items.map((item) => `- ${item}`);
+  return items.map((item) => `- ${escapeInlineMarkdown(item)}`);
 }
 
 export function renderDesignMd(input: DesignDoc): string {
   const doc = designDocSchema.parse(input);
 
   const lines: string[] = [
-    `# ${doc.siteName} Design System`,
+    `# ${escapeInlineMarkdown(doc.siteName)} Design System`,
     "",
     "## 1. Visual Theme & Atmosphere",
     "",
@@ -95,7 +113,7 @@ export function renderDesignMd(input: DesignDoc): string {
     "",
     "### Distinctive",
     ...doc.components.distinctive.flatMap((component) => [
-      `- **${component.name}** — ${component.description}`,
+      `- **${escapeInlineMarkdown(component.name)}** — ${escapeInlineMarkdown(component.description)}`,
     ]),
     "",
     "## 5. Layout Principles",
@@ -118,7 +136,7 @@ export function renderDesignMd(input: DesignDoc): string {
     "| Level | Use | Shadow |",
     "| --- | --- | --- |",
     ...doc.depth.levels.map(
-      (level) => `| ${level.level} | ${level.use} | \`${level.shadow}\` |`,
+      (level) => `| ${escapeTableCell(level.level)} | ${escapeTableCell(level.use)} | \`${escapeInlineMarkdown(level.shadow)}\` |`,
     ),
     "",
     "### Philosophy",
@@ -142,7 +160,7 @@ export function renderDesignMd(input: DesignDoc): string {
     "| --- | --- | --- |",
     ...doc.responsive.breakpoints.map(
       (breakpoint) =>
-        `| ${breakpoint.name} | ${breakpoint.minWidth} | ${breakpoint.primaryChanges} |`,
+        `| ${escapeTableCell(breakpoint.name)} | ${escapeTableCell(breakpoint.minWidth)} | ${escapeTableCell(breakpoint.primaryChanges)} |`,
     ),
     "",
     "### Touch Targets",
@@ -158,7 +176,7 @@ export function renderDesignMd(input: DesignDoc): string {
     "",
     "### Quick Color Reference",
     "```text",
-    ...doc.agentPromptGuide.quickColorReference,
+    ...doc.agentPromptGuide.quickColorReference.map(escapeFenceText),
     "```",
     "",
     "### Example Prompts",

@@ -2,20 +2,23 @@ import { load } from "cheerio";
 import { z } from "zod";
 
 const nonEmptyStringSchema = z.string().trim().min(1);
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
+const DEFAULT_MAX_REDIRECT_HOPS = 5;
+const DEFAULT_MAX_HTML_BYTES = 1_000_000;
 
 const crawlableUrlSchema = z.string().trim().url().superRefine((value, ctx) => {
   const parsed = new URL(value);
 
   if (parsed.protocol !== "https:") {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       message: "Only HTTPS URLs are supported.",
     });
   }
 
   if (isBlockedHostname(parsed.hostname)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       message: "Private, localhost, and link-local targets are not allowed.",
     });
   }
@@ -133,9 +136,13 @@ export function deriveSiteName(html: string, pageUrl: string): string {
     const normalized = candidate?.trim();
 
     if (normalized) {
-      return normalized
+      const cleaned = normalized
         .replace(/\s*[|·—-]\s*.*/u, "")
         .trim();
+
+      if (cleaned) {
+        return cleaned;
+      }
     }
   }
 
@@ -151,14 +158,21 @@ export async function crawlSite(input: CrawlSiteInput): Promise<CrawlSiteResult>
     throw new Error("A fetch implementation is required to crawl a URL.");
   }
 
-  const html = await fetchText(fetcher, parsedInput.url);
+  const html = await fetchText(fetcher, parsedInput.url, {
+    maxBytes: DEFAULT_MAX_HTML_BYTES,
+  });
   const linkedStylesheets = extractStylesheetUrls(html, parsedInput.url);
   const inlineStyles = extractInlineStyles(html);
   const stylesheets: CrawledStylesheet[] = [];
   const seenUrls = new Set<string>([parsedInput.url]);
 
   for (const stylesheetUrl of linkedStylesheets) {
-    const content = trimStylesheet(await fetchText(fetcher, stylesheetUrl), parsedInput.maxStylesheetBytes);
+    const content = trimStylesheet(
+      await fetchText(fetcher, stylesheetUrl, {
+        maxBytes: parsedInput.maxStylesheetBytes,
+      }),
+      parsedInput.maxStylesheetBytes,
+    );
 
     stylesheets.push({
       kind: "linked",
@@ -249,7 +263,12 @@ async function fetchImportedStylesheets(input: {
     }
 
     input.visited.add(importedUrl);
-    const content = trimStylesheet(await fetchText(input.fetcher, importedUrl), input.maxBytes);
+    const content = trimStylesheet(
+      await fetchText(input.fetcher, importedUrl, {
+        maxBytes: input.maxBytes,
+      }),
+      input.maxBytes,
+    );
 
     imported.push({
       kind: "imported",
@@ -272,14 +291,102 @@ async function fetchImportedStylesheets(input: {
   return imported;
 }
 
-async function fetchText(fetcher: typeof fetch, url: string): Promise<string> {
-  const response = await fetcher(url);
+async function fetchText(
+  fetcher: typeof fetch,
+  url: string,
+  options: {
+    maxBytes: number;
+    timeoutMs?: number;
+    maxRedirectHops?: number;
+  },
+): Promise<string> {
+  let currentUrl = validatePublicUrl(url);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  const maxRedirectHops = options.maxRedirectHops ?? DEFAULT_MAX_REDIRECT_HOPS;
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+  for (let hop = 0; hop <= maxRedirectHops; hop += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let response: Response;
+
+    try {
+      response = await fetcher(currentUrl, {
+        redirect: "manual",
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`Timed out fetching ${currentUrl} after ${timeoutMs}ms.`);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      const nextUrl = resolveCrawlableUrl(location ?? undefined, currentUrl);
+
+      if (!nextUrl) {
+        throw new Error(`Blocked redirect target while fetching ${currentUrl}.`);
+      }
+
+      currentUrl = nextUrl;
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${currentUrl}: ${response.status} ${response.statusText}`);
+    }
+
+    return await readResponseText(response, currentUrl, options.maxBytes);
   }
 
-  return await response.text();
+  throw new Error(`Too many redirects while fetching ${url}.`);
+}
+
+async function readResponseText(
+  response: Response,
+  url: string,
+  maxBytes: number,
+): Promise<string> {
+  if (!response.body) {
+    const text = await response.text();
+
+    if (Buffer.byteLength(text, "utf8") > maxBytes) {
+      throw new Error(`Response from ${url} exceeded ${maxBytes} bytes.`);
+    }
+
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    if (!value) {
+      continue;
+    }
+
+    totalBytes += value.byteLength;
+
+    if (totalBytes > maxBytes) {
+      await reader.cancel();
+      throw new Error(`Response from ${url} exceeded ${maxBytes} bytes.`);
+    }
+
+    chunks.push(value);
+  }
+
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString("utf8");
 }
 
 function trimStylesheet(content: string, maxBytes: number): string {
@@ -359,7 +466,9 @@ function isPrivateIpv4(hostname: string): boolean {
   }
 
   return (
+    first === 0 ||
     first === 10 ||
+    (first === 100 && second >= 64 && second <= 127) ||
     first === 127 ||
     (first === 169 && second === 254) ||
     (first === 172 && second >= 16 && second <= 31) ||

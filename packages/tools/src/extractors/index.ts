@@ -115,6 +115,10 @@ function normalizeStylesheetAssets(stylesheets: CrawledStylesheet[]): CrawledSty
   }));
 }
 
+function stylesheetSourceUrl(asset: CrawledStylesheet, sourceUrl: string): string {
+  return asset.url ?? sourceUrl;
+}
+
 function buildExtractorContext(input: {
   sourceUrl: string;
   siteName?: string;
@@ -360,11 +364,14 @@ function extractFontFamilies(root: Root): FontFamilyToken[] {
           ? "display"
           : "body";
 
+    const existing = fontMap.get(family);
+    const mergedWeights = [...new Set([...(existing?.weights ?? []), ...weights])];
+
     fontMap.set(family, {
       family,
-      role,
-      source: "@font-face",
-      weights,
+      role: existing?.role ?? role,
+      source: existing?.source ?? "@font-face",
+      weights: mergedWeights,
     });
   });
 
@@ -434,59 +441,46 @@ function inferTypeRole(rule: Rule, decl: Declaration): string {
 function extractTypographyScale(root: Root): TypeScaleToken[] {
   const tokens: TypeScaleToken[] = [];
   const seen = new Set<string>();
-  const ruleState = new WeakMap<Rule, Partial<TypeScaleToken>>();
 
   root.walkRules((rule) => {
-    ruleState.set(rule, {});
-  });
+    const current: Partial<TypeScaleToken> = {};
 
-  root.walkDecls((decl) => {
-    const parent = decl.parent;
-    if (parent?.type !== "rule") {
-      return;
-    }
+    rule.walkDecls((decl) => {
+      if (decl.prop === "font-family") {
+        current.weight ??= "400";
+        current.lineHeight ??= "normal";
+        current.letterSpacing ??= "normal";
+        current.source ??= declarationSource(decl);
+        current.role ??= inferTypeRole(rule, decl);
+        current.size ??= "16px";
+      }
+      if (decl.prop === "font-size") {
+        current.size = trimText(decl.value);
+        current.role = inferTypeRole(rule, decl);
+        current.source = declarationSource(decl);
+      }
+      if (decl.prop === "font-weight") {
+        current.weight = trimText(decl.value);
+      }
+      if (decl.prop === "line-height") {
+        current.lineHeight = trimText(decl.value);
+      }
+      if (decl.prop === "letter-spacing") {
+        current.letterSpacing = trimText(decl.value);
+      }
+    });
 
-    const rule = parent as Rule;
-    const current = ruleState.get(rule) ?? {};
-    if (decl.prop === "font-family") {
-      current.source = declarationSource(decl);
-    }
-    if (decl.prop === "font-size") {
-      current.size = trimText(decl.value);
-      current.role = inferTypeRole(rule, decl);
-      current.source = declarationSource(decl);
-    }
-    if (decl.prop === "font-weight") {
-      current.weight = trimText(decl.value);
-    }
-    if (decl.prop === "line-height") {
-      current.lineHeight = trimText(decl.value);
-    }
-    if (decl.prop === "letter-spacing") {
-      current.letterSpacing = trimText(decl.value);
-    }
-    if (decl.prop === "font-family") {
-      current.weight ??= "400";
-      current.lineHeight ??= "normal";
-      current.letterSpacing ??= "normal";
-      current.source ??= declarationSource(decl);
-      current.role ??= inferTypeRole(rule, decl);
-      current.size ??= "16px";
-    }
-
-    const candidate = current as Partial<TypeScaleToken>;
-    if (!candidate.role || !candidate.size || !candidate.source) {
-      ruleState.set(rule, current);
+    if (!current.role || !current.size || !current.source) {
       return;
     }
 
     const entry: TypeScaleToken = {
-      role: candidate.role,
-      size: candidate.size,
-      weight: candidate.weight ?? "400",
-      lineHeight: candidate.lineHeight ?? "normal",
-      letterSpacing: candidate.letterSpacing ?? "normal",
-      source: candidate.source,
+      role: current.role,
+      size: current.size,
+      weight: current.weight ?? "400",
+      lineHeight: current.lineHeight ?? "normal",
+      letterSpacing: current.letterSpacing ?? "normal",
+      source: current.source,
     };
 
     const key = `${entry.role}|${entry.size}|${entry.weight}|${entry.lineHeight}|${entry.letterSpacing}`;
@@ -494,8 +488,6 @@ function extractTypographyScale(root: Root): TypeScaleToken[] {
       seen.add(key);
       tokens.push(entry);
     }
-
-    ruleState.set(rule, current);
   });
 
   return tokens.slice(0, 12);
@@ -597,19 +589,12 @@ function extractBorders(root: Root): BorderToken[] {
     }
 
     if (decl.prop === "border-width") {
-      borders.push({
-        width: trimText(decl.value),
-        style: "solid",
-        color: "#000000",
-        role: "border width placeholder",
-        source,
-      });
       return;
     }
   });
 
   return dedupeTokenValues(
-    borders.filter((border) => border.color !== "#000000" || border.width !== "0"),
+    borders,
     (border) => `${border.width}|${border.style ?? ""}|${border.color}`,
   );
 }
@@ -667,7 +652,11 @@ export function extractDesignTokens(
   return designTokensSchema.parse({
     siteName: context.siteName,
     sourceUrl,
-    sources: context.stylesheetAssets.map((asset) => asset.url),
+    sources: [
+      ...new Set(
+        context.stylesheetAssets.map((asset) => stylesheetSourceUrl(asset, sourceUrl)),
+      ),
+    ],
     colors: extractColorsFromRoot(context.root),
     typography: {
       fontFamilies: extractFontFamilies(context.root),
