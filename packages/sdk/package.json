@@ -48,6 +48,9 @@
   "engines": {
     "node": ">=18"
   },
+  "dependencies": {
+    "@getdesign/types": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^6.0.3"
   }

@@ -5,19 +5,23 @@
  * Private beta. Join the waitlist at https://getdesign.app
  */
 
-export const version = "0.0.1";
+import type { DesignDoc, DesignTokens } from "@getdesign/types";
 
-export type DesignDoc = {
-  url: string;
-  markdown: string;
-  generatedAt: string;
-};
+export const version = "0.0.1";
+export type { DesignDoc, DesignTokens } from "@getdesign/types";
 
 export type GetDesignOptions = {
   /** Target viewport width for the screenshot pass. */
   viewport?: `${number}x${number}`;
   /** Optional API key (not required during preview). */
   apiKey?: string;
+};
+
+export type GetDesignResult = {
+  markdown: string;
+  doc: DesignDoc;
+  runId: string;
+  tokens?: DesignTokens;
 };
 
 /**
@@ -27,7 +31,7 @@ export type GetDesignOptions = {
 export async function getDesign(
   url: string,
   _options: GetDesignOptions = {},
-): Promise<DesignDoc> {
+): Promise<GetDesignResult> {
   throw new Error(
     `@getdesign/sdk is in private beta. Join the waitlist at https://getdesign.app (asked for: ${url})`,
   );
