@@ -65,7 +65,7 @@ export default function Nav() {
         </nav>
 
         <a
-          href="https://github.com"
+          href="https://github.com/mohtashammurshid/getdesign"
           target="_blank"
           rel="noreferrer"
           className="btn-ghost inline-flex h-8 items-center gap-2 rounded-md px-3 text-[12.5px] transition-transform hover:-translate-y-[1px]"

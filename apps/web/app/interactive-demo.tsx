@@ -591,7 +591,9 @@ export default function InteractiveDemo() {
                   <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-foreground">
                     <span className="text-[var(--accent)]">$</span>{" "}
                     <span className="tok-fn">npx</span>{" "}
-                    <span className="text-foreground">skills add getdesign</span>
+                    <span className="text-foreground">
+                      skills add MohtashamMurshid/getdesign
+                    </span>
                     {"\n"}
                     <span className="tok-com">
                       ✓ installed to .claude/skills/ · .codex/skills/ · .cursor/skills/
@@ -684,7 +686,8 @@ export default function InteractiveDemo() {
                   {surface === "api" && `curl api.getdesign.app/?url=${site.url}`}
                   {surface === "cli" && `npx @getdesign/cli ${site.url}`}
                   {surface === "sdk" && `streamDesign("${site.url}")`}
-                  {surface === "skill" && `npx skills add getdesign`}
+                  {surface === "skill" &&
+                    `npx skills add MohtashamMurshid/getdesign`}
                 </span>
                 <span className="ml-auto font-mono text-[10.5px] text-[var(--subtle)]">
                   {visible}/{allSteps.length}

@@ -4,36 +4,37 @@ Agent skills for the `getdesign` ecosystem, distributed via [skills.sh](https://
 
 ## Skills in this directory
 
-| Skill | Description |
-| --- | --- |
-| [`getdesign`](./getdesign/SKILL.md) | Generate the 9-section `design.md` for any URL using the agent's built-in tools (WebFetch, browser, file write). Portable twin of the hosted `getdesign.app` pipeline. |
+
+| Skill                               | Description                                                                                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `[getdesign](./getdesign/SKILL.md)` | Generate the 9-section `design.md` for any URL using the agent's built-in tools (WebFetch, browser, file write). Portable twin of the hosted `getdesign.app` pipeline. |
+
 
 ## Install
 
-From any project, once this repo is published to GitHub:
-
 ```bash
-# Install all skills
-npx skills add <owner>/getdesign
+# Install all skills from this repo (interactive agent picker)
+npx skills add MohtashamMurshid/getdesign
 
 # Install just the getdesign skill, globally, into Claude Code + Codex + Cursor
-npx skills add <owner>/getdesign --skill getdesign -g -a claude-code -a codex -a cursor
+npx skills add MohtashamMurshid/getdesign --skill getdesign -g -a claude-code -a codex -a cursor -y
 
-# Install directly from a subfolder URL
-npx skills add https://github.com/<owner>/getdesign/tree/main/skills/getdesign
+# Install directly from the skill subfolder URL
+npx skills add https://github.com/MohtashamMurshid/getdesign/tree/main/skills/getdesign
+
+# List skills without installing
+npx skills add MohtashamMurshid/getdesign --list
 ```
 
-Local install (before publishing):
+Local install (from a clone of this repo):
 
 ```bash
 npx skills add ./skills
 ```
 
-## Publishing to the skills.sh leaderboard
+## Leaderboard
 
-1. Push this repo to GitHub (public).
-2. Anyone installing via `npx skills add <owner>/getdesign` contributes anonymous install telemetry; the leaderboard at [skills.sh](https://skills.sh) surfaces the most-installed skills automatically.
-3. No manual submission step — the CLI does it.
+The repo is public at [github.com/MohtashamMurshid/getdesign](https://github.com/MohtashamMurshid/getdesign). Every `npx skills add MohtashamMurshid/getdesign` sends anonymous install telemetry to the `skills` CLI; the leaderboard at [skills.sh](https://skills.sh) ranks by installs automatically — no manual submission step.
 
 ## Surfaces
 

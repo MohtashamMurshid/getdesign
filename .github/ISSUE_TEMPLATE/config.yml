@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MohtashamMurshid/getdesign/security/advisories/new
+    about: Please use GitHub private vulnerability reporting for security issues, not a public issue.
+  - name: Question or discussion
+    url: https://github.com/MohtashamMurshid/getdesign/discussions
+    about: Open-ended questions, ideas, and show-and-tell belong in Discussions.

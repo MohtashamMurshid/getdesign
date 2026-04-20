@@ -199,7 +199,7 @@ function Surfaces() {
     {
       tag: "05",
       title: "Skill",
-      domain: "npx skills add getdesign",
+      domain: "skills add MohtashamMurshid/getdesign",
       body: "Portable SKILL.md. Runs inside Claude Code, Codex, Cursor — using your agent's own tools.",
     },
   ];
@@ -287,7 +287,7 @@ function Footer() {
             Surfaces
           </a>
           <a
-            href="https://github.com"
+            href="https://github.com/MohtashamMurshid/getdesign"
             target="_blank"
             rel="noreferrer"
             className="hover:text-foreground"
