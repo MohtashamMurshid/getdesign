@@ -15,10 +15,10 @@
   "homepage": "https://getdesign.app",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/getdesign/getdesign.git"
+    "url": "git+https://github.com/MohtashamMurshid/getdesign.git"
   },
   "bugs": {
-    "url": "https://github.com/getdesign/getdesign/issues"
+    "url": "https://github.com/MohtashamMurshid/getdesign/issues"
   },
   "license": "MIT",
   "author": "getdesign",

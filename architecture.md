@@ -2,7 +2,21 @@
 
 On-demand design systems from any URL. A user pastes a URL, an agent explores the live site with a real browser inside a [Daytona](https://www.daytona.io/docs/en/computer-use/) sandbox, extracts tokens and screenshots, and returns a `design.md` matching the reference Cursor-style 9-section template.
 
+This document mixes two things on purpose:
+
+- the long-term target architecture for the product
+- notes about the current repository state
+
+When the two differ, the code in this repository is the source of truth for what is implemented today.
+
 ## 1. Product surface
+
+Current implementation status:
+
+- `apps/web` is implemented as a marketing site plus `/design` showcase.
+- `apps/web/app/api/waitlist/route.ts` is the only shipped API route in this repo today.
+- `packages/cli` and `packages/sdk` are placeholder packages, not full end-user surfaces yet.
+- `skills/getdesign` is the implemented portable skill surface.
 
 Four consumer surfaces, one agent core.
 
@@ -15,28 +29,49 @@ All four surfaces call the same agent package; only the transport differs.
 
 ## 2. Repository layout (Turborepo, Bun)
 
+Current repository snapshot:
+
 ```text
 getdesign/
 ├── apps/
-│   ├── web/          Next.js 16 — landing, /chat, /api/chat (streamed UIMessage)
-│   ├── api/          Bun + Hono — GET /?url=... (markdown only)
-│   ├── cli/          Bun — one-shot + REPL (OpenTUI), uses @getdesign/sdk
-│   └── docs/         Markdown/MDX reference (architecture.md lives here too)
+│   └── web/          Next.js 16 — landing, /design, waitlist route
 ├── packages/
-│   ├── agent/        ToolLoopAgent + sub-agents (framework-agnostic)
-│   ├── tools/        Pure functions wrapped as AI SDK tools
-│   ├── sdk/          Public TypeScript SDK published as `getdesign` on npm
-│   ├── ui/           Shared React components (ai-elements wrappers, design-md renderer)
-│   ├── types/        Zod schemas: DesignTokens, DesignDoc (9-section), UI message parts
-│   └── config/       tsconfig, eslint, tailwind presets
+│   ├── cli/          Placeholder npm CLI package
+│   ├── config/       Shared tsconfig package
+│   ├── sdk/          Placeholder npm SDK package
+│   ├── tools/        Placeholder tools package
+│   └── types/        Placeholder shared types package
 ├── convex/           Convex functions (runs, messages, tokens, screenshots, artifacts)
-├── infra/daytona/    Dockerfile for the custom Daytona snapshot
+├── skills/           Portable agent skill(s)
 ├── turbo.json
 ├── bun.lock
 └── package.json      workspaces: apps/*, packages/*
 ```
 
-Rationale for the maximal split: [packages/agent](packages/agent) is reused by web, api, and cli with zero framework coupling; [packages/tools](packages/tools) is what Convex and the AI SDK both call.
+Target repository layout (planned, not fully scaffolded yet):
+
+```text
+getdesign/
+├── apps/
+│   ├── web/
+│   ├── api/
+│   ├── cli/
+│   └── docs/
+├── packages/
+│   ├── agent/
+│   ├── tools/
+│   ├── sdk/
+│   ├── ui/
+│   ├── types/
+│   └── config/
+├── convex/
+├── infra/daytona/
+├── turbo.json
+├── bun.lock
+└── package.json
+```
+
+Rationale for the maximal split: the eventual `packages/agent` is reused by web, api, and cli with zero framework coupling; `packages/tools` is what Convex and the AI SDK both call.
 
 ## 3. Tech stack and citations
 

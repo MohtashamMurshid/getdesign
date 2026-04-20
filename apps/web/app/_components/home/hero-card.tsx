@@ -30,31 +30,30 @@ export default function HeroCard() {
 
   return (
     <div className="flex h-[480px] flex-col overflow-hidden rounded-xl border border-[var(--border-strong)] bg-[var(--surface-100)]">
-      {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-[var(--border)] bg-[var(--surface-200)] px-2 py-2 text-[12px]">
-        <TabBtn active={tab === "md"} onClick={() => setTab("md")}>
+        <TabButton active={tab === "md"} onClick={() => setTab("md")}>
           design.md
-        </TabBtn>
-        <TabBtn active={tab === "ts"} onClick={() => setTab("ts")}>
+        </TabButton>
+        <TabButton active={tab === "ts"} onClick={() => setTab("ts")}>
           getdesign.ts
-        </TabBtn>
+        </TabButton>
         <span className="ml-auto pr-2 font-mono text-[10.5px] text-[var(--subtle)]">
           cursor.com
         </span>
       </div>
 
-      {/* Body */}
       <div className="min-h-0 flex-1">
         {tab === "md" ? <MarkdownStream /> : <CodeView />}
       </div>
 
-      {/* Status */}
       <div className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--surface-200)] px-3 py-2 text-[11px] text-[var(--subtle)]">
         <span className="font-mono">
-          {tab === "md" ? "design.md · 9 sections · 14.3KB" : "getdesign.ts · 11 loc"}
+          {tab === "md"
+            ? "design.md · 9 sections · 14.3KB"
+            : "getdesign.ts · 11 loc"}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)] pulse-dot" />
+          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
           {tab === "md" ? "streaming" : "typed"}
         </span>
       </div>
@@ -62,15 +61,13 @@ export default function HeroCard() {
   );
 }
 
-function TabBtn({
-  active,
-  onClick,
-  children,
-}: {
+type TabButtonProps = {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
-}) {
+};
+
+function TabButton({ active, onClick, children }: TabButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -85,65 +82,72 @@ function TabBtn({
   );
 }
 
-/* ---------- design.md: streaming markdown ---------- */
-
 function MarkdownStream() {
-  const [chars, setChars] = useState(0);
-  const total = MARKDOWN.length;
+  const [visibleChars, setVisibleChars] = useState(0);
+  const totalChars = MARKDOWN.length;
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setChars(0);
-    if (timer.current) clearTimeout(timer.current);
+    setVisibleChars(0);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
 
-    let i = 0;
+    let index = 0;
     const step = () => {
-      // burst sizes vary to feel like a real token stream
-      const ch = MARKDOWN[i];
-      const burst = ch === "\n" ? 1 : Math.random() < 0.3 ? 3 : 2;
-      i = Math.min(i + burst, total);
-      setChars(i);
-      if (i < total) {
-        const delay = ch === "\n" ? 45 : 14 + Math.random() * 22;
-        timer.current = setTimeout(step, delay);
+      const currentChar = MARKDOWN[index];
+      const burst = currentChar === "\n" ? 1 : Math.random() < 0.3 ? 3 : 2;
+      index = Math.min(index + burst, totalChars);
+      setVisibleChars(index);
+
+      if (index < totalChars) {
+        const delay =
+          currentChar === "\n" ? 45 : 14 + Math.random() * 22;
+        timerRef.current = setTimeout(step, delay);
       }
     };
-    timer.current = setTimeout(step, 300);
+
+    timerRef.current = setTimeout(step, 300);
+
     return () => {
-      if (timer.current) clearTimeout(timer.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
     };
-  }, []);
+  }, [totalChars]);
 
-  // keep the scroll pinned to the bottom while streaming
   useLayoutEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [chars]);
+    const element = scrollRef.current;
+    if (!element) {
+      return;
+    }
 
-  const shown = MARKDOWN.slice(0, chars);
-  const done = chars >= total;
+    element.scrollTop = element.scrollHeight;
+  }, [visibleChars]);
+
+  const visibleText = MARKDOWN.slice(0, visibleChars);
+  const finished = visibleChars >= totalChars;
 
   return (
     <div
       ref={scrollRef}
       className="code-scroll h-full overflow-y-auto px-5 py-4 font-mono text-[12.5px] leading-[1.75]"
     >
-      <MarkdownBody text={shown} />
-      {!done && <span className="caret" />}
+      <MarkdownBody text={visibleText} />
+      {!finished ? <span className="caret" /> : null}
     </div>
   );
 }
 
 function MarkdownBody({ text }: { text: string }) {
   const lines = text.split("\n");
+
   return (
     <>
-      {lines.map((line, i) => (
-        <div key={i} className="whitespace-pre-wrap">
+      {lines.map((line, index) => (
+        <div key={index} className="whitespace-pre-wrap">
           {renderMarkdownLine(line)}
-          {/* keep empty lines from collapsing */}
           {line.length === 0 ? "\u00A0" : null}
         </div>
       ))}
@@ -155,15 +159,17 @@ function renderMarkdownLine(line: string): React.ReactNode {
   if (line.startsWith("# ")) {
     return <span className="text-foreground">{line}</span>;
   }
+
   if (line.startsWith("## ")) {
     return <span className="tok-fn">{line}</span>;
   }
+
   if (line.startsWith("- ")) {
-    // "- #hex — comment"
-    const m = line.match(/^- (#[0-9a-fA-F]{3,8})(.*)$/);
-    if (m) {
-      const hex = m[1] ?? "";
-      const rest = m[2] ?? "";
+    const match = line.match(/^- (#[0-9a-fA-F]{3,8})(.*)$/);
+    if (match) {
+      const hex = match[1] ?? "";
+      const rest = match[2] ?? "";
+
       return (
         <>
           <span className="tok-punc">- </span>
@@ -178,26 +184,26 @@ function renderMarkdownLine(line: string): React.ReactNode {
         </>
       );
     }
+
     return <span className="tok-punc">{line}</span>;
   }
+
   return <span className="text-muted">{line}</span>;
 }
-
-/* ---------- getdesign.ts: code view ---------- */
 
 function CodeView() {
   return (
     <pre className="code-scroll h-full overflow-auto px-5 py-4 font-mono text-[12.5px] leading-[1.75]">
-      <Ln n={1}>
+      <LineNumber n={1}>
         <span className="tok-key">import</span>{" "}
         <span className="tok-punc">{"{ "}</span>
         <span className="tok-var">getDesign</span>
         <span className="tok-punc">{" }"}</span>{" "}
         <span className="tok-key">from</span>{" "}
         <span className="tok-str">&quot;@getdesign/sdk&quot;</span>
-      </Ln>
-      <Ln n={2}>&nbsp;</Ln>
-      <Ln n={3}>
+      </LineNumber>
+      <LineNumber n={2}>&nbsp;</LineNumber>
+      <LineNumber n={3}>
         <span className="tok-key">const</span>{" "}
         <span className="tok-var">system</span>{" "}
         <span className="tok-punc">=</span>{" "}
@@ -206,9 +212,9 @@ function CodeView() {
         <span className="tok-punc">(</span>
         <span className="tok-str">&quot;cursor.com&quot;</span>
         <span className="tok-punc">)</span>
-      </Ln>
-      <Ln n={4}>&nbsp;</Ln>
-      <Ln n={5}>
+      </LineNumber>
+      <LineNumber n={4}>&nbsp;</LineNumber>
+      <LineNumber n={5}>
         <span className="tok-fn">console</span>
         <span className="tok-punc">.</span>
         <span className="tok-fn">log</span>
@@ -217,28 +223,34 @@ function CodeView() {
         <span className="tok-punc">.</span>
         <span className="tok-var">markdown</span>
         <span className="tok-punc">)</span>
-      </Ln>
-      <Ln n={6}>&nbsp;</Ln>
-      <Ln n={7}>
+      </LineNumber>
+      <LineNumber n={6}>&nbsp;</LineNumber>
+      <LineNumber n={7}>
         <span className="tok-com">// → # Design System Inspired by Cursor</span>
-      </Ln>
-      <Ln n={8}>
+      </LineNumber>
+      <LineNumber n={8}>
         <span className="tok-com">// → ## 1. Visual Theme &amp; Atmosphere</span>
-      </Ln>
-      <Ln n={9}>
+      </LineNumber>
+      <LineNumber n={9}>
         <span className="tok-com">// → ## 2. Color Palette</span>
-      </Ln>
-      <Ln n={10}>
+      </LineNumber>
+      <LineNumber n={10}>
         <span className="tok-com">// → ## 3. Typography</span>
-      </Ln>
-      <Ln n={11}>
+      </LineNumber>
+      <LineNumber n={11}>
         <span className="tok-com">// → …6 more sections</span>
-      </Ln>
+      </LineNumber>
     </pre>
   );
 }
 
-function Ln({ n, children }: { n: number; children: React.ReactNode }) {
+function LineNumber({
+  n,
+  children,
+}: {
+  n: number;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex gap-4">
       <span className="w-5 shrink-0 text-right text-[var(--subtle)]">{n}</span>

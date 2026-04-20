@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
 
+import { PRODUCT_SURFACES, SITE_NAME } from "./_lib/site";
+
 export const runtime = "edge";
-export const alt = "getdesign — the design system for any URL";
+export const alt = `${SITE_NAME} — the design system for any URL`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -150,15 +152,24 @@ export default async function OG() {
               fontSize: 18,
             }}
           >
-            <span>Web</span>
-            <span style={{ width: 4, height: 4, borderRadius: 4, background: "rgba(237,237,238,0.38)" }} />
-            <span>API</span>
-            <span style={{ width: 4, height: 4, borderRadius: 4, background: "rgba(237,237,238,0.38)" }} />
-            <span>CLI</span>
-            <span style={{ width: 4, height: 4, borderRadius: 4, background: "rgba(237,237,238,0.38)" }} />
-            <span>SDK</span>
-            <span style={{ width: 4, height: 4, borderRadius: 4, background: "rgba(237,237,238,0.38)" }} />
-            <span>Skill</span>
+            {PRODUCT_SURFACES.map((surface, index) => (
+              <div
+                key={surface}
+                style={{ display: "flex", alignItems: "center", gap: 14 }}
+              >
+                {index > 0 ? (
+                  <span
+                    style={{
+                      width: 4,
+                      height: 4,
+                      borderRadius: 4,
+                      background: "rgba(237,237,238,0.38)",
+                    }}
+                  />
+                ) : null}
+                <span>{surface}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 # getdesign
 
-**On-demand design systems from any URL. Five surfaces, one agent.**
+**On-demand design systems from any URL. One implemented web app, four planned surfaces.**
 
 [License: MIT](./LICENSE)
 [Skill: skills.sh](https://skills.sh)
@@ -9,13 +9,13 @@
 Paste a URL. Get a production-grade `design.md` — palette, typography, components, layout, depth, motion, responsive rules, and an agent prompt guide — **grounded in the site's actual CSS**, not hallucinated.
 
 
-| Surface            | How you use it                                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------------------------------- |
-| **Web**            | [getdesign.app](https://getdesign.app) chat UI with a live `design.md` artifact panel                           |
-| **HTTP API**       | `curl "https://api.getdesign.app/?url=https://cursor.com"` → `text/markdown`                                    |
-| **CLI**            | `npx getdesign <url>` — one-shot, or `getdesign chat` for an interactive REPL                                   |
-| **TypeScript SDK** | `npm i getdesign` → `const { markdown, doc } = await getDesign(url)`                                            |
-| **Agent skill**    | `npx skills add MohtashamMurshid/getdesign` — runs inside Claude Code, Codex, Cursor using their built-in tools |
+| Surface | Current state |
+| ------- | ------------- |
+| **Web** | Implemented in [`apps/web`](./apps/web) as the landing page, `/design` showcase, and waitlist API route |
+| **HTTP API** | Planned product surface; not implemented in this repo yet |
+| **CLI** | Placeholder package in [`packages/cli`](./packages/cli); not a full product surface yet |
+| **TypeScript SDK** | Placeholder package in [`packages/sdk`](./packages/sdk); not a full client implementation yet |
+| **Agent skill** | Implemented in [`skills/getdesign`](./skills/getdesign) and installable via `npx skills add MohtashamMurshid/getdesign` |
 
 
 See:
@@ -26,27 +26,31 @@ See:
 
 ## Status
 
-Scaffold + landing page + agent skill. Implementation of the hosted surfaces follows the delivery order in [architecture.md §12](./architecture.md#12-delivery-order). Changes are logged in [CHANGELOG.md](./CHANGELOG.md).
+Current repo state:
+
+- `apps/web` is the main implemented surface.
+- `convex/` backs the waitlist flow used by the web app.
+- `packages/sdk` and `packages/cli` are intentional placeholders for future public packages.
+- The agent skill in [`skills/getdesign`](./skills/getdesign) is implemented and documented.
+
+The fuller multi-surface product architecture still lives in [architecture.md](./architecture.md), but parts of that document describe the target system rather than the code already in this repository.
 
 ## Layout
 
 ```text
 apps/
-  web/        Next.js 16 landing + chat (scaffolded)
-  api/        Bun + Hono HTTP API (pending)
-  cli/        Bun CLI (pending)
-  docs/       MDX reference (pending)
+  web/        Next.js 16 landing page, /design showcase, waitlist route
 packages/
-  agent/      ToolLoopAgent + sub-agents (pending)
-  tools/      Crawler, extractors, Daytona, renderer (pending)
-  sdk/        `getdesign` npm package — typed HTTP client (pending)
-  ui/         Shared React components (pending)
-  types/      Zod schemas: DesignTokens, DesignDoc (pending)
-  config/     Shared tsconfig
+  cli/        Placeholder npm CLI package
+  config/     Shared tsconfig package
+  sdk/        Placeholder npm SDK package
+  tools/      Placeholder tools package
+  types/      Placeholder shared types package
 convex/       Convex backend (initialized)
 skills/       Agent skills (distributed via skills.sh)
-infra/        Daytona snapshot Dockerfile (pending)
 ```
+
+Planned surfaces such as `apps/api`, a richer CLI, and the full SDK described in [`architecture.md`](./architecture.md) are future work and are intentionally not scaffolded in this repo yet.
 
 ## Prerequisites
 
@@ -62,17 +66,13 @@ cd apps/web && bun run dev   # http://localhost:3000
 
 ## Quickstarts
 
-### SDK
+### SDK placeholder
 
 ```ts
-import { getDesign, streamDesign } from "getdesign";
-import type { DesignDoc } from "getdesign";
+import { getDesign } from "@getdesign/sdk";
 
-const { markdown, doc } = await getDesign("https://cursor.com");
-
-for await (const event of streamDesign("https://cursor.com")) {
-  // typed events: phase | screenshot | tokens | delta | done | error
-}
+await getDesign("https://cursor.com");
+// Throws today: the published SDK package is a private-beta placeholder.
 ```
 
 ### Agent skill

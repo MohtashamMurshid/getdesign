@@ -2,9 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+
+import { SITE_GITHUB_URL } from "../_lib/site";
 import { Logo } from "./logo";
 
-type NavLink = { id: string; label: string; href?: string; external?: boolean };
+type NavLink = {
+  id: string;
+  label: string;
+  href?: string;
+  external?: boolean;
+};
 
 const LINKS: NavLink[] = [
   { id: "how", label: "HOW IT WORKS" },
@@ -15,35 +22,37 @@ const LINKS: NavLink[] = [
 
 export default function Nav() {
   const pathname = usePathname();
-  const [active, setActive] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
   useEffect(() => {
-    const targets = LINKS.filter((l) => !l.external)
-      .map((l) => document.getElementById(l.id))
-      .filter((el): el is HTMLElement => el !== null);
-    if (targets.length === 0) return;
+    const targets = LINKS.filter((link) => !link.external)
+      .map((link) => document.getElementById(link.id))
+      .filter((element): element is HTMLElement => element !== null);
 
-    const io = new IntersectionObserver(
+    if (targets.length === 0) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
           .sort(
-            (a, b) =>
-              (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0),
+            (a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0),
           );
-        if (visible[0]) {
-          setActive(visible[0].target.id);
+
+        if (visibleEntries[0]) {
+          setActiveSection(visibleEntries[0].target.id);
         }
       },
       {
-        // trigger when a section crosses the middle of the viewport
         rootMargin: "-40% 0px -55% 0px",
         threshold: [0, 0.25, 0.5, 0.75, 1],
       },
     );
 
-    targets.forEach((t) => io.observe(t));
-    return () => io.disconnect();
+    targets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -54,24 +63,25 @@ export default function Nav() {
         </a>
 
         <nav className="hidden items-center gap-8 text-[12.5px] md:flex">
-          {LINKS.map((l) => {
-            const isActive = l.external
-              ? pathname === l.href
-              : pathname === "/" && active === l.id;
+          {LINKS.map((link) => {
+            const isActive = link.external
+              ? pathname === link.href
+              : pathname === "/" && activeSection === link.id;
+
             return (
               <a
-                key={l.id}
-                href={l.external ? l.href : `/#${l.id}`}
+                key={link.id}
+                href={link.external ? link.href : `/#${link.id}`}
                 className={`nav-link pb-[18px] ${isActive ? "is-active" : ""}`}
               >
-                {l.label}
+                {link.label}
               </a>
             );
           })}
         </nav>
 
         <a
-          href="https://github.com/mohtashammurshid/getdesign"
+          href={SITE_GITHUB_URL}
           target="_blank"
           rel="noreferrer"
           className="btn-ghost inline-flex h-8 items-center gap-2 rounded-md px-3 text-[12.5px] transition-transform hover:-translate-y-[1px]"

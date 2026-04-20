@@ -30,7 +30,7 @@ ${GREEN}   ◆  getdesign${RESET}  ${DIM}— the design system for any URL${RESE
   ${BOLD}Coming soon.${RESET}  The CLI, SDK, and API are in private beta.
 
   ${DIM}→${RESET} Join the waitlist at  ${GREEN}https://getdesign.app${RESET}
-  ${DIM}→${RESET} Follow on GitHub       ${GREEN}https://github.com/getdesign${RESET}
+  ${DIM}→${RESET} Follow on GitHub       ${GREEN}https://github.com/MohtashamMurshid/getdesign${RESET}
 
   ${DIM}Usage (preview):${RESET}
     $ npx @getdesign/cli <url>

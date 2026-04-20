@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
+
+import { SITE_DOMAIN, SITE_NAME } from "./_lib/site";
+
 import "./globals.css";
 
 const geist = Geist({
@@ -15,21 +18,21 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "getdesign — the design system for any URL",
+  title: `${SITE_NAME} — the design system for any URL`,
   description:
     "Paste a URL. An agent opens it in a real browser, extracts tokens and components, and returns a production-grade design.md. Web, API, CLI, and TypeScript SDK.",
-  metadataBase: new URL("https://getdesign.app"),
+  metadataBase: new URL(SITE_DOMAIN),
   openGraph: {
-    title: "getdesign — the design system for any URL",
+    title: `${SITE_NAME} — the design system for any URL`,
     description:
       "Four surfaces, one agent. Web, API, CLI, and TypeScript SDK.",
-    url: "https://getdesign.app",
-    siteName: "getdesign",
+    url: SITE_DOMAIN,
+    siteName: SITE_NAME,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "getdesign",
+    title: SITE_NAME,
     description: "On-demand design systems from any URL.",
   },
 };
