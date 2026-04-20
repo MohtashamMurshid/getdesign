@@ -101,33 +101,52 @@ export default async function OG() {
               gap: 18,
             }}
           >
-            {/* [md] mark */}
-            <svg width="68" height="44" viewBox="0 0 60 40" fill="none">
-              <path
-                d="M11 5 L4 5 L4 35 L11 35"
-                stroke="#ededee"
-                strokeWidth={2.5}
-                strokeLinecap="square"
+            {/* Satori does not support SVG <text> nodes in OG images. */}
+            <div
+              style={{
+                width: 68,
+                height: 44,
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  left: 4,
+                  top: 5,
+                  bottom: 5,
+                  width: 7,
+                  borderTop: "2.5px solid #ededee",
+                  borderBottom: "2.5px solid #ededee",
+                  borderLeft: "2.5px solid #ededee",
+                }}
               />
-              <path
-                d="M49 5 L56 5 L56 35 L49 35"
-                stroke="#ededee"
-                strokeWidth={2.5}
-                strokeLinecap="square"
+              <div
+                style={{
+                  position: "absolute",
+                  right: 4,
+                  top: 5,
+                  bottom: 5,
+                  width: 7,
+                  borderTop: "2.5px solid #ededee",
+                  borderBottom: "2.5px solid #ededee",
+                  borderRight: "2.5px solid #ededee",
+                }}
               />
-              <text
-                x={30}
-                y={28}
-                textAnchor="middle"
-                fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
-                fontSize={20}
-                fontWeight={700}
-                letterSpacing={-1}
-                fill="#a3e635"
+              <span
+                style={{
+                  color: "#a3e635",
+                  fontSize: 20,
+                  fontWeight: 700,
+                  letterSpacing: -1,
+                }}
               >
                 md
-              </text>
-            </svg>
+              </span>
+            </div>
             <div
               style={{
                 display: "flex",

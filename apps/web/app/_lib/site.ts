@@ -1,5 +1,5 @@
 export const SITE_NAME = "getdesign";
-export const SITE_DOMAIN = "https://getdesign.app";
+export const SITE_DOMAIN = "https://www.getdesign.app";
 export const SITE_GITHUB_URL =
   "https://github.com/MohtashamMurshid/getdesign";
 export const SITE_COPYRIGHT = "© 2026 getdesign";
