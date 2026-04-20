@@ -22,8 +22,8 @@ Four consumer surfaces, one agent core.
 
 - **Landing + chat UI** — [apps/web](apps/web) (Next.js 16, App Router, deployed on Vercel). Streaming chat built with [ai-elements](https://www.npmjs.com/package/ai-elements): `Conversation`, `Message`, `PromptInput`, `Task`, `Tool`, `Reasoning`, `Response`, `Sources`, `Image`, and an `Artifact` side panel that renders the growing `design.md`.
 - **HTTP API** — [apps/api](apps/api) (Bun + [Hono](https://hono.dev) on Vercel Functions, Node runtime). Single endpoint: `GET /?url=https://cursor.com` returns `text/markdown; charset=utf-8` (the final `design.md`). Read-only, no auth in v1.
-- **CLI** — [apps/cli](apps/cli) (Bun single-file binary). Two modes: `getdesign <url>` one-shot and `getdesign chat` interactive REPL ([OpenTUI](https://github.com/openturn/opentui)) that hits the same agent transport.
-- **TypeScript SDK** — [packages/sdk](packages/sdk) (`getdesign` on npm). A typed client library for Node, Bun, Deno, and edge runtimes. Two entry points: `getDesign(url)` returns a Promise of the final `design.md` + structured `DesignDoc`; `streamDesign(url)` returns an async iterator of progress events for custom UIs. Used by the CLI internally, by AI coding tools programmatically, and by third-party integrations.
+- **CLI** — [apps/cli](apps/cli) (Bun single-file binary). Two modes: `npx @getdesign/cli <url>` one-shot and `npx @getdesign/cli` interactive REPL ([OpenTUI](https://github.com/openturn/opentui)) that hits the same agent transport.
+- **TypeScript SDK** — [packages/sdk](packages/sdk) (`@getdesign/sdk` on npm). A typed client library for Node, Bun, Deno, and edge runtimes. Two entry points: `getDesign(url)` returns a Promise of the final `design.md` + structured `DesignDoc`; `streamDesign(url)` returns an async iterator of progress events for custom UIs. Used by the CLI internally, by AI coding tools programmatically, and by third-party integrations.
 
 All four surfaces call the same agent package; only the transport differs.
 
@@ -182,7 +182,7 @@ sequenceDiagram
 
 ### CLI flow
 
-[apps/cli/src/index.ts](apps/cli/src/index.ts): one-shot imports [packages/agent](packages/agent) directly (no network hop) when `DAYTONA_API_KEY` + `OPENAI_API_KEY` / gateway are set locally; otherwise falls back to calling the hosted API. `getdesign chat` opens an OpenTUI REPL that renders the same UIMessage stream.
+[apps/cli/src/index.ts](apps/cli/src/index.ts): one-shot imports [packages/agent](packages/agent) directly (no network hop) when `DAYTONA_API_KEY` + `OPENAI_API_KEY` / gateway are set locally; otherwise falls back to calling the hosted API. `npx @getdesign/cli` (no URL) opens an OpenTUI REPL that renders the same UIMessage stream.
 
 ## 8. Convex schema (key tables)
 
@@ -210,11 +210,11 @@ Convex `action` functions wrap the agent so long-running runs survive browser re
 
 ## 9a. TypeScript SDK
 
-Published as [`getdesign`](https://www.npmjs.com/package/getdesign) on npm. Implemented in [packages/sdk](packages/sdk) as a thin client over the HTTP API (so it works in every JS runtime without dragging Daytona / OpenAI deps into the caller's bundle). Also re-exports the `DesignDoc` and `DesignTokens` Zod types from [@getdesign/types](packages/types).
+Published as [`@getdesign/sdk`](https://www.npmjs.com/package/@getdesign/sdk) on npm. Implemented in [packages/sdk](packages/sdk) as a thin client over the HTTP API (so it works in every JS runtime without dragging Daytona / OpenAI deps into the caller's bundle). Also re-exports the `DesignDoc` and `DesignTokens` Zod types from [@getdesign/types](packages/types).
 
 ```ts
-import { getDesign, streamDesign } from "getdesign";
-import type { DesignDoc } from "getdesign";
+import { getDesign, streamDesign } from "@getdesign/sdk";
+import type { DesignDoc } from "@getdesign/sdk";
 
 // One-shot
 const { markdown, doc } = await getDesign("https://cursor.com");
@@ -265,7 +265,7 @@ for await (const event of streamDesign("https://cursor.com")) {
 6. Wire Convex (schema + actions + file storage).
 7. Build `apps/web` (Next.js 16 + ai-elements + Artifact panel).
 8. Build `apps/api` (Bun + Hono).
-9. Build `packages/sdk` (`getdesign` on npm) — thin HTTP client with typed events.
+9. Build `packages/sdk` (`@getdesign/sdk` on npm) — thin HTTP client with typed events.
 10. Build `apps/cli` (Bun + OpenTUI) on top of the SDK.
 11. E2E smoke test against `cursor.com`, `vercel.com`, `linear.app`; iterate the synthesizer prompt until output matches the reference template.
 12. Deploy web + api to Vercel, publish SDK + CLI to npm.

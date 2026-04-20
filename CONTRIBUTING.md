@@ -23,7 +23,7 @@ apps/
 packages/
   agent/      ToolLoopAgent + sub-agents (pending)
   tools/      Crawler, extractors, Daytona, renderer (pending)
-  sdk/        `getdesign` npm package (pending)
+  sdk/        `@getdesign/sdk` (pending)
   ui/         Shared React components (pending)
   types/      Zod schemas: DesignTokens, DesignDoc (pending)
   config/     Shared tsconfig
@@ -102,7 +102,7 @@ PR titles follow the same format. PR bodies should include:
 
 ### TypeScript SDK (`packages/sdk/`)
 
-- `DesignDoc` and `DesignTokens` are the contract. Changing their shape requires a major-version bump of both `@getdesign/types` and `getdesign`.
+- `DesignDoc` and `DesignTokens` are the contract. Changing their shape requires a major-version bump of both `@getdesign/types` and `@getdesign/sdk`.
 - ESM-only. Web Fetch + Web Streams only (no Node-specifics) so it runs on Deno, Cloudflare Workers, and Vercel Edge.
 - `zod@^4` is the only peer dependency.
 

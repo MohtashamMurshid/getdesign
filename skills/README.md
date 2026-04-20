@@ -42,8 +42,8 @@ The repo is public at [github.com/MohtashamMurshid/getdesign](https://github.com
 
 1. **Web** — [getdesign.app](https://getdesign.app) chat UI
 2. **HTTP API** — `api.getdesign.app/?url=…`
-3. **CLI** — `npx getdesign <url>`
-4. **TypeScript SDK** — `npm i getdesign`
+3. **CLI** — `npx @getdesign/cli <url>`
+4. **TypeScript SDK** — `npm i @getdesign/sdk`
 5. **Agent Skill** — this directory, installable via `npx skills add`
 
 The skill is the only surface that runs *inside* the user's own agent loop with *its* tools — zero infrastructure.

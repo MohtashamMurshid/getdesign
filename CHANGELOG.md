@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once surfaces begin publishing.
 
-Changes that affect the public surfaces (HTTP API, `getdesign` npm package, `getdesign` CLI, `getdesign` agent skill) are tagged with the surface in brackets, e.g. `[sdk]`, `[api]`, `[cli]`, `[skill]`, `[web]`. Shared-package changes are tagged `[types]`, `[agent]`, `[tools]`, `[ui]`.
+Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign/cli`, `getdesign` agent skill) are tagged with the surface in brackets, e.g. `[sdk]`, `[api]`, `[cli]`, `[skill]`, `[web]`. Shared-package changes are tagged `[types]`, `[agent]`, `[tools]`, `[ui]`.
 
 ---
 

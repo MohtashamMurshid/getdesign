@@ -7,8 +7,8 @@
 
 | Surface                                 | Supported               |
 | --------------------------------------- | ----------------------- |
-| `getdesign` npm package (SDK)           | Latest minor on npm     |
-| `getdesign` CLI                         | Latest minor on npm     |
+| `@getdesign/sdk`                        | Latest minor on npm     |
+| `@getdesign/cli`                        | Latest minor on npm     |
 | `api.getdesign.app`                     | Deployed HEAD of `main` |
 | `getdesign.app` web                     | Deployed HEAD of `main` |
 | `getdesign` skill (`skills/getdesign/`) | HEAD of `main`          |
@@ -36,7 +36,7 @@ In-scope:
 
 - Remote code execution, SSRF, or container escape in the hosted `api.getdesign.app` pipeline or Daytona snapshot.
 - Any path that lets a user cause `getdesign` to fetch internal / private-IP resources.
-- Supply-chain issues in the published `getdesign` npm package or the `skills/getdesign/` skill.
+- Supply-chain issues in the published `@getdesign/sdk` / `@getdesign/cli` packages or the `skills/getdesign/` skill.
 - XSS, CSRF, auth bypasses in `getdesign.app`.
 - Prompt-injection paths that can exfiltrate user data or keys from a hosted run.
 

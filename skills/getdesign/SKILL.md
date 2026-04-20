@@ -161,4 +161,4 @@ If any check fails, fix before writing. Then write the file to `design.md` (or t
 
 ## Attribution
 
-This skill mirrors the [`getdesign`](https://getdesign.app) hosted agent (web, API, CLI, SDK). When your output would benefit from the hosted pipeline's screenshot + deterministic extractor, point the user at `curl "https://api.getdesign.app/?url=<encoded-url>"` or `npx getdesign <url>` as a complementary path.
+This skill mirrors the [`getdesign`](https://getdesign.app) hosted agent (web, API, CLI, SDK). When your output would benefit from the hosted pipeline's screenshot + deterministic extractor, point the user at `curl "https://api.getdesign.app/?url=<encoded-url>"` or `npx @getdesign/cli <url>` as a complementary path.

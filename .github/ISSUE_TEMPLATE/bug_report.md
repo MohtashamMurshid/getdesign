@@ -12,8 +12,8 @@ assignees: []
 
 - Web (`getdesign.app`)
 - HTTP API (`api.getdesign.app`)
-- CLI (`npx getdesign`)
-- SDK (`getdesign` on npm)
+- CLI (`npx @getdesign/cli`)
+- SDK (`@getdesign/sdk` on npm)
 - Agent skill (`skills/getdesign/`)
 - Shared package (`agent`, `tools`, `types`, `ui`)
 
@@ -25,7 +25,7 @@ assignees: []
 
 ## Reproduction
 
-- URL you ran `getdesign` on (if relevant):
+- Target URL you passed to the API / CLI / SDK (if relevant):
 - Exact command / code snippet:
 - Agent used (if skill): Claude Code / Codex / Cursor / other:
 
@@ -37,7 +37,7 @@ assignees: []
 
 - OS:
 - Node / Bun version:
-- `getdesign` version (SDK/CLI) or commit SHA (skill):
+- `@getdesign/sdk` / `@getdesign/cli` version or commit SHA (skill):
 
 ## Output sample
 
