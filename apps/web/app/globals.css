@@ -1,65 +1,84 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f2f1ed;
-  --foreground: #26251e;
-  --surface-300: #ebeae5;
-  --surface-400: #e6e5e0;
-  --surface-500: #e1e0db;
-  --accent: #f54e00;
-  --error: #cf2d56;
-  --muted: rgba(38, 37, 30, 0.55);
-  --border: rgba(38, 37, 30, 0.1);
-  --border-strong: rgba(38, 37, 30, 0.2);
+  --background: #000000;
+  --surface-100: #0a0a0a;
+  --surface-200: #111111;
+  --surface-300: #161616;
+  --foreground: #ededed;
+  --muted: rgba(237, 237, 237, 0.5);
+  --subtle: rgba(237, 237, 237, 0.28);
+  --accent: #34e5a1;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-surface-100: var(--surface-100);
+  --color-surface-200: var(--surface-200);
   --color-surface-300: var(--surface-300);
-  --color-surface-400: var(--surface-400);
-  --color-surface-500: var(--surface-500);
-  --color-accent: var(--accent);
-  --color-error: var(--error);
+  --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --font-mono: var(--font-jetbrains-mono);
 }
 
 html,
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial,
-    sans-serif;
+  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.font-serif {
-  font-family:
-    "Iowan Old Style", "Palatino Linotype", "URW Palladio L", P052, ui-serif,
-    Georgia, Cambria, "Times New Roman", Times, serif;
+*::selection {
+  background: var(--accent);
+  color: #04110a;
 }
 
-.font-mono {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
-}
-
-/* Compressed display tracking a la Cursor */
-.display-72 {
-  font-size: clamp(40px, 8vw, 72px);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+.display-hero {
+  font-size: clamp(38px, 7.5vw, 84px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
   font-weight: 500;
 }
 
-.display-36 {
-  font-size: clamp(28px, 4vw, 36px);
+.display-md {
+  font-size: clamp(22px, 3vw, 30px);
   line-height: 1.15;
   letter-spacing: -0.02em;
   font-weight: 500;
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: #04110a;
+  border: 1px solid var(--accent);
+  transition: filter 0.15s ease;
+}
+.btn-accent:hover {
+  filter: brightness(1.08);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+}
+.btn-ghost:hover {
+  background: var(--surface-200);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  svg *,
+  .animated {
+    animation: none !important;
+    transition: none !important;
+  }
 }

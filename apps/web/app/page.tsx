@@ -1,33 +1,37 @@
-import UrlForm from "./url-form";
+import PipelineSVG from "./pipeline-svg";
+import WaitlistForm from "./waitlist-form";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen">
       <Nav />
-      <main className="flex-1">
+      <main>
         <Hero />
-        <HowItWorks />
-        <Sample />
+        <Surfaces />
+        <FinalCta />
       </main>
       <Footer />
     </div>
   );
 }
 
+/* ---------- Nav ---------- */
+
 function Nav() {
   return (
     <nav className="border-b border-border">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <a href="/" className="flex items-center gap-2 text-[15px] font-medium tracking-tight">
+        <a href="#" className="flex items-center gap-2.5 text-[14px]">
           <Logo />
-          <span>getdesign</span>
+          <span className="font-medium tracking-tight">getdesign</span>
         </a>
-        <div className="flex items-center gap-6 text-sm text-muted">
-          <a href="#how" className="hover:text-foreground transition-colors">
-            How it works
+
+        <div className="hidden items-center gap-7 text-[13px] text-muted md:flex">
+          <a href="#surfaces" className="hover:text-foreground transition-colors">
+            Surfaces
           </a>
-          <a href="#sample" className="hover:text-foreground transition-colors">
-            Sample
+          <a href="#cta" className="hover:text-foreground transition-colors">
+            Waitlist
           </a>
           <a
             href="https://github.com"
@@ -38,6 +42,13 @@ function Nav() {
             GitHub
           </a>
         </div>
+
+        <a
+          href="#cta"
+          className="btn-accent inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-medium"
+        >
+          Get notified
+        </a>
       </div>
     </nav>
   );
@@ -45,88 +56,94 @@ function Nav() {
 
 function Logo() {
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background text-[11px] font-bold">
-      gd
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-border-strong bg-surface-200">
+      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden>
+        <path
+          d="M2 8 L8 2 L14 8 L8 14 Z"
+          stroke="var(--accent)"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <circle cx="8" cy="8" r="1.5" fill="var(--accent)" />
+      </svg>
     </span>
   );
 }
 
+/* ---------- Hero ---------- */
+
 function Hero() {
   return (
-    <section className="mx-auto max-w-6xl px-6 pt-20 pb-24 sm:pt-28 sm:pb-32">
-      <div className="mx-auto max-w-3xl text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-300 px-3 py-1 text-xs text-muted">
-          <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-          On-demand design systems
-        </span>
+    <section>
+      <div className="mx-auto max-w-6xl px-6 pt-20 pb-14 sm:pt-28">
+        <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-100 px-3 py-1 text-[11.5px] uppercase tracking-[0.15em] text-muted">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+            Coming soon
+          </div>
 
-        <h1 className="display-72 mt-6 text-foreground">
-          Steal the design system
-          <br />
-          of any brand,
-          <span className="font-serif italic"> beautifully.</span>
-        </h1>
+          <h1 className="display-hero mt-8">
+            design systems
+            <br />
+            from any URL<span className="text-accent">.</span>
+          </h1>
 
-        <p className="mt-6 text-[17px] leading-relaxed text-muted sm:text-[19px]">
-          Paste a URL. An agent opens it in a real browser, extracts the palette,
-          typography, spacing, and components, and returns a production-grade
-          <span className="font-mono text-foreground"> design.md</span> — grounded
-          in the site&apos;s actual CSS.
-        </p>
+          <p className="mt-6 max-w-lg text-[15px] leading-relaxed text-muted">
+            Paste a URL. Get a production-grade{" "}
+            <span className="text-foreground">design.md</span>.
+          </p>
 
-        <div className="mt-10">
-          <UrlForm />
+          <div className="mt-10 flex flex-col items-center gap-3" id="cta">
+            <WaitlistForm />
+          </div>
         </div>
 
-        <p className="mt-4 text-xs text-muted">
-          Works with public URLs. No sign-up. API, CLI, and chat on the way.
-        </p>
+        <div className="relative mt-20">
+          <PipelineSVG />
+          <div className="mt-6 flex items-center justify-center gap-6 text-[11px] uppercase tracking-[0.18em] text-subtle">
+            <span>crawl</span>
+            <Separator />
+            <span>screenshot</span>
+            <Separator />
+            <span>extract</span>
+            <Separator />
+            <span>synthesize</span>
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 
-function HowItWorks() {
-  const steps = [
-    {
-      k: "01",
-      title: "Crawl",
-      body: "We fetch the HTML, all stylesheets, @import chains, and @font-face sources.",
-    },
-    {
-      k: "02",
-      title: "Screenshot",
-      body: "A real Chromium inside a Daytona sandbox captures a hero + full-page image.",
-    },
-    {
-      k: "03",
-      title: "Extract",
-      body: "Deterministic CSS parsing produces a token graph — colors, type, radii, shadows.",
-    },
-    {
-      k: "04",
-      title: "Synthesize",
-      body: "A model writes the 9-section design.md. Every value is grounded in what we found.",
-    },
+function Separator() {
+  return <span className="h-px w-8 bg-border-strong" />;
+}
+
+/* ---------- Surfaces ---------- */
+
+function Surfaces() {
+  const items = [
+    { title: "Web", domain: "getdesign.app", icon: <WebIcon /> },
+    { title: "API", domain: "api.getdesign.app", icon: <ApiIcon /> },
+    { title: "CLI", domain: "npx getdesign", icon: <CliIcon /> },
+    { title: "SDK", domain: "npm i getdesign", icon: <SdkIcon /> },
   ];
   return (
-    <section id="how" className="border-t border-border bg-surface-300/40">
+    <section id="surfaces" className="border-t border-border">
       <div className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="display-36">How it works</h2>
-        <p className="mt-3 max-w-xl text-[17px] text-muted">
-          One URL in, one markdown file out. No hallucinated hex codes.
-        </p>
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map((s) => (
+        <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((it) => (
             <div
-              key={s.k}
-              className="rounded-xl border border-border bg-background p-5"
+              key={it.title}
+              className="group relative flex flex-col items-start bg-background p-6 transition-colors hover:bg-surface-100"
             >
-              <div className="font-mono text-xs text-muted">{s.k}</div>
-              <div className="mt-6 text-lg font-medium tracking-tight">
-                {s.title}
+              <div className="text-muted transition-colors group-hover:text-foreground">
+                {it.icon}
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{s.body}</p>
+              <div className="mt-10 text-[18px] tracking-tight text-foreground">
+                {it.title}
+              </div>
+              <div className="mt-1 text-[12px] text-muted">{it.domain}</div>
             </div>
           ))}
         </div>
@@ -135,68 +152,133 @@ function HowItWorks() {
   );
 }
 
-function Sample() {
+/* ---------- Surface icons (SVG, animated on hover via group) ---------- */
+
+function WebIcon() {
   return (
-    <section id="sample" className="border-t border-border">
-      <div className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="display-36">What you get</h2>
-        <p className="mt-3 max-w-xl text-[17px] text-muted">
-          A structured 9-section spec matching a reference
-          <span className="font-mono"> design.md</span> template.
-        </p>
-        <div className="mt-10 overflow-hidden rounded-2xl border border-border bg-foreground text-background">
-          <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
-            <span className="h-3 w-3 rounded-full bg-white/20" />
-            <span className="h-3 w-3 rounded-full bg-white/20" />
-            <span className="h-3 w-3 rounded-full bg-white/20" />
-            <span className="ml-3 font-mono text-xs text-white/50">
-              design.md
-            </span>
-          </div>
-          <pre className="overflow-x-auto p-6 font-mono text-[13px] leading-relaxed text-white/90">
-{`# Design System Inspired by Cursor
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+      <rect x="2" y="5" width="24" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="2" y1="10" x2="26" y2="10" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="5.5" cy="7.5" r="0.7" fill="currentColor" />
+      <circle cx="8" cy="7.5" r="0.7" fill="currentColor" />
+      <circle cx="10.5" cy="7.5" r="0.7" fill="currentColor" />
+    </svg>
+  );
+}
 
-## 1. Visual Theme & Atmosphere
-Warm minimalism meets code-editor elegance. Warm off-white
-canvas (#f2f1ed), dark warm-brown text (#26251e)...
+function ApiIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+      <path
+        d="M4 14 L10 14 M18 14 L24 14"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <rect
+        x="10"
+        y="10"
+        width="8"
+        height="8"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="4" cy="14" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="24" cy="14" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
 
-## 2. Color Palette & Roles
-- Cursor Dark (#26251e) — primary text
-- Cursor Cream (#f2f1ed) — page background
-- Cursor Orange (#f54e00) — brand accent
+function CliIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+      <rect
+        x="2"
+        y="5"
+        width="24"
+        height="18"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M7 11 L11 14 L7 17"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <line
+        x1="13"
+        y1="18"
+        x2="20"
+        y2="18"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
-## 3. Typography Rules
-CursorGothic display, jjannon serif body, berkeleyMono code.
-Letter-spacing scales with size: -2.16px @ 72px, -0.72px @ 36px...
+function SdkIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+      <path
+        d="M14 3 L24 8 L24 20 L14 25 L4 20 L4 8 Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 3 L14 25 M4 8 L24 8 M4 20 L24 20"
+        stroke="currentColor"
+        strokeWidth="1"
+        opacity="0.5"
+      />
+    </svg>
+  );
+}
 
-## 4. Component Stylings
-Primary button: #ebeae5 bg, #26251e text, 8px radius,
-10px 12px 10px 14px padding. Hover shifts text to #cf2d56.
+/* ---------- Final CTA ---------- */
 
-...`}
-          </pre>
+function FinalCta() {
+  return (
+    <section className="border-t border-border">
+      <div className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <h2 className="display-md">Get the first invite.</h2>
+        <div className="mt-8 flex justify-center">
+          <WaitlistForm />
         </div>
       </div>
     </section>
   );
 }
 
+/* ---------- Footer ---------- */
+
 function Footer() {
   return (
     <footer className="border-t border-border">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 text-[13px] text-muted md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-2.5">
           <Logo />
-          <span>getdesign</span>
+          <span className="text-foreground">getdesign</span>
         </div>
-        <div className="flex items-center gap-6">
-          <a href="/prd.md" className="hover:text-foreground">
-            PRD
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <a href="#surfaces" className="hover:text-foreground">
+            Surfaces
           </a>
-          <a href="/architecture.md" className="hover:text-foreground">
-            Architecture
+          <a
+            href="https://github.com"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground"
+          >
+            GitHub
           </a>
-          <span>© 2026</span>
+          <span className="text-subtle">© 2026</span>
         </div>
       </div>
     </footer>

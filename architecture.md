@@ -4,13 +4,14 @@ On-demand design systems from any URL. A user pastes a URL, an agent explores th
 
 ## 1. Product surface
 
-Three consumer surfaces, one agent core.
+Four consumer surfaces, one agent core.
 
 - **Landing + chat UI** — [apps/web](apps/web) (Next.js 16, App Router, deployed on Vercel). Streaming chat built with [ai-elements](https://www.npmjs.com/package/ai-elements): `Conversation`, `Message`, `PromptInput`, `Task`, `Tool`, `Reasoning`, `Response`, `Sources`, `Image`, and an `Artifact` side panel that renders the growing `design.md`.
 - **HTTP API** — [apps/api](apps/api) (Bun + [Hono](https://hono.dev) on Vercel Functions, Node runtime). Single endpoint: `GET /?url=https://cursor.com` returns `text/markdown; charset=utf-8` (the final `design.md`). Read-only, no auth in v1.
 - **CLI** — [apps/cli](apps/cli) (Bun single-file binary). Two modes: `getdesign <url>` one-shot and `getdesign chat` interactive REPL ([OpenTUI](https://github.com/openturn/opentui)) that hits the same agent transport.
+- **TypeScript SDK** — [packages/sdk](packages/sdk) (`getdesign` on npm). A typed client library for Node, Bun, Deno, and edge runtimes. Two entry points: `getDesign(url)` returns a Promise of the final `design.md` + structured `DesignDoc`; `streamDesign(url)` returns an async iterator of progress events for custom UIs. Used by the CLI internally, by AI coding tools programmatically, and by third-party integrations.
 
-All three surfaces call the same agent package; only the transport differs.
+All four surfaces call the same agent package; only the transport differs.
 
 ## 2. Repository layout (Turborepo, Bun)
 
@@ -19,11 +20,12 @@ getdesign/
 ├── apps/
 │   ├── web/          Next.js 16 — landing, /chat, /api/chat (streamed UIMessage)
 │   ├── api/          Bun + Hono — GET /?url=... (markdown only)
-│   ├── cli/          Bun — one-shot + REPL (OpenTUI)
+│   ├── cli/          Bun — one-shot + REPL (OpenTUI), uses @getdesign/sdk
 │   └── docs/         Markdown/MDX reference (architecture.md lives here too)
 ├── packages/
 │   ├── agent/        ToolLoopAgent + sub-agents (framework-agnostic)
 │   ├── tools/        Pure functions wrapped as AI SDK tools
+│   ├── sdk/          Public TypeScript SDK published as `getdesign` on npm
 │   ├── ui/           Shared React components (ai-elements wrappers, design-md renderer)
 │   ├── types/        Zod schemas: DesignTokens, DesignDoc (9-section), UI message parts
 │   └── config/       tsconfig, eslint, tailwind presets
@@ -171,6 +173,38 @@ Convex `action` functions wrap the agent so long-running runs survive browser re
   - `source-url` (from crawl) → `Sources`
 - **Types** shared via `export type GetDesignUIMessage = InferAgentUIMessage<typeof coordinator>` in [packages/agent/src/types.ts](packages/agent/src/types.ts), consumed by `useChat<GetDesignUIMessage>()` in the web app.
 
+## 9a. TypeScript SDK
+
+Published as [`getdesign`](https://www.npmjs.com/package/getdesign) on npm. Implemented in [packages/sdk](packages/sdk) as a thin client over the HTTP API (so it works in every JS runtime without dragging Daytona / OpenAI deps into the caller's bundle). Also re-exports the `DesignDoc` and `DesignTokens` Zod types from [@getdesign/types](packages/types).
+
+```ts
+import { getDesign, streamDesign } from "getdesign";
+import type { DesignDoc } from "getdesign";
+
+// One-shot
+const { markdown, doc } = await getDesign("https://cursor.com");
+// markdown: string   -> final design.md
+// doc:      DesignDoc -> structured 9-section object (Zod-validated)
+
+// Streaming
+for await (const event of streamDesign("https://cursor.com")) {
+  switch (event.type) {
+    case "phase":     // "crawl" | "screenshot" | "extract" | "synthesize"
+    case "screenshot":// { viewport: "hero" | "fullpage"; imageUrl }
+    case "tokens":    // DesignTokens
+    case "delta":     // partial markdown chunk
+    case "done":      // { markdown, doc }
+    case "error":
+  }
+}
+```
+
+- **Runtime targets**: Node ≥ 20, Bun ≥ 1.2, Deno, Cloudflare Workers, Vercel Edge. Pure Web Fetch + Web Streams under the hood.
+- **Transport**: `getDesign` calls `GET api.getdesign.app/?url=...` (§9, API flow). `streamDesign` calls a second SSE endpoint `GET api.getdesign.app/stream?url=...` that re-emits the server's UIMessage stream as typed events. Both endpoints are dogfooded by the CLI.
+- **Config**: `getDesign(url, { baseUrl?, fetch?, signal?, apiKey? })`. `apiKey` is unused in v1 (matches PRD non-goals) but reserved.
+- **Bundle**: ESM-only, zero runtime deps beyond `zod` (peer: `zod@^4`). Tree-shakeable; `streamDesign` imports split from `getDesign`.
+- **Types**: full `DesignDoc`, `DesignTokens`, and every event shape are exported from the package root.
+
 ## 10. Non-goals for v1
 
 - No follow-up chat (read-only generation).
@@ -196,9 +230,10 @@ Convex `action` functions wrap the agent so long-running runs survive browser re
 6. Wire Convex (schema + actions + file storage).
 7. Build `apps/web` (Next.js 16 + ai-elements + Artifact panel).
 8. Build `apps/api` (Bun + Hono).
-9. Build `apps/cli` (Bun + OpenTUI).
-10. E2E smoke test against `cursor.com`, `vercel.com`, `linear.app`; iterate the synthesizer prompt until output matches the reference template.
-11. Deploy web + api to Vercel, publish CLI to npm.
+9. Build `packages/sdk` (`getdesign` on npm) — thin HTTP client with typed events.
+10. Build `apps/cli` (Bun + OpenTUI) on top of the SDK.
+11. E2E smoke test against `cursor.com`, `vercel.com`, `linear.app`; iterate the synthesizer prompt until output matches the reference template.
+12. Deploy web + api to Vercel, publish SDK + CLI to npm.
 
 ## References
 

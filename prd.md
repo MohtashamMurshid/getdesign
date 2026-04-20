@@ -20,11 +20,12 @@ This is slow, error-prone, and produces inconsistent output. No one wants to do 
 
 **Paste a URL, get a production-grade `design.md`.**
 
-`getdesign` is an agent that opens the URL in a real browser (inside a Daytona sandbox), screenshots the UI, extracts CSS tokens deterministically, and synthesizes a structured 9-section design specification matching the reference Cursor-style template. Delivered through three surfaces sharing one agent core:
+`getdesign` is an agent that opens the URL in a real browser (inside a Daytona sandbox), screenshots the UI, extracts CSS tokens deterministically, and synthesizes a structured 9-section design specification matching the reference Cursor-style template. Delivered through four surfaces sharing one agent core:
 
 1. **Chat UI** at `getdesign.app` — paste a URL, watch the agent work live, read the resulting `design.md`.
 2. **HTTP API** at `api.getdesign.app/?url=...` — returns raw markdown for scripts, CI, and other agents.
 3. **CLI** `npx getdesign <url>` — one-shot or interactive REPL for local use.
+4. **TypeScript SDK** `npm i getdesign` — a typed client for Node/Bun/Deno/Edge. `await getDesign(url)` returns `{ markdown, doc }` where `doc` is the fully-typed `DesignDoc`. `streamDesign(url)` yields typed progress events for custom UIs.
 
 ## 3. Goals and non-goals
 
@@ -33,7 +34,7 @@ This is slow, error-prone, and produces inconsistent output. No one wants to do 
 - **G1**: Given any public marketing or product URL, return a `design.md` that follows the 9-section template exactly (see [architecture.md §5](architecture.md#5-9-section-schema-exact-template)).
 - **G2**: Output palette values that are grounded in the site's actual computed styles, not hallucinated.
 - **G3**: Include at least one hero screenshot of the real page (always_hero policy).
-- **G4**: Three surfaces (web chat, HTTP API, CLI) share the same agent package; no per-surface drift.
+- **G4**: Four surfaces (web chat, HTTP API, CLI, TypeScript SDK) share the same agent package; no per-surface drift.
 - **G5**: Cold-start an end-to-end run in ≤ 5 s of Daytona boot time; complete a full run in ≤ 90 s on a typical marketing site.
 
 ### Non-goals (v1)
@@ -49,7 +50,11 @@ This is slow, error-prone, and produces inconsistent output. No one wants to do 
 
 ### P0 — AI coding agents
 
-An agent (Cursor, Claude Code, v0, Devin, etc.) is asked "make this landing page look like cursor.com". Today it hallucinates. Tomorrow it runs `curl api.getdesign.app/?url=https://cursor.com` and feeds the resulting `design.md` into its own context. This is the highest-leverage user.
+An agent (Cursor, Claude Code, v0, Devin, etc.) is asked "make this landing page look like cursor.com". Today it hallucinates. Tomorrow it runs `curl api.getdesign.app/?url=https://cursor.com` — or imports `getdesign` as a typed SDK — and feeds the resulting `design.md` into its own context. This is the highest-leverage user.
+
+### P0b — Developers embedding `getdesign` in other apps
+
+A developer building a design tool, an onboarding flow, or an AI product wants to programmatically pull a brand spec. They `npm i getdesign`, call `await getDesign(url)`, and get back a Zod-typed `DesignDoc` they can render, diff, or persist however they like. This is why the SDK ships alongside the hosted API.
 
 ### P1 — Designers evaluating a brand
 
@@ -122,6 +127,31 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 - `getdesign chat` — interactive REPL via [OpenTUI](https://github.com/openturn/opentui); same transport as the web chat.
 - `getdesign --version`, `--help`.
 - When `DAYTONA_API_KEY` + AI Gateway / OpenAI creds are set locally, the CLI calls the agent directly (no hosted-API dependency). Otherwise, falls back to `api.getdesign.app`.
+- Internally implemented on top of the TypeScript SDK (F7) so we keep one transport layer.
+
+### F7 — TypeScript SDK behavior
+
+Published as [`getdesign`](https://www.npmjs.com/package/getdesign) on npm. Two entry points:
+
+- `getDesign(url, options?): Promise<{ markdown: string; doc: DesignDoc; runId: string }>` — one-shot call to the hosted HTTP API; returns the final markdown plus a fully-typed `DesignDoc`.
+- `streamDesign(url, options?): AsyncIterable<DesignEvent>` — connects to the streaming endpoint and yields typed events: `phase`, `screenshot`, `tokens`, `delta`, `done`, `error`.
+
+Requirements:
+
+- **Runtimes**: Node ≥ 20, Bun ≥ 1.2, Deno, Cloudflare Workers, Vercel Edge. Web Fetch + Web Streams only.
+- **Typing**: all events and results are fully typed. `DesignDoc` and `DesignTokens` types are re-exported from the package root.
+- **Bundle**: ESM-only, `zod@^4` as the single peer dep, tree-shakeable (`streamDesign` code split from `getDesign`).
+- **Options**: `{ baseUrl?: string; fetch?: typeof fetch; signal?: AbortSignal; apiKey?: string }`. `baseUrl` overrides the default `https://api.getdesign.app`; `fetch` and `signal` enable custom transports and cancellation; `apiKey` is reserved for v1.1 and ignored in v1.
+- **Versioning**: SemVer; major bumps of the SDK cannot silently change `DesignDoc` shape without a major bump of [@getdesign/types](packages/types).
+
+```ts
+// Minimal usage
+import { getDesign } from "getdesign";
+
+const { markdown, doc } = await getDesign("https://cursor.com");
+writeFileSync("design.md", markdown);
+console.log(doc.palette.primary[0]); // typed ColorEntry
+```
 
 ## 6. Non-functional requirements
 
@@ -138,7 +168,8 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 ## 7. Success metrics
 
 - **M1 (adoption)**: ≥ 500 unique URLs processed in the first month.
-- **M2 (AI-agent integration)**: at least 3 public AI tools / extensions integrating the API endpoint.
+- **M2 (AI-agent integration)**: at least 3 public AI tools / extensions integrating the API or TypeScript SDK.
+- **M2b (SDK adoption)**: ≥ 200 weekly downloads of the `getdesign` npm package within month 2.
 - **M3 (quality)**: in an internal review of 20 runs against well-known brands (cursor, linear, vercel, stripe, notion, figma, arc, raycast, and others), ≥ 18 produce a palette whose primary colors are judged "correct" by a human rater.
 - **M4 (latency)**: P50 end-to-end run ≤ 90 s.
 - **M5 (determinism)**: ≥ 95% palette-value overlap on repeat runs within 24 h.
@@ -149,7 +180,7 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 |---|---|
 | Public URLs over HTTPS | Auth-gated pages, localhost, private IPs |
 | Single-page snapshot | Multi-page crawl / sitemap extraction |
-| Chat, API, CLI | Figma plugin, VSCode extension, Raycast extension |
+| Chat, API, CLI, TypeScript SDK | Figma plugin, VSCode extension, Raycast extension |
 | `design.md` markdown output | JSON API, design-token JSON (W3C DTCG), CSS/Tailwind/Panda export |
 | Hero + full-page screenshots | Interactive state captures (hover, menu open) |
 | OpenAI GPT-5.5 class via AI Gateway | Multi-provider selection, self-hosted model |
@@ -195,8 +226,9 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 | M5 | Convex | Schema, actions, file storage wired |
 | M6 | Web | `getdesign.app` with chat, Artifact panel, live timeline |
 | M7 | API | `api.getdesign.app/?url=...` returns markdown |
-| M8 | CLI | `npx getdesign <url>` one-shot + `getdesign chat` REPL |
-| M9 | Launch | Smoke run on top 20 brands passes M3 quality bar; published on Vercel + npm |
+| M8 | SDK | `getdesign` published on npm — `getDesign(url)` + `streamDesign(url)` typed |
+| M9 | CLI | `npx getdesign <url>` one-shot + `getdesign chat` REPL, built on the SDK |
+| M10 | Launch | Smoke run on top 20 brands passes M3 quality bar; web + api deployed, SDK + CLI published on npm |
 
 ## 12. Future (post-v1)
 
