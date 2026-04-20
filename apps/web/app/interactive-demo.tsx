@@ -137,8 +137,18 @@ function buildSteps(site: Site): Step[] {
   ];
 }
 
+type Surface = "web" | "api" | "cli" | "sdk";
+
+const SURFACES: { id: Surface; label: string; hint: string }[] = [
+  { id: "web", label: "web", hint: "getdesign.app" },
+  { id: "api", label: "api", hint: "api.getdesign.app" },
+  { id: "cli", label: "cli", hint: "npx @getdesign/cli" },
+  { id: "sdk", label: "sdk", hint: "@getdesign/sdk" },
+];
+
 export default function InteractiveDemo() {
   const [siteId, setSiteId] = useState<string>(SITES[0].id);
+  const [surface, setSurface] = useState<Surface>("web");
   const site = useMemo(() => SITES.find((s) => s.id === siteId)!, [siteId]);
   const allSteps = useMemo(() => buildSteps(site), [site]);
   const [visible, setVisible] = useState(0);
@@ -159,7 +169,7 @@ export default function InteractiveDemo() {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [allSteps]);
+  }, [allSteps, surface]);
 
   // Auto-scroll both panels to the bottom as content streams in
   useEffect(() => {
@@ -170,11 +180,18 @@ export default function InteractiveDemo() {
 
   const done = visible >= allSteps.length;
 
+  const chromeLabel: Record<Surface, string> = {
+    web: "getdesign.app",
+    api: `api.getdesign.app/?url=${site.url}`,
+    cli: "~ — zsh",
+    sdk: "app.ts — @getdesign/sdk",
+  };
+
   return (
     <div className="grid items-stretch gap-5 lg:h-[560px] lg:grid-cols-[1.15fr_1fr]">
-      {/* LEFT — mock browser */}
+      {/* LEFT — mock surface */}
       <div className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-100)]">
-        {/* browser chrome */}
+        {/* chrome */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-200)] px-3 py-2.5">
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]" />
@@ -182,9 +199,11 @@ export default function InteractiveDemo() {
             <span className="h-2.5 w-2.5 rounded-full bg-[#27c93f]" />
           </div>
           <div className="flex-1 rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1 text-center text-[11.5px] text-[var(--subtle)] font-mono">
-            getdesign.app
+            {chromeLabel[surface]}
           </div>
-          <div className="w-[52px]" />
+          <div className="w-[52px] text-right font-mono text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+            {surface}
+          </div>
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-[180px_1fr]">
@@ -227,15 +246,30 @@ export default function InteractiveDemo() {
             <div className="mt-5 px-1 pb-2 text-[10.5px] uppercase tracking-[0.14em] text-[var(--subtle)]">
               Surfaces
             </div>
-            <div className="flex flex-col gap-1 px-1 text-[12px] text-muted">
-              <div>— web</div>
-              <div>— api</div>
-              <div>— cli</div>
-              <div>— sdk</div>
+            <div className="flex flex-col gap-1">
+              {SURFACES.map((s) => {
+                const active = s.id === surface;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSurface(s.id)}
+                    className={`flex items-center justify-between rounded-md border px-2.5 py-1.5 text-left text-[12px] transition-colors ${
+                      active
+                        ? "border-[var(--border-strong)] bg-[var(--surface-200)] text-foreground"
+                        : "border-transparent text-muted hover:bg-[var(--surface-200)] hover:text-foreground"
+                    }`}
+                  >
+                    <span className="font-mono">— {s.label}</span>
+                    {active && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* chat/preview panel */}
+          {/* preview panel */}
           <div className="flex min-h-0 flex-col">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-2.5">
               <div className="flex items-center gap-2 text-[12px]">
@@ -257,6 +291,7 @@ export default function InteractiveDemo() {
               </span>
             </div>
 
+            {surface === "web" && (
             <div
               ref={chatScrollRef}
               className="code-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 text-[13px]"
@@ -336,13 +371,223 @@ export default function InteractiveDemo() {
                 </div>
               )}
             </div>
+            )}
 
-            {/* mini input */}
+            {surface === "api" && (
+              <div
+                ref={chatScrollRef}
+                className="code-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-[12.5px] leading-relaxed"
+              >
+                <div className="fade-in-up">
+                  <div className="text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+                    request
+                  </div>
+                  <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-foreground">
+                    <span className="tok-key">GET</span>{" "}
+                    <span className="tok-str">
+                      https://api.getdesign.app/?url={site.url}
+                    </span>
+                    {"\n"}
+                    <span className="tok-com">Accept: text/markdown</span>
+                  </div>
+                </div>
+
+                {visible >= 2 && (
+                  <div className="fade-in-up mt-5">
+                    <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+                      response
+                      <span className="rounded-[3px] border border-[var(--border-strong)] px-1 py-[1px] text-[9.5px] text-[var(--accent)]">
+                        {done ? "200 OK" : "200 streaming"}
+                      </span>
+                    </div>
+                    <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-muted">
+                      <span className="tok-com"># {site.url}</span>
+                      {"\n\n"}
+                      {visible >= 2 && (
+                        <>
+                          <span className="tok-key">## Visual Theme</span>
+                          {"\n"}
+                          <span className="text-foreground">{site.theme}.</span>
+                          {"\n\n"}
+                        </>
+                      )}
+                      {visible >= 5 && (
+                        <>
+                          <span className="tok-key">## Palette</span>
+                          {"\n"}
+                          {site.palette.map((c) => (
+                            <span key={c}>
+                              - <span className="tok-str">{c}</span>
+                              {"\n"}
+                            </span>
+                          ))}
+                          {"\n"}
+                          <span className="tok-key">## Typography</span>
+                          {"\n"}
+                          - display:{" "}
+                          <span className="tok-str">{site.fonts[0]}</span>
+                          {"\n"}
+                          - mono: <span className="tok-str">{site.fonts[1]}</span>
+                          {"\n"}
+                        </>
+                      )}
+                      {done && (
+                        <span className="tok-com">
+                          {"\n"}… +5 sections · 14.3KB total
+                        </span>
+                      )}
+                      <span className="caret" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {surface === "cli" && (
+              <div
+                ref={chatScrollRef}
+                className="code-scroll min-h-0 flex-1 overflow-y-auto bg-[var(--background)] px-4 py-4 font-mono text-[12.5px] leading-relaxed"
+              >
+                <div className="fade-in-up">
+                  <span className="text-[var(--accent)]">$</span>{" "}
+                  <span className="text-foreground">
+                    npx @getdesign/cli {site.url}
+                  </span>
+                </div>
+                {visible >= 1 && (
+                  <div className="fade-in-up mt-2 text-muted">
+                    <span className="tok-com">
+                      ↳ getdesign v0.1.0 · streaming to stdout
+                    </span>
+                  </div>
+                )}
+                {visible >= 2 && (
+                  <div className="fade-in-up mt-3 text-muted">
+                    <span className="tok-com">✓</span> crawled html + 4 stylesheets
+                    <span className="text-[var(--subtle)]"> 128ms</span>
+                  </div>
+                )}
+                {visible >= 4 && (
+                  <div className="fade-in-up text-muted">
+                    <span className="tok-com">✓</span> screenshot 1440×900
+                    <span className="text-[var(--subtle)]"> 1.2MB</span>
+                  </div>
+                )}
+                {visible >= 6 && (
+                  <div className="fade-in-up text-muted">
+                    <span className="tok-com">✓</span> extracted 14 tokens · 4
+                    palette · 2 fonts
+                  </div>
+                )}
+                {visible >= 7 && (
+                  <div className="fade-in-up mt-3 text-foreground">
+                    <span className="tok-key"># {site.url}</span>
+                    {"\n"}
+                    <span className="text-muted">
+                      ## Visual Theme{"\n"}
+                      {site.theme}.{"\n\n"}
+                      ## Palette{"\n"}
+                      {site.palette.map((c) => `- ${c}\n`).join("")}
+                    </span>
+                    <span className="caret" />
+                  </div>
+                )}
+                {done && (
+                  <div className="fade-in-up mt-4 text-muted">
+                    <span className="tok-com">✓</span> wrote{" "}
+                    <span className="tok-str">design.md</span>{" "}
+                    <span className="text-[var(--subtle)]">14.3KB · 8.2s</span>
+                    {"\n"}
+                    <span className="text-[var(--accent)]">$</span>{" "}
+                    <span className="caret" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {surface === "sdk" && (
+              <div
+                ref={chatScrollRef}
+                className="code-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 font-mono text-[12.5px] leading-relaxed"
+              >
+                <div className="fade-in-up">
+                  <div className="text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+                    app.ts
+                  </div>
+                  <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3">
+                    <span className="tok-key">import</span>{" "}
+                    <span className="text-foreground">
+                      {"{ streamDesign }"}
+                    </span>{" "}
+                    <span className="tok-key">from</span>{" "}
+                    <span className="tok-str">&quot;@getdesign/sdk&quot;</span>;
+                    {"\n\n"}
+                    <span className="tok-key">const</span>{" "}
+                    <span className="text-foreground">stream</span> ={" "}
+                    <span className="tok-fn">streamDesign</span>(
+                    <span className="tok-str">&quot;{site.url}&quot;</span>);
+                    {"\n"}
+                    <span className="tok-key">for await</span>{" "}
+                    <span className="tok-punc">(</span>
+                    <span className="tok-key">const</span>{" "}
+                    <span className="text-foreground">chunk</span>{" "}
+                    <span className="tok-key">of</span>{" "}
+                    <span className="text-foreground">stream</span>
+                    <span className="tok-punc">) </span>
+                    <span className="text-foreground">
+                      process.stdout.write(chunk);
+                    </span>
+                  </div>
+                </div>
+
+                {visible >= 2 && (
+                  <div className="fade-in-up mt-5">
+                    <div className="text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
+                      stdout
+                    </div>
+                    <div className="mt-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 text-muted">
+                      <span className="tok-key"># {site.url}</span>
+                      {"\n\n"}
+                      <span className="tok-key">## Visual Theme</span>
+                      {"\n"}
+                      <span className="text-foreground">{site.theme}.</span>
+                      {"\n"}
+                      {visible >= 5 && (
+                        <>
+                          {"\n"}
+                          <span className="tok-key">## Palette</span>
+                          {"\n"}
+                          {site.palette.map((c) => (
+                            <span key={c}>
+                              - <span className="tok-str">{c}</span>
+                              {"\n"}
+                            </span>
+                          ))}
+                        </>
+                      )}
+                      {done && (
+                        <span className="tok-com">
+                          {"\n"}// stream closed · 14.3KB
+                        </span>
+                      )}
+                      <span className="caret" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* mini input / status */}
             <div className="border-t border-[var(--border)] px-4 py-3">
               <div className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-200)] px-3 py-2 text-[12.5px]">
-                <span className="text-[var(--accent)]">›</span>
+                <span className="text-[var(--accent)]">
+                  {surface === "web" ? "›" : surface === "cli" ? "$" : "•"}
+                </span>
                 <span className="text-[var(--subtle)]">
-                  ask a follow-up about {site.url}…
+                  {surface === "web" && `ask a follow-up about ${site.url}…`}
+                  {surface === "api" && `curl api.getdesign.app/?url=${site.url}`}
+                  {surface === "cli" && `npx @getdesign/cli ${site.url}`}
+                  {surface === "sdk" && `streamDesign("${site.url}")`}
                 </span>
                 <span className="ml-auto font-mono text-[10.5px] text-[var(--subtle)]">
                   {visible}/{allSteps.length}

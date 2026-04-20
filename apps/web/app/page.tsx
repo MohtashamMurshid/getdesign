@@ -152,8 +152,8 @@ function HowItWorks() {
       <div className="max-w-2xl">
         <h2 className="display-md">How it works</h2>
         <p className="mt-3 text-[14px] leading-relaxed text-muted">
-          Click a site on the left. Every interaction shows the getdesign code
-          that runs and the steps the agent orchestrates, in real time.
+          Pick a site, then switch between web, api, cli, and sdk. Every
+          surface calls the same agent core — only the transport changes.
         </p>
       </div>
 
