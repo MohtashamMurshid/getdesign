@@ -1,3 +1,4 @@
+import { Audio } from "@remotion/media";
 import {
   AbsoluteFill,
   Easing,
@@ -9,7 +10,16 @@ import {
   useVideoConfig,
 } from "remotion";
 
-import { paletteShowcase, colors, msToFrames, standardEase } from "./design-tokens";
+import {
+  paletteShowcase,
+  colors,
+  msToFrames,
+  standardEase,
+} from "./design-tokens";
+import {
+  SCENE_AUDIO_FRAMES,
+  SCENE_FROM_FRAMES,
+} from "./generated-voiceover";
 import { fontMono, fontSans } from "./fonts";
 import { AnimatedLockup, StaticLockup } from "./scenes/animated-lockup";
 import { BrowserChrome, FakeLandingPage } from "./scenes/browser-mock";
@@ -637,23 +647,44 @@ function SceneFinale() {
 export const LaunchVideo: React.FC = () => {
   return (
     <AbsoluteFill style={{ backgroundColor: colors.background }}>
-      <Sequence durationInFrames={150}>
+      <Sequence durationInFrames={SCENE_AUDIO_FRAMES[0]}>
         <SceneLogoIntro />
+        <Audio src={staticFile("voiceover/launch/01-logo.mp3")} />
       </Sequence>
-      <Sequence from={150} durationInFrames={180}>
+      <Sequence
+        from={SCENE_FROM_FRAMES[1]}
+        durationInFrames={SCENE_AUDIO_FRAMES[1]}
+      >
         <SceneWhatIsIt />
+        <Audio src={staticFile("voiceover/launch/02-what-is-it.mp3")} />
       </Sequence>
-      <Sequence from={330} durationInFrames={510}>
+      <Sequence
+        from={SCENE_FROM_FRAMES[2]}
+        durationInFrames={SCENE_AUDIO_FRAMES[2]}
+      >
         <SceneHowItWorksDashboard />
+        <Audio src={staticFile("voiceover/launch/03-how-it-works.mp3")} />
       </Sequence>
-      <Sequence from={840} durationInFrames={210}>
+      <Sequence
+        from={SCENE_FROM_FRAMES[3]}
+        durationInFrames={SCENE_AUDIO_FRAMES[3]}
+      >
         <SceneDeliverables />
+        <Audio src={staticFile("voiceover/launch/04-deliverables.mp3")} />
       </Sequence>
-      <Sequence from={1050} durationInFrames={270}>
+      <Sequence
+        from={SCENE_FROM_FRAMES[4]}
+        durationInFrames={SCENE_AUDIO_FRAMES[4]}
+      >
         <SceneArchitectureStack />
+        <Audio src={staticFile("voiceover/launch/05-architecture.mp3")} />
       </Sequence>
-      <Sequence from={1320} durationInFrames={180}>
+      <Sequence
+        from={SCENE_FROM_FRAMES[5]}
+        durationInFrames={SCENE_AUDIO_FRAMES[5]}
+      >
         <SceneFinale />
+        <Audio src={staticFile("voiceover/launch/06-finale.mp3")} />
       </Sequence>
     </AbsoluteFill>
   );

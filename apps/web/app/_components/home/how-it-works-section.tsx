@@ -1,5 +1,8 @@
 import InteractiveDemo from "../interactive-demo";
 
+/** Third scene’s audio length (frames @ 30fps) — see `apps/video/src/generated-voiceover.ts` `SCENE_AUDIO_FRAMES[2]`. */
+export const HOW_IT_WORKS_REMOTION_FRAMES = 390;
+
 export function HowItWorksSection() {
   return (
     <div>

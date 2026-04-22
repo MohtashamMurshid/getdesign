@@ -1,5 +1,6 @@
 import "./index.css";
 import { Composition } from "remotion";
+import { LAUNCH_VIDEO_TOTAL_FRAMES } from "./generated-voiceover";
 import { LaunchVideo } from "./LaunchVideo";
 
 export const RemotionRoot: React.FC = () => {
@@ -8,7 +9,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="LaunchVideo"
         component={LaunchVideo}
-        durationInFrames={1500}
+        durationInFrames={LAUNCH_VIDEO_TOTAL_FRAMES}
         fps={30}
         width={1920}
         height={1080}

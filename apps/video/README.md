@@ -31,6 +31,16 @@ npm run dev
 npx remotion render
 ```
 
+**Voiceover (ElevenLabs)**
+
+Requires [ffmpeg](https://ffmpeg.org/) (`ffmpeg` and `ffprobe` on your `PATH`). Copy [`.env.example`](./.env.example) to `.env`, set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`, then from this directory:
+
+```console
+bun run voiceover
+```
+
+That writes six MP3s under `public/voiceover/launch/` using **pad-only** normalization (no trimming TTS to a fixed length), then updates [`src/generated-voiceover.ts`](./src/generated-voiceover.ts) with **`SCENE_AUDIO_FRAMES`**, **`SCENE_FROM_FRAMES`**, and the total composition length so **each scene’s video matches its audio**. Commit `generated-voiceover.ts` after regenerating. Do not commit `.env` or the generated audio (they are gitignored).
+
 **Upgrade Remotion**
 
 ```console

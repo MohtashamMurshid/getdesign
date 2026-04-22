@@ -1,13 +1,14 @@
 {
-  "name": "getdesign-launch",
+  "name": "getdesign-video",
   "version": "1.0.0",
-  "description": "My Remotion video",
-  "repository": {},
-  "license": "UNLICENSED",
+  "description": "GetDesign video",
+  "license": "MIT",
   "private": true,
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.44.0",
     "@remotion/cli": "4.0.451",
     "@remotion/google-fonts": "4.0.451",
+    "@remotion/media": "4.0.451",
     "@remotion/tailwind-v4": "4.0.451",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -27,7 +28,8 @@
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "voiceover": "bun --env-file=.env scripts/generate-voiceover.ts"
   },
   "sideEffects": [
     "*.css"

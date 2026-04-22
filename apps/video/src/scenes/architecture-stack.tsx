@@ -75,6 +75,7 @@ function FlowBox({
   );
 }
 
+/** Fifth scene; duration follows `SCENE_AUDIO_FRAMES[4]` from generated voiceover. */
 export function SceneArchitectureStack() {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
