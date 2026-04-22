@@ -18,6 +18,7 @@ import {
   DashedBottomRule,
   SceneBackdrop,
 } from "./scenes/chrome";
+import { SceneArchitectureStack } from "./scenes/architecture-stack";
 import { HowItWorksDashboard } from "./scenes/how-it-works-dashboard";
 
 const SECTIONS = [
@@ -648,7 +649,10 @@ export const LaunchVideo: React.FC = () => {
       <Sequence from={840} durationInFrames={210}>
         <SceneDeliverables />
       </Sequence>
-      <Sequence from={1050} durationInFrames={180}>
+      <Sequence from={1050} durationInFrames={270}>
+        <SceneArchitectureStack />
+      </Sequence>
+      <Sequence from={1320} durationInFrames={180}>
         <SceneFinale />
       </Sequence>
     </AbsoluteFill>
