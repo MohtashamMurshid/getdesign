@@ -1,64 +1,58 @@
-# Remotion video
+# GetDesign Launch Video
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-dark.apng">
-      <img alt="Animated Remotion Logo" src="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-light.gif">
-    </picture>
-  </a>
-</p>
+This app renders the `LaunchVideo` Remotion composition for GetDesign.
 
-Welcome to your Remotion project!
+## Composition
+
+- `id`: `LaunchVideo`
+- `fps`: `30`
+- `size`: `1920x1080`
+- `duration`: generated from [`src/generated-voiceover.ts`](./src/generated-voiceover.ts)
 
 ## Commands
 
-**Install Dependencies**
+### Install dependencies
 
 ```console
-npm i
+bun install
 ```
 
-**Start Preview**
+### Start preview
 
 ```console
-npm run dev
+bun run dev
 ```
 
-**Render video**
+### Render the video
 
 ```console
-npx remotion render
+bunx remotion render LaunchVideo out/launch-video.mp4
 ```
 
-**Voiceover (ElevenLabs)**
+Latest render output:
 
-Requires [ffmpeg](https://ffmpeg.org/) (`ffmpeg` and `ffprobe` on your `PATH`). Copy [`.env.example`](./.env.example) to `.env`, set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`, then from this directory:
+```text
+out/launch-video.mp4
+```
+
+### Regenerate voiceover and captions
+
+Requires [ffmpeg](https://ffmpeg.org/) (`ffmpeg` and `ffprobe` on your `PATH`). Copy [`.env.example`](./.env.example) to `.env`, set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`, then run:
 
 ```console
 bun run voiceover
 ```
 
-That writes six MP3s under `public/voiceover/launch/` using **pad-only** normalization (no trimming TTS to a fixed length), then updates [`src/generated-voiceover.ts`](./src/generated-voiceover.ts) with **`SCENE_AUDIO_FRAMES`**, **`SCENE_FROM_FRAMES`**, and the total composition length so **each scene’s video matches its audio**. It also calls [ElevenLabs Speech-to-Text](https://elevenlabs.io/docs/api-reference/speech-to-text) (`scribe_v2`, word timestamps) per clip and writes **`captions.json`** for [`@remotion/captions`](https://www.remotion.dev/docs/captions/api) subtitles ([`CaptionLayer`](./src/caption-layer.tsx)). Commit `generated-voiceover.ts` after regenerating. Do not commit `.env` or the generated audio (they are gitignored).
+That command:
 
-**Upgrade Remotion**
+- writes six MP3 files under `public/voiceover/launch/`
+- regenerates [`src/generated-voiceover.ts`](./src/generated-voiceover.ts) so scene durations match audio
+- writes `public/voiceover/launch/captions.json` for [`src/caption-layer.tsx`](./src/caption-layer.tsx)
+
+Commit `src/generated-voiceover.ts` after regenerating. Do not commit `.env` or generated audio assets.
+
+### Lint and typecheck
 
 ```console
-npx remotion upgrade
+bun run lint
 ```
-
-## Docs
-
-Get started with Remotion by reading the [fundamentals page](https://www.remotion.dev/docs/the-fundamentals).
-
-## Help
-
-We provide help on our [Discord server](https://discord.gg/6VzzNDwUwV).
-
-## Issues
-
-Found an issue with Remotion? [File an issue here](https://github.com/remotion-dev/remotion/issues/new).
-
-## License
-
-Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).

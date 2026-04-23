@@ -8,6 +8,14 @@
 
 Paste a URL. Get a production-grade `design.md` — palette, typography, components, layout, depth, motion, responsive rules, and an agent prompt guide — **grounded in the site's actual CSS**, not hallucinated.
 
+## Demo Video
+
+<video src="https://raw.githubusercontent.com/MohtashamMurshid/getdesign/main/media/launch-video.mp4" controls muted playsinline width="100%">
+  Your browser does not support the video tag.
+</video>
+
+[Watch or download the MP4](./media/launch-video.mp4)
+
 
 | Surface | Current state |
 | ------- | ------------- |
