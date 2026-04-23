@@ -10,9 +10,8 @@ Paste a URL. Get a production-grade `design.md` — palette, typography, compone
 
 ## Demo Video
 
-<video src="https://raw.githubusercontent.com/MohtashamMurshid/getdesign/main/media/launch-video.mp4" controls muted playsinline width="100%">
-  Your browser does not support the video tag.
-</video>
+https://github.com/user-attachments/assets/b88a05db-a5cb-4d0e-ae8f-cd143b3fad7d
+
 
 [Watch or download the MP4](./media/launch-video.mp4)
 
