@@ -51,7 +51,7 @@ function makeBackendSteps(url: string) {
       kind: "ok" as const,
       node: (
         <>
-          fetched html + 4 stylesheets · <Tx c="num">128ms</Tx>
+          locked DOM + computed CSS · <Tx c="num">128ms</Tx>
         </>
       ),
     },
@@ -72,7 +72,7 @@ function makeBackendSteps(url: string) {
       kind: "info" as const,
       node: (
         <>
-          chromium · daytona sandbox · hero.png <Tx c="com">1.2MB</Tx>
+          daytona sandbox · hero + full-page capture <Tx c="com">2.1MB</Tx>
         </>
       ),
     },
@@ -93,8 +93,8 @@ function makeBackendSteps(url: string) {
       kind: "ok" as const,
       node: (
         <>
-          14 tokens · <Tx c="num">4</Tx> palette · <Tx c="num">2</Tx> fonts ·{" "}
-          <Tx c="num">6</Tx> radii
+          <Tx c="num">24</Tx> tokens · <Tx c="num">4</Tx> palette ·{" "}
+          <Tx c="num">2</Tx> fonts · <Tx c="num">8</Tx> spacing steps
         </>
       ),
     },
@@ -112,7 +112,7 @@ function makeBackendSteps(url: string) {
       node: (
         <>
           wrote <Tx c="str">design.md</Tx> · <Tx c="num">9</Tx> sections ·{" "}
-          <Tx c="num">14.3KB</Tx>
+          prompt guide included · <Tx c="num">16.4KB</Tx>
         </>
       ),
     },
@@ -319,8 +319,8 @@ function PreviewArea({
             >
               <div style={{ color: colors.foreground }}>
                 design.md ready ·{" "}
-                <span style={{ color: colors.accent }}>9 sections</span>,
-                grounded in actual CSS.
+                <span style={{ color: colors.accent }}>9 sections</span>, prompt
+                guide, grounded in actual CSS.
               </div>
               <div
                 style={{

@@ -57,11 +57,13 @@
       },
     },
     "apps/video": {
-      "name": "getdesign-launch",
+      "name": "getdesign-video",
       "version": "1.0.0",
       "dependencies": {
-        "@elevenlabs/elevenlabs-js": "",
+        "@elevenlabs/elevenlabs-js": "^2.44.0",
+        "@remotion/captions": "4.0.451",
         "@remotion/cli": "4.0.451",
+        "@remotion/elevenlabs": "4.0.451",
         "@remotion/google-fonts": "4.0.451",
         "@remotion/media": "4.0.451",
         "@remotion/tailwind-v4": "4.0.451",
@@ -618,6 +620,8 @@
 
     "@remotion/bundler": ["@remotion/bundler@4.0.451", "", { "dependencies": { "@remotion/media-parser": "4.0.451", "@remotion/studio": "4.0.451", "@remotion/studio-shared": "4.0.451", "@rspack/core": "1.7.6", "@rspack/plugin-react-refresh": "1.6.1", "esbuild": "0.25.0", "loader-utils": "2.0.4", "postcss": "8.5.1", "postcss-value-parser": "4.2.0", "react-refresh": "0.18.0", "remotion": "4.0.451", "source-map": "0.7.3", "style-loader": "4.0.0", "webpack": "5.105.0" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-/E4lXcFWR1uuv9qmnkV7cqTRH39jSpTpfzk56JOhhvLiWwdaFXGVaoEKJD0XO9/M5IqNYXuqVgDXcEqlTpeFaQ=="],
 
+    "@remotion/captions": ["@remotion/captions@4.0.451", "", {}, "sha512-z0kuMCvUI7N5DXJ/yhPiUB1pv2KL+texP+GBht5jWa22Haf5mHpdMOS0qv7v3kx8/D2TA7SsNPO0nymQl9KwBw=="],
+
     "@remotion/cli": ["@remotion/cli@4.0.451", "", { "dependencies": { "@remotion/bundler": "4.0.451", "@remotion/media-utils": "4.0.451", "@remotion/player": "4.0.451", "@remotion/renderer": "4.0.451", "@remotion/studio": "4.0.451", "@remotion/studio-server": "4.0.451", "@remotion/studio-shared": "4.0.451", "dotenv": "17.3.1", "minimist": "1.2.6", "prompts": "2.4.2", "remotion": "4.0.451" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" }, "bin": { "remotion": "remotion-cli.js", "remotionb": "remotionb-cli.js", "remotiond": "remotiond-cli.js" } }, "sha512-c89ogR7+gOAR64G/skFk4D5BNXIwPzAtBCx+FPOKz6N589e0+MTEmGGlJMN+9fKnT1GdNWiwwlNCU5Jx5aqG6Q=="],
 
     "@remotion/compositor-darwin-arm64": ["@remotion/compositor-darwin-arm64@4.0.451", "", { "os": "darwin", "cpu": "arm64" }, "sha512-8Fl7oP3Bv8jqbkTljgBbcV6T8TtGQ6CQ8N4Z/yS66OvNiSILVu3g8R9hMq/pgSp+B+a1YvucO1HW3V3Mv0t5ew=="],
@@ -633,6 +637,8 @@
     "@remotion/compositor-linux-x64-musl": ["@remotion/compositor-linux-x64-musl@4.0.451", "", { "os": "linux", "cpu": "x64" }, "sha512-xJUJlGhPBqwCOi4cIbmQ6z715BoUPOTTlcStzFIfrPtH0s6ieFCCy888c3M3X5xIXYbjbKgWjG/M0Tv2t6LpcQ=="],
 
     "@remotion/compositor-win32-x64-msvc": ["@remotion/compositor-win32-x64-msvc@4.0.451", "", { "os": "win32", "cpu": "x64" }, "sha512-ZelPVRyVu6ABamoE+ETCbA9QlVRGFTMy/EwrtxQzzf2qmieZL2sCu2s4mXfg3qi3EAJYzs8oLZiQWY3RxRz7rQ=="],
+
+    "@remotion/elevenlabs": ["@remotion/elevenlabs@4.0.451", "", { "dependencies": { "@remotion/captions": "4.0.451" } }, "sha512-Nt8ZtIie4x3Ba5Qh2gPNitBCmWD/HkNNa18+h9QlJoIYDrQOEEU8GiR6K+E9aEx256S0YiBP+Y2MUQdjAgNkVA=="],
 
     "@remotion/eslint-config-flat": ["@remotion/eslint-config-flat@4.0.451", "", { "dependencies": { "typescript-eslint": "8.21.0" }, "peerDependencies": { "eslint": ">=9" } }, "sha512-axOn23XzC/A291/dmjwrpNn4doW/X/SU7uzrXfkv4DzZV5DO5RMZEWb3MYIerTOL3X0A6FAaiaUQTyvsP3sLMg=="],
 
@@ -1368,7 +1374,7 @@
 
     "get-stream": ["get-stream@6.0.1", "", {}, "sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg=="],
 
-    "getdesign-launch": ["getdesign-launch@workspace:apps/video"],
+    "getdesign-video": ["getdesign-video@workspace:apps/video"],
 
     "github-slugger": ["github-slugger@2.0.0", "", {}, "sha512-IaOQ9puYtjrkq7Y0Ygl9KDZnrf/aiUJYUpVf89y8kyaxbRG7Y1SrX/jaumrv81vc61+kiMempujsM3Yw7w5qcw=="],
 
@@ -2296,7 +2302,7 @@
 
     "fast-glob/glob-parent": ["glob-parent@5.1.2", "", { "dependencies": { "is-glob": "^4.0.1" } }, "sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=="],
 
-    "getdesign-launch/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+    "getdesign-video/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "htmlparser2/entities": ["entities@7.0.1", "", {}, "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="],
 

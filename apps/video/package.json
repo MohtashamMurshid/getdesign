@@ -6,7 +6,9 @@
   "private": true,
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.44.0",
+    "@remotion/captions": "4.0.451",
     "@remotion/cli": "4.0.451",
+    "@remotion/elevenlabs": "4.0.451",
     "@remotion/google-fonts": "4.0.451",
     "@remotion/media": "4.0.451",
     "@remotion/tailwind-v4": "4.0.451",

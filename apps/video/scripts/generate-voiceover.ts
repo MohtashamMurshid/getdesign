@@ -1,8 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { elevenLabsTranscriptToCaptions } from "@remotion/elevenlabs";
+import type { Caption } from "@remotion/captions";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 
 const FPS = 30;
@@ -10,27 +12,27 @@ const FPS = 30;
 const SEGMENTS: { id: string; text: string }[] = [
   {
     id: "01-logo",
-    text: "Get design. On-demand design systems from any public URL.",
+    text: "Get design. Turn any public URL into a design system.",
   },
   {
     id: "02-what-is-it",
-    text: "Open a real browser, read the page's CSS, and ship a production-grade design dot em dee. ",
+    text: "Drop in a real site. Get design opens a live browser, reads the page's CSS, and turns it into a polished design dot em dee.",
   },
   {
     id: "03-how-it-works",
-    text: "Here's how it works. Point at a site like Stripe or your own app. The agent crawls HTML and stylesheets, grabs a hero screenshot from a sandboxed browser, and streams back a living design spec. ",
+    text: "Point it at Stripe, Linear, or your own product. The agent crawls markup and styles, captures the page in a sandboxed browser, extracts tokens, and streams back a living design spec.",
   },
   {
     id: "04-deliverables",
-    text: "You get everything on the design page: logo through voice, tokens, components, layout, depth, motion, responsive rules, plus a prompt guide—ready for your design system or handoff.",
+    text: "You get more than a screenshot: palette, type, spacing, components, motion, responsive rules, and a prompt guide your team can actually build from.",
   },
   {
     id: "05-architecture",
-    text: "It runs on the stack you already use",
+    text: "Under the hood, one coordinator fans out to crawl, visual capture, token extraction, and synthesis. Convex keeps the run state, while web, API, CLI, SDK, and the IDE skill all share the same core.",
   },
   {
     id: "06-finale",
-    text: "Ship the design system for any URL. Visit get design dot app, or run en pee ex at get design slash CLI with your favorite site.",
+    text: "Get the design system for any URL. Visit get design dot app, or run en pee ex at get design slash CLI on your favorite site.",
   },
 ];
 
@@ -106,6 +108,43 @@ function encodeAndPadToSeconds(
   );
 }
 
+function offsetCaptions(captions: Caption[], sceneStartMs: number): Caption[] {
+  return captions.map((c) => ({
+    ...c,
+    startMs: c.startMs + sceneStartMs,
+    endMs: c.endMs + sceneStartMs,
+    timestampMs:
+      c.timestampMs != null ? c.timestampMs + sceneStartMs : null,
+  }));
+}
+
+async function transcribeMp3ToCaptions(
+  apiKey: string,
+  mp3Path: string,
+  filename: string,
+): Promise<Caption[]> {
+  const buf = await readFile(mp3Path);
+  const form = new FormData();
+  form.append("file", new Blob([buf], { type: "audio/mpeg" }), filename);
+  form.append("model_id", "scribe_v2");
+  form.append("timestamps_granularity", "word");
+
+  const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+    method: "POST",
+    headers: { "xi-api-key": apiKey },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`speech-to-text ${res.status}: ${detail}`);
+  }
+
+  const transcript = await res.json();
+  const { captions } = elevenLabsTranscriptToCaptions({ transcript });
+  return captions;
+}
+
 async function writeGeneratedVoiceover(
   root: string,
   sceneFrames: number[],
@@ -153,20 +192,23 @@ async function main(): Promise<void> {
   const tmpBase = await mkdtemp(join(tmpdir(), "getdesign-vo-"));
 
   const sceneFrames: number[] = [];
+  const allCaptions: Caption[] = [];
+  let sceneStartFrames = 0;
 
   try {
     for (const seg of SEGMENTS) {
       const rawPath = join(tmpBase, `${seg.id}-raw.mp3`);
       const finalPath = join(outDir, `${seg.id}.mp3`);
+      const sceneStartMs = (sceneStartFrames / FPS) * 1000;
 
       const stream = await client.textToSpeech.convert(voiceId, {
         text: seg.text,
         modelId: "eleven_multilingual_v2",
         outputFormat: "mp3_44100_128",
         voiceSettings: {
-          stability: 0.5,
+          stability: 0.46,
           similarityBoost: 0.75,
-          style: 0.25,
+          style: 0.32,
         },
       });
 
@@ -194,10 +236,33 @@ async function main(): Promise<void> {
       const finalDur = probeDurationSeconds(finalPath);
       const verified = durationToFrames(finalDur, FPS);
       sceneFrames.push(verified);
+
+      try {
+        const local = await transcribeMp3ToCaptions(
+          apiKey,
+          finalPath,
+          `${seg.id}.mp3`,
+        );
+        allCaptions.push(...offsetCaptions(local, sceneStartMs));
+        console.log(`${seg.id}: captions ${local.length} words`);
+      } catch (e) {
+        console.warn(`${seg.id}: speech-to-text failed (captions skipped):`, e);
+      }
+
+      sceneStartFrames += verified;
     }
   } finally {
     await rm(tmpBase, { recursive: true, force: true });
   }
+
+  await writeFile(
+    join(outDir, "captions.json"),
+    `${JSON.stringify(allCaptions)}\n`,
+    "utf-8",
+  );
+  console.log(
+    `Wrote ${allCaptions.length} caption tokens → ${join(outDir, "captions.json")}`,
+  );
 
   await writeGeneratedVoiceover(root, sceneFrames);
 

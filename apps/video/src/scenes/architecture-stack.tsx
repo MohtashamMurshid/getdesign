@@ -4,7 +4,6 @@ import { interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { colors, msToFrames, standardEase } from "../design-tokens";
 import { fontMono, fontSans } from "../fonts";
 import { SceneBackdrop } from "./chrome";
-import { TECH_STACK } from "./tech-icons";
 
 function ArrowDown() {
   return (
@@ -75,6 +74,29 @@ function FlowBox({
   );
 }
 
+const STACK_PILLARS = [
+  {
+    title: "Interfaces",
+    detail: "Web, API, CLI, SDK, and IDE skill all point at the same run graph.",
+  },
+  {
+    title: "Capture",
+    detail: "Bun, Daytona, and Chromium gather live DOM, CSS, and screenshot context.",
+  },
+  {
+    title: "Synthesis",
+    detail: "AI SDK plus Zod turn extracted tokens into a consistent design.md.",
+  },
+  {
+    title: "State",
+    detail: "Convex stores runs, messages, screenshots, and artifacts for replay.",
+  },
+  {
+    title: "Delivery",
+    detail: "Vercel, Turborepo, and Remotion ship product, platform, and launch assets together.",
+  },
+] as const;
+
 /** Fifth scene; duration follows `SCENE_AUDIO_FRAMES[4]` from generated voiceover. */
 export function SceneArchitectureStack() {
   const frame = useCurrentFrame();
@@ -132,7 +154,7 @@ export function SceneArchitectureStack() {
             opacity: titleOp,
           }}
         >
-          How it&apos;s wired
+          Same core, every surface
         </h2>
         <p
           style={{
@@ -145,9 +167,9 @@ export function SceneArchitectureStack() {
             opacity: titleOp,
           }}
         >
-          One agent core: coordinator plus crawler, visual (Daytona + Chromium),
-          token extract, and synthesize — then deterministic design.md. Convex
-          stores runs; surfaces differ only by transport.
+          One coordinator orchestrates crawl, capture, extraction, and synthesis.
+          Web, API, CLI, SDK, and the IDE skill all hit the same system, so the
+          output stays consistent.
         </p>
 
         <div
@@ -180,12 +202,12 @@ export function SceneArchitectureStack() {
                 marginBottom: 12,
               }}
             >
-              Request flow
+              Run graph
             </div>
             <FlowBox delay={baseDelay} frame={frame} fps={fps}>
               <strong>Public URL</strong>
               <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-                User input
+                one input, every surface
               </div>
             </FlowBox>
             <ArrowDown />
@@ -205,9 +227,9 @@ export function SceneArchitectureStack() {
             </FlowBox>
             <ArrowDown />
             <FlowBox delay={baseDelay + step * 2} frame={frame} fps={fps} accent>
-              <strong>CoordinatorAgent</strong>
+              <strong>Coordinator</strong>
               <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-                ToolLoopAgent · planning + delegate
+                plans, delegates, keeps output aligned
               </div>
             </FlowBox>
             <ArrowDown />
@@ -243,14 +265,14 @@ export function SceneArchitectureStack() {
             >
               <strong>design.md</strong>
               <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-                9 sections · Zod-validated render
+                9 sections + prompt guide
               </div>
             </FlowBox>
             <ArrowDown />
             <FlowBox delay={baseDelay + step * 5.2} frame={frame} fps={fps}>
               <strong>Convex</strong>
               <div style={{ fontSize: 12, color: colors.muted, marginTop: 4 }}>
-                runs · UIMessages · screenshots · artifacts
+                runs, screenshots, artifacts, resume state
               </div>
             </FlowBox>
           </div>
@@ -277,17 +299,17 @@ export function SceneArchitectureStack() {
                 marginBottom: 14,
               }}
             >
-              Tech stack
+              System pillars
             </div>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-                gap: 8,
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 10,
                 overflow: "hidden",
               }}
             >
-              {TECH_STACK.map((tech, i) => {
+              {STACK_PILLARS.map((pillar, i) => {
                 const d = i * 2;
                 const cellOp = interpolate(
                   frame,
@@ -304,56 +326,57 @@ export function SceneArchitectureStack() {
                 );
                 return (
                   <div
-                    key={tech.name}
+                    key={pillar.title}
                     style={{
                       display: "flex",
-                      alignItems: "flex-start",
-                      gap: 12,
+                      flexDirection: "column",
                       borderRadius: 10,
                       border: `1px solid ${colors.border}`,
                       backgroundColor: colors.surface200,
-                      padding: "12px 12px",
+                      padding: "14px 14px 15px",
                       opacity: cellOp,
+                      gridColumn:
+                        i === STACK_PILLARS.length - 1 ? "1 / -1" : "auto",
                     }}
                   >
                     <div
                       style={{
-                        flexShrink: 0,
                         display: "flex",
-                        width: 36,
-                        height: 36,
                         alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 8,
-                        backgroundColor: colors.background,
-                        border: `1px solid ${colors.border}`,
+                        gap: 8,
                       }}
                     >
-                      <tech.Icon width={28} height={28} />
-                    </div>
-                    <div style={{ minWidth: 0 }}>
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: colors.accent,
+                          boxShadow: `0 0 18px ${colors.accentGlow}`,
+                        }}
+                      />
                       <div
                         style={{
                           fontFamily: fontSans,
-                          fontSize: 12.5,
+                          fontSize: 13,
                           fontWeight: 600,
                           color: colors.foreground,
                           letterSpacing: "-0.02em",
                         }}
                       >
-                        {tech.name}
+                        {pillar.title}
                       </div>
-                      <div
-                        style={{
-                          marginTop: 2,
-                          fontFamily: fontSans,
-                          fontSize: 10.5,
-                          lineHeight: 1.4,
-                          color: colors.muted,
-                        }}
-                      >
-                        {tech.detail}
-                      </div>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontFamily: fontSans,
+                        fontSize: 11.5,
+                        lineHeight: 1.5,
+                        color: colors.muted,
+                      }}
+                    >
+                      {pillar.detail}
                     </div>
                   </div>
                 );

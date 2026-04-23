@@ -28,6 +28,7 @@ import {
   DashedBottomRule,
   SceneBackdrop,
 } from "./scenes/chrome";
+import { CaptionLayer } from "./caption-layer";
 import { SceneArchitectureStack } from "./scenes/architecture-stack";
 import { HowItWorksDashboard } from "./scenes/how-it-works-dashboard";
 
@@ -137,7 +138,7 @@ function SceneWhatIsIt() {
               maxWidth: 560,
             }}
           >
-            On-demand design systems from any URL
+            Turn a public URL into a design system
             <span style={{ color: colors.accent }}>.</span>
           </h2>
           <p
@@ -152,11 +153,10 @@ function SceneWhatIsIt() {
               transform: `translateY(${rise * 0.6}px)`,
             }}
           >
-            Open a real browser, read the page&apos;s CSS, and ship a
-            production-grade{" "}
-            <span style={{ color: colors.foreground }}>design.md</span> — the
-            same structure you see on our{" "}
-            <span style={{ color: colors.foreground }}>/design</span> page.
+            Point GetDesign at a real page. It reads live CSS, captures the
+            interface in-browser, and assembles a build-ready{" "}
+            <span style={{ color: colors.foreground }}>design.md</span> grounded
+            in what the site actually ships.
           </p>
           <div
             style={{
@@ -176,7 +176,12 @@ function SceneWhatIsIt() {
               ),
             }}
           >
-            {["Palette", "Type", "Components", "Motion"].map((label) => (
+            {[
+              "Live CSS",
+              "Browser capture",
+              "9 sections",
+              "Prompt guide",
+            ].map((label) => (
               <span
                 key={label}
                 style={{
@@ -251,7 +256,7 @@ function SceneHowItWorksDashboard() {
             opacity: titleOp,
           }}
         >
-          Pick a site, switch surfaces
+          One engine, five ways in
         </h2>
         <p
           style={{
@@ -264,8 +269,8 @@ function SceneHowItWorksDashboard() {
             opacity: titleOp,
           }}
         >
-          Same agent core everywhere — web chat, HTTP GET, CLI, SDK, or IDE
-          skill. Only the transport changes.
+          Crawl once, capture once, synthesize once. Then watch the same run
+          show up in web, API, CLI, SDK, and the IDE skill.
         </p>
         <div style={{ flex: 1, minHeight: 0 }}>
           <HowItWorksDashboard />
@@ -278,10 +283,10 @@ function SceneHowItWorksDashboard() {
 function SceneDeliverables() {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const pan = interpolate(
+  const docScroll = interpolate(
     frame,
-    [0, msToFrames(1600, fps)],
-    [0, -40],
+    [0, msToFrames(2400, fps)],
+    [0, -72],
     {
       easing: Easing.linear,
       extrapolateLeft: "clamp",
@@ -307,7 +312,6 @@ function SceneDeliverables() {
             overflow: "hidden",
             border: `1px solid ${colors.borderStrong}`,
             backgroundColor: colors.surface100,
-            transform: `translateX(${pan}px)`,
           }}
         >
           <div
@@ -347,19 +351,28 @@ function SceneDeliverables() {
           <div
             style={{
               padding: 22,
+              transform: `translateY(${docScroll}px)`,
               fontFamily: fontMono,
               fontSize: 13,
               lineHeight: 1.65,
               color: colors.muted,
-              minHeight: 320,
+              minHeight: 420,
               backgroundColor: colors.background,
             }}
           >
             <span style={{ color: "#c084fc" }}>## </span>
+            <span style={{ color: colors.foreground }}>Visual theme</span>
+            <br />
+            <span style={{ color: colors.subtle }}>
+              Dense product UI, sharp contrast, deliberate accent moments.
+            </span>
+            <br />
+            <br />
+            <span style={{ color: "#c084fc" }}>## </span>
             <span style={{ color: colors.foreground }}>Color palette</span>
             <br />
             <span style={{ color: colors.subtle }}>
-              Derived from computed styles — not guessed.
+              Derived from computed styles, not guessed.
             </span>
             <br />
             <br />
@@ -373,10 +386,27 @@ function SceneDeliverables() {
             <br />
             <br />
             <span style={{ color: "#c084fc" }}>## </span>
+            <span style={{ color: colors.foreground }}>Components</span>
+            <br />
+            <span style={{ color: colors.subtle }}>
+              8px radii · compact controls · medium labels · strong borders
+            </span>
+            <br />
+            <br />
+            <span style={{ color: "#c084fc" }}>## </span>
             <span style={{ color: colors.foreground }}>Motion</span>
             <br />
             <span style={{ color: colors.subtle }}>
               cubic-bezier(0.2, 0.7, 0.2, 1) · 220–520ms
+            </span>
+            <br />
+            <br />
+            <span style={{ color: "#c084fc" }}>## </span>
+            <span style={{ color: colors.foreground }}>Prompt guide</span>
+            <br />
+            <span style={{ color: colors.subtle }}>
+              Reuse the brand voice, contrast system, and component density in
+              every follow-up prompt.
             </span>
           </div>
         </div>
@@ -402,8 +432,22 @@ function SceneDeliverables() {
               color: colors.foreground,
             }}
           >
-            Everything on the /design page
+            A design system, not just a screenshot
           </h2>
+          <p
+            style={{
+              margin: "0 0 22px",
+              maxWidth: 470,
+              fontFamily: fontSans,
+              fontSize: 16,
+              lineHeight: 1.6,
+              color: colors.muted,
+            }}
+          >
+            The output is structured for handoff: design tokens, component
+            patterns, motion rules, responsive guidance, and prompts your team
+            can keep building from.
+          </p>
           <div
             style={{
               display: "grid",
@@ -566,7 +610,7 @@ function SceneFinale() {
               color: colors.muted,
             }}
           >
-            The design system for any URL
+            From any URL to a build-ready system
             <span style={{ color: colors.accent }}>.</span>
           </p>
           <p
@@ -636,7 +680,18 @@ function SceneFinale() {
               wordBreak: "break-all",
             }}
           >
-            npx @getdesign/cli https://example.com
+            npx @getdesign/cli https://linear.app
+          </div>
+          <div
+            style={{
+              marginTop: 12,
+              fontFamily: fontSans,
+              fontSize: 14,
+              lineHeight: 1.5,
+              color: colors.muted,
+            }}
+          >
+            Grounded in real CSS, delivered as a living design.md.
           </div>
         </div>
       </div>
@@ -686,6 +741,7 @@ export const LaunchVideo: React.FC = () => {
         <SceneFinale />
         <Audio src={staticFile("voiceover/launch/06-finale.mp3")} />
       </Sequence>
+      <CaptionLayer />
     </AbsoluteFill>
   );
 };

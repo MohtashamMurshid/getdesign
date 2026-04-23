@@ -76,48 +76,48 @@ export const SURFACE_ARCHITECTURE: Record<
   { headline: string; bullets: string[] }
 > = {
   web: {
-    headline: "Web — streaming chat + artifact panel",
+    headline: "Web - chat in, design system out",
     bullets: [
-      "Next.js chat posts to /api/chat; ai-elements render tools, reasoning, and sources.",
-      "The same CoordinatorAgent streams UIMessage parts while design.md grows in the Artifact panel.",
+      "A chat request kicks off the run while the artifact panel fills with a live design.md.",
+      "Same coordinator, same output contract, just wrapped in a polished product surface.",
     ],
   },
   api: {
-    headline: "API — one GET, full markdown",
+    headline: "API - one request, production markdown",
     bullets: [
-      "GET api.getdesign.app/?url=… returns text/markdown (final design.md). Read-only, no auth in v1.",
-      "Waits for crawl → Daytona viewport/full-page capture → token extract → synthesize, same graph as web.",
+      "Hit a single endpoint and get back the full design.md as markdown.",
+      "The crawl, capture, extract, and synthesize graph is identical to the web flow.",
     ],
   },
   cli: {
-    headline: "CLI — terminal & REPL",
+    headline: "CLI - fast one-shot or REPL",
     bullets: [
-      "npx @getdesign/cli <url> for one-shot stdout; bare npx opens an OpenTUI REPL on the same stream.",
-      "Can run the agent locally when Daytona + gateway keys are set, or call the hosted API.",
+      "Run a single command for stdout, or stay in a terminal loop for follow-up prompts.",
+      "Great for product teams, developers, and fast handoff moments in the shell.",
     ],
   },
   sdk: {
-    headline: "SDK — typed client, any runtime",
+    headline: "SDK - typed stream for your app",
     bullets: [
-      "getDesign(url) returns { markdown, doc }; streamDesign(url) async-iterates phase / screenshot / delta events.",
-      "Pure fetch + Web Streams — Node, Bun, Deno, Workers, Edge — thin wrapper over the HTTP API.",
+      "Use a typed client to stream phases, screenshots, and markdown deltas into your own workflow.",
+      "Built on fetch and Web Streams, so it fits Node, Bun, Deno, Workers, and Edge runtimes.",
     ],
   },
   skill: {
-    headline: "Skill — portable SKILL.md",
+    headline: "Skill - same core inside the IDE",
     bullets: [
-      "Install once; runs inside Claude Code, Codex, Cursor with the host agent’s own browser/tools.",
-      "Fifth surface: same design.md output pattern, different transport (prompt + skill bundle).",
+      "Install it once and let your IDE agent use its own browser, shell, and repo context.",
+      "Different transport, same design.md shape, which keeps the result predictable everywhere.",
     ],
   },
 };
 
 /** Agent pipeline copy for optional callouts (architecture §4). */
 export const AGENT_LAYERS = [
-  "CrawlerAgent — fetch HTML/CSS, fonts, computed styles (Bun, not sandbox).",
-  "VisualAgent — Daytona snapshot, Chromium kiosk, compressed screenshots, scroll-and-stitch full page.",
-  "TokenExtractorAgent — colors, type, spacing, radii, shadows → DesignTokens (Zod).",
-  "SynthesizerAgent — DesignDoc JSON → deterministic render → nine-section design.md.",
+  "CrawlerAgent - HTML, CSS, fonts, and computed styles from the real page.",
+  "VisualAgent - Daytona plus Chromium for hero shots and full-page capture.",
+  "TokenExtractor - color, type, spacing, radii, and motion tokens into typed data.",
+  "Synthesizer - deterministic render from structured tokens into nine-section design.md.",
 ] as const;
 
 export const DEFAULT_DEMO_SITE_ID = "stripe";
