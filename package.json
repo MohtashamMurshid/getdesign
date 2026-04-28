@@ -20,7 +20,10 @@
   },
   "devDependencies": {
     "@getdesign/config": "workspace:*",
+    "@tailwindcss/vite": "^4.2.4",
     "@types/node": "^25.6.0",
+    "studio": "workspace:*",
+    "tailwindcss": "^4.2.4",
     "turbo": "^2.9.6",
     "typescript": "^6.0.3"
   },

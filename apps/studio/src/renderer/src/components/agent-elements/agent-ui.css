@@ -1,0 +1,305 @@
+:root {
+  /* Geometry — all radii derive from --an-border-radius */
+  --an-border-radius: 16px;
+  --an-message-border-radius: var(--an-border-radius);
+  --an-input-border-radius: var(--an-border-radius);
+  --an-tool-border-radius: 10px;
+  --an-message-radius-inner-offset: 4px;
+  --an-max-width: 420px;
+
+  /* Colors - Light mode defaults */
+  --an-background: #ffffff;
+  --an-background-secondary: #f0f0f0;
+  --an-background-tertiary: #f8f8f8;
+  --an-foreground: #1a1a1a;
+  --an-foreground-muted: #737373;
+  --an-foreground-subtle: #a3a3a3;
+  --an-border-color: #e4e4e7;
+  --an-primary-color: #3b82f6;
+
+  /* User Messages */
+  --an-user-message-bg: #f5f5f5;
+  --an-user-message-text: #1a1a1a;
+
+  /* Input */
+  --an-input-background: #ffffff;
+  --an-input-border-color: #e4e4e7;
+  --an-input-color: #1a1a1a;
+  --an-input-placeholder-color: #a3a3a3;
+  --an-input-focus-outline: transparent;
+  --an-context-padding: 10px;
+
+  /* Send/Stop Buttons */
+  --an-send-button-bg: #3b82f6;
+  --an-send-button-color: #ffffff;
+
+  /* Tools */
+  --an-tool-background: #f5f5f5;
+  --an-tool-border-color: #e4e4e7;
+  --an-tool-color: #1a1a1a;
+  --an-tool-color-muted: #737373;
+
+  /* Code */
+  --an-code-background: #1e1e1e;
+  --an-code-color: #d4d4d4;
+
+  /* Diff colors */
+  --an-diff-added-bg: rgba(34, 197, 94, 0.1);
+  --an-diff-added-border: rgba(34, 197, 94, 0.5);
+  --an-diff-added-text: #15803d;
+  --an-diff-removed-bg: rgba(239, 68, 68, 0.1);
+  --an-diff-removed-border: rgba(239, 68, 68, 0.5);
+  --an-diff-removed-text: #dc2626;
+}
+
+/* Dark mode defaults */
+.dark {
+  --an-background: #0a0a0a;
+  --an-background-secondary: #242424;
+  --an-background-tertiary: #141414;
+  --an-foreground: #fafafa;
+  --an-foreground-muted: #8c8c8c;
+  --an-foreground-subtle: #71717a;
+  --an-border-color: #2a2a2a;
+  --an-primary-color: #60a5fa;
+
+  --an-user-message-bg: #1a1a1a;
+  --an-user-message-text: #fafafa;
+
+  --an-input-background: #0a0a0a;
+  --an-input-border-color: #2a2a2a;
+  --an-input-color: #fafafa;
+  --an-input-placeholder-color: #71717a;
+  --an-input-focus-outline: transparent;
+  --an-context-padding: 12px;
+
+  --an-send-button-bg: #60a5fa;
+  /* Dark mode uses a lighter primary (#60a5fa) — pair it with black text so
+     labels like "Approve" / send-arrow have proper contrast instead of
+     low-contrast white-on-light-blue. */
+  --an-send-button-color: #0a0a0a;
+
+  --an-tool-background: #141414;
+  --an-tool-border-color: #2a2a2a;
+  --an-tool-color: #fafafa;
+  --an-tool-color-muted: #8c8c8c;
+
+  --an-code-background: #0a0a0a;
+  --an-code-color: #d4d4d4;
+
+  --an-diff-added-bg: rgba(34, 197, 94, 0.15);
+  --an-diff-added-border: rgba(34, 197, 94, 0.4);
+  --an-diff-added-text: #4ade80;
+  --an-diff-removed-bg: rgba(239, 68, 68, 0.15);
+  --an-diff-removed-border: rgba(239, 68, 68, 0.4);
+  --an-diff-removed-text: #f87171;
+}
+
+@theme inline {
+  --color-an-background: var(--an-background);
+  --color-an-background-secondary: var(--an-background-secondary);
+  --color-an-background-tertiary: var(--an-background-tertiary);
+  --color-an-foreground: var(--an-foreground);
+  --color-an-foreground-muted: var(--an-foreground-muted);
+  --color-an-foreground-subtle: var(--an-foreground-subtle);
+  --color-an-border-color: var(--an-border-color);
+  --color-an-primary-color: var(--an-primary-color);
+  --color-an-user-message-bg: var(--an-user-message-bg);
+  --color-an-user-message-text: var(--an-user-message-text);
+  --color-an-input-background: var(--an-input-background);
+  --color-an-input-border-color: var(--an-input-border-color);
+  --color-an-input-color: var(--an-input-color);
+  --color-an-input-placeholder-color: var(--an-input-placeholder-color);
+  --color-an-input-focus-outline: var(--an-input-focus-outline);
+  --color-an-send-button-bg: var(--an-send-button-bg);
+  --color-an-send-button-color: var(--an-send-button-color);
+  --color-an-tool-background: var(--an-tool-background);
+  --color-an-tool-border-color: var(--an-tool-border-color);
+  --color-an-tool-color: var(--an-tool-color);
+  --color-an-tool-color-muted: var(--an-tool-color-muted);
+  --color-an-code-background: var(--an-code-background);
+  --color-an-code-color: var(--an-code-color);
+  --color-an-diff-added-bg: var(--an-diff-added-bg);
+  --color-an-diff-added-border: var(--an-diff-added-border);
+  --color-an-diff-added-text: var(--an-diff-added-text);
+  --color-an-diff-removed-bg: var(--an-diff-removed-bg);
+  --color-an-diff-removed-border: var(--an-diff-removed-border);
+  --color-an-diff-removed-text: var(--an-diff-removed-text);
+  --radius-an-message: var(--an-message-border-radius);
+  --radius-an-message-inner: calc(
+    var(--an-message-border-radius) - var(--an-message-radius-inner-offset)
+  );
+  --radius-an-input-border-radius: var(--an-input-border-radius);
+  --radius-an-tool-border-radius: var(--an-tool-border-radius);
+  --spacing-an-context-padding: var(--an-context-padding);
+  --max-width-an: var(--an-max-width);
+  --spacing-an-user-message-x: 14px;
+  --spacing-an-user-message-y: 10px;
+}
+
+/* TextShimmer animation */
+@keyframes an-shimmer {
+  from {
+    background-position: 100% center;
+  }
+  to {
+    background-position: 0% center;
+  }
+}
+
+@keyframes an-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes loading-dots {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes an-ellipsis {
+  0% {
+    width: 0;
+  }
+  33% {
+    width: 0.33em;
+  }
+  66% {
+    width: 0.66em;
+  }
+  100% {
+    width: 1em;
+  }
+}
+
+.an-text-shimmer {
+  display: inline-block;
+  background-size: 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    var(--an-foreground-subtle, #a3a3a3) 0%,
+    var(--an-foreground-subtle, #a3a3a3) 40%,
+    var(--an-foreground-muted, #737373) 50%,
+    var(--an-foreground-subtle, #a3a3a3) 60%,
+    var(--an-foreground-subtle, #a3a3a3) 100%
+  );
+  background-repeat: no-repeat;
+}
+
+.an-text-shimmer--active {
+  animation: an-shimmer var(--an-shimmer-duration, 2s) linear infinite;
+}
+
+.an-ellipsis {
+  display: inline-block;
+  overflow: hidden;
+  width: 0;
+  vertical-align: bottom;
+  animation: an-ellipsis 1.2s steps(1, end) infinite;
+}
+
+.an-markdown pre code {
+  counter-reset: none !important;
+}
+
+.an-markdown pre code > span::before {
+  content: none !important;
+  display: none !important;
+}
+
+.an-markdown pre code > span {
+  padding-left: 0 !important;
+}
+
+/* Diff */
+.an-edit-diff,
+.an-edit-diff pre,
+.an-edit-diff code {
+  font-size: 12px;
+}
+
+.dark .an-edit-tool-card {
+  background-color: #000;
+}
+
+[data-theme="dark"] .an-edit-tool-card {
+  background-color: #000;
+}
+
+.dark .an-edit-tool-card .an-edit-diff,
+.dark .an-edit-tool-card .an-edit-diff pre,
+.dark .an-edit-tool-card .an-edit-diff code {
+  background-color: #000 !important;
+}
+
+[data-theme="dark"] .an-edit-tool-card .an-edit-diff,
+[data-theme="dark"] .an-edit-tool-card .an-edit-diff pre,
+[data-theme="dark"] .an-edit-tool-card .an-edit-diff code {
+  background-color: #000 !important;
+}
+
+/* Markdown Code Block */
+.an-markdown [data-streamdown="code-block"] {
+  padding: 0;
+  border: 1px solid var(--an-border-color);
+  border-radius: var(--an-tool-border-radius);
+  background: transparent;
+  gap: 0;
+}
+
+.an-markdown [data-streamdown="code-block-header"] {
+  padding: 0px 10px 0px 8px;
+  height: auto;
+  font-size: 12px;
+  height: 28px;
+  background: transparent;
+  border-bottom: 1px solid var(--color-an-tool-border-color);
+  background-color: var(--an-tool-background);
+  position: relative;
+}
+
+.an-markdown div:has(> [data-streamdown="code-block-actions"]) {
+  position: absolute;
+  height: auto;
+  margin: 0;
+  top: 0;
+  right: 0;
+  height: 28px;
+  padding-right: 8px;
+}
+
+.an-markdown [data-streamdown="code-block-actions"] {
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
+  padding: 0;
+}
+
+.an-markdown [data-streamdown="code-block-actions"] button > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.an-markdown [data-streamdown="code-block-body"] {
+  margin: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: transparent;
+  border: transparent;
+  overflow-x: auto;
+}
+
+.an-markdown [data-streamdown="code-block"] pre,
+.an-markdown [data-streamdown="code-block"] code {
+  font-size: 12px;
+  background: transparent;
+}

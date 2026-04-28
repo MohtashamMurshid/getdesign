@@ -1,20 +1,33 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "node:path";
 
+import { getAgentDir } from "@mariozechner/pi-coding-agent";
+
 import type {
+  StudioAddCustomProviderInput,
   StudioAuthStatus,
   StudioConversationSnapshot,
+  StudioCustomModelRow,
   StudioEvent,
   StudioLoginState,
   StudioMessage,
   StudioModelInfo,
   StudioOAuthProviderInfo,
+  StudioRemoveCustomModelInput,
   StudioSelectModelInput,
   StudioSendPromptInput,
   StudioStartLoginInput,
+  StudioDisconnectProviderInput,
   StudioSubmitLoginCodeInput,
   StudioSetRuntimeKeyInput,
 } from "../shared/studio-api";
+import {
+  addCustomProviderEntry,
+  listCustomModelRows,
+  readModelsJson,
+  removeCustomModelEntry,
+  writeModelsJson,
+} from "./models-json";
 
 type PiCodingAgent = typeof import("@mariozechner/pi-coding-agent");
 type PiAi = typeof import("@mariozechner/pi-ai");
@@ -39,6 +52,8 @@ type PiSessionEvent = {
 type PiRuntime = {
   authStorage: {
     setRuntimeApiKey: (provider: string, apiKey: string) => void;
+    removeRuntimeApiKey: (provider: string) => void;
+    logout: (provider: string) => void;
     login: (
       providerId: string,
       callbacks: {
@@ -54,6 +69,7 @@ type PiRuntime = {
     getAvailable: () => unknown[] | Promise<unknown[]>;
     find?: (provider: string, id: string) => unknown;
     refresh?: () => void;
+    getError?: () => string | undefined;
   };
   selectedModel?: unknown;
   selectedModelId?: string;
@@ -62,6 +78,7 @@ type PiRuntime = {
 };
 
 const PI_AUTH_DOCS_URL = "https://pi.dev/docs/latest/providers";
+const PI_MODELS_DOCS_URL = "https://pi.dev/docs/latest/models";
 const STUDIO_SYSTEM_PROMPT = [
   "You are Studio, an open-source Claude Design-style design partner.",
   "For this first milestone, focus on clear back-and-forth conversation.",
@@ -86,6 +103,9 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:start-login", (_event, input: StudioStartLoginInput) =>
     startLogin(input),
   );
+  ipcMain.handle("studio:disconnect-provider", (_event, input: StudioDisconnectProviderInput) =>
+    disconnectProvider(input),
+  );
   ipcMain.handle("studio:submit-login-code", (_event, input: StudioSubmitLoginCodeInput) =>
     submitLoginCode(input),
   );
@@ -97,7 +117,15 @@ export function registerStudioIpc(window: BrowserWindow): void {
     sendPrompt(input),
   );
   ipcMain.handle("studio:stop", () => stopGeneration());
+  ipcMain.handle("studio:new-conversation", () => newConversation());
   ipcMain.handle("studio:open-pi-auth-docs", () => shell.openExternal(PI_AUTH_DOCS_URL));
+  ipcMain.handle("studio:open-pi-models-docs", () => shell.openExternal(PI_MODELS_DOCS_URL));
+  ipcMain.handle("studio:add-custom-provider", (_event, input: StudioAddCustomProviderInput) =>
+    addCustomProvider(input),
+  );
+  ipcMain.handle("studio:remove-custom-model", (_event, input: StudioRemoveCustomModelInput) =>
+    removeCustomModel(input),
+  );
 }
 
 async function getRuntime(): Promise<PiRuntime> {
@@ -136,15 +164,28 @@ async function getAuthStatus(): Promise<StudioAuthStatus> {
     runtime.selectedModelId = availableModels[0].id;
   }
 
+  const modelsPath = getModelsJsonPath();
+  const modelsJsonRead = readModelsJson(modelsPath);
+  let customModels: StudioCustomModelRow[] = [];
+  let modelsJsonSyntaxError: string | undefined;
+  if (modelsJsonRead.ok) {
+    customModels = listCustomModelRows(modelsJsonRead.data);
+  } else {
+    modelsJsonSyntaxError = modelsJsonRead.error;
+  }
+
   const statusPayload: StudioAuthStatus = {
-    agentDir: getPiAgentDir(),
-    authFile: join(getPiAgentDir(), "auth.json"),
-    modelsFile: join(getPiAgentDir(), "models.json"),
+    agentDir: getAgentDir(),
+    authFile: join(getAgentDir(), "auth.json"),
+    modelsFile: modelsPath,
     availableModels,
     oauthProviders,
+    customModels,
     selectedModelId: runtime.selectedModelId,
     hasAvailableModels: availableModels.length > 0,
     login: loginState,
+    modelsJsonSyntaxError,
+    modelsRegistryError: runtime.modelRegistry.getError?.(),
     setupHint:
       availableModels.length > 0
         ? undefined
@@ -271,6 +312,49 @@ async function setRuntimeApiKey(input: StudioSetRuntimeKeyInput): Promise<Studio
   return getAuthStatus();
 }
 
+async function addCustomProvider(input: StudioAddCustomProviderInput): Promise<StudioAuthStatus> {
+  const path = getModelsJsonPath();
+  const read = readModelsJson(path);
+  if (!read.ok) {
+    throw new Error(read.error);
+  }
+  const next = addCustomProviderEntry(read.data, input);
+  writeModelsJson(path, next);
+
+  const runtime = await getRuntime();
+  runtime.modelRegistry.refresh?.();
+  return getAuthStatus();
+}
+
+async function removeCustomModel(input: StudioRemoveCustomModelInput): Promise<StudioAuthStatus> {
+  const path = getModelsJsonPath();
+  const read = readModelsJson(path);
+  if (!read.ok) {
+    throw new Error(read.error);
+  }
+  const next = removeCustomModelEntry(read.data, input);
+  writeModelsJson(path, next);
+
+  const runtime = await getRuntime();
+  runtime.modelRegistry.refresh?.();
+  await resyncSelectedModelAfterRegistryChange(runtime);
+  return getAuthStatus();
+}
+
+async function disconnectProvider(input: StudioDisconnectProviderInput): Promise<StudioAuthStatus> {
+  const providerId = input.providerId.trim();
+  if (!providerId) {
+    throw new Error("Provider id is required.");
+  }
+
+  const runtime = await getRuntime();
+  runtime.authStorage.logout(providerId);
+  runtime.authStorage.removeRuntimeApiKey(providerId);
+  runtime.modelRegistry.refresh?.();
+  await resyncSelectedModelAfterRegistryChange(runtime);
+  return getAuthStatus();
+}
+
 async function selectModel(input: StudioSelectModelInput): Promise<StudioAuthStatus> {
   const runtime = await getRuntime();
   const [provider, id] = splitModelId(input.modelId);
@@ -349,6 +433,26 @@ async function stopGeneration(): Promise<StudioConversationSnapshot> {
   return getConversationSnapshot();
 }
 
+async function newConversation(): Promise<StudioConversationSnapshot> {
+  const runtime = await getRuntime();
+  if (runtime.session) {
+    try {
+      await runtime.session.abort();
+    } catch {
+      // ignore abort errors when no generation is in flight
+    }
+    runtime.unsubscribe?.();
+    runtime.session.dispose();
+    runtime.session = undefined;
+    runtime.unsubscribe = undefined;
+  }
+  messages = [];
+  status = "ready";
+  lastError = undefined;
+  emitConversation();
+  return getConversationSnapshot();
+}
+
 async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   if (runtime.session) return runtime.session;
 
@@ -357,7 +461,7 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   const cwd = app.getPath("userData");
   const resourceLoader = new DefaultResourceLoader({
     cwd,
-    agentDir: getPiAgentDir(),
+    agentDir: getAgentDir(),
     systemPromptOverride: () => STUDIO_SYSTEM_PROMPT,
   });
   await resourceLoader.reload();
@@ -489,8 +593,31 @@ function splitModelId(modelId: string): [provider: string, id: string] {
   return [provider, rest.join("/")];
 }
 
-function getPiAgentDir(): string {
-  return join(app.getPath("home"), ".pi", "agent");
+function getModelsJsonPath(): string {
+  return join(getAgentDir(), "models.json");
+}
+
+async function resyncSelectedModelAfterRegistryChange(runtime: PiRuntime): Promise<void> {
+  const availableModels = (await Promise.resolve(runtime.modelRegistry.getAvailable())).map(
+    toModelInfo,
+  );
+  const selectedStillValid =
+    Boolean(runtime.selectedModelId) &&
+    availableModels.some((model) => model.id === runtime.selectedModelId);
+  if (selectedStillValid) return;
+
+  if (availableModels[0]) {
+    const [provider, id] = splitModelId(availableModels[0].id);
+    runtime.selectedModel = findModel(runtime, provider, id);
+    runtime.selectedModelId = availableModels[0].id;
+  } else {
+    runtime.selectedModel = undefined;
+    runtime.selectedModelId = undefined;
+  }
+
+  if (runtime.session?.setModel && runtime.selectedModel) {
+    await runtime.session.setModel(runtime.selectedModel);
+  }
 }
 
 function createId(prefix: string): string {

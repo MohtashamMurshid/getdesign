@@ -9,16 +9,49 @@ export type StudioModelInfo = {
   maxTokens?: number;
 };
 
+export type StudioCustomModelRow = {
+  providerId: string;
+  modelId: string;
+  name?: string;
+  fullId: string;
+};
+
+export type StudioCustomProviderApi =
+  | "openai-completions"
+  | "openai-responses"
+  | "anthropic-messages"
+  | "google-generative-ai";
+
+export type StudioAddCustomProviderInput = {
+  providerId: string;
+  baseUrl: string;
+  api: StudioCustomProviderApi;
+  apiKey: string;
+  modelId: string;
+  modelName?: string;
+};
+
+export type StudioRemoveCustomModelInput = {
+  providerId: string;
+  modelId: string;
+};
+
 export type StudioAuthStatus = {
   agentDir: string;
   authFile: string;
   modelsFile: string;
   availableModels: StudioModelInfo[];
   oauthProviders: StudioOAuthProviderInfo[];
+  /** Model entries defined under `providers.*.models` in models.json */
+  customModels: StudioCustomModelRow[];
   selectedModelId?: string;
   hasAvailableModels: boolean;
   login?: StudioLoginState;
   setupHint?: string;
+  /** Present when models.json exists but could not be parsed */
+  modelsJsonSyntaxError?: string;
+  /** Pi ModelRegistry error after loading models.json (invalid schema, etc.) */
+  modelsRegistryError?: string;
 };
 
 export type StudioOAuthProviderInfo = {
@@ -71,6 +104,10 @@ export type StudioStartLoginInput = {
   providerId: string;
 };
 
+export type StudioDisconnectProviderInput = {
+  providerId: string;
+};
+
 export type StudioSubmitLoginCodeInput = {
   code: string;
 };
@@ -80,14 +117,19 @@ export type StudioEvent =
   | { type: "conversation"; payload: StudioConversationSnapshot };
 
 export type StudioApi = {
+  newConversation: () => Promise<StudioConversationSnapshot>;
   getAuthStatus: () => Promise<StudioAuthStatus>;
   setRuntimeApiKey: (input: StudioSetRuntimeKeyInput) => Promise<StudioAuthStatus>;
   startLogin: (input: StudioStartLoginInput) => Promise<StudioAuthStatus>;
+  disconnectProvider: (input: StudioDisconnectProviderInput) => Promise<StudioAuthStatus>;
   submitLoginCode: (input: StudioSubmitLoginCodeInput) => Promise<StudioAuthStatus>;
   selectModel: (input: StudioSelectModelInput) => Promise<StudioAuthStatus>;
   getConversation: () => Promise<StudioConversationSnapshot>;
   sendPrompt: (input: StudioSendPromptInput) => Promise<StudioConversationSnapshot>;
   stop: () => Promise<StudioConversationSnapshot>;
   openPiAuthDocs: () => Promise<void>;
+  openPiModelsDocs: () => Promise<void>;
+  addCustomProvider: (input: StudioAddCustomProviderInput) => Promise<StudioAuthStatus>;
+  removeCustomModel: (input: StudioRemoveCustomModelInput) => Promise<StudioAuthStatus>;
   onStudioEvent: (listener: (event: StudioEvent) => void) => () => void;
 };
