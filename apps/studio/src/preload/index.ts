@@ -38,6 +38,7 @@ const api: StudioApi = {
   removeCustomModel: (input: StudioRemoveCustomModelInput) =>
     ipcRenderer.invoke("studio:remove-custom-model", input),
   listDecks: () => ipcRenderer.invoke("studio:list-decks"),
+  createMockArtifact: () => ipcRenderer.invoke("studio:create-mock-artifact"),
   createDeck: (input?: StudioCreateDeckInput) =>
     ipcRenderer.invoke("studio:create-deck", input),
   getDeck: (deckId: string) => ipcRenderer.invoke("studio:get-deck", deckId),

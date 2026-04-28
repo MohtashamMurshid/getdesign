@@ -111,6 +111,10 @@ export type ModelOption = {
   id: string;
   name: string;
   version?: string;
+  /** Pi provider segment (e.g. anthropic before the model id slash) */
+  provider?: string;
+  /** Display name for the provider row (OAuth name or prettified id) */
+  providerLabel?: string;
 };
 
 /** Props for the <AgentChat> drop-in component */

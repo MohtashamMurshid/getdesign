@@ -21,6 +21,7 @@ import {
 } from "./components/ui/card";
 import { Logo } from "./components/logo";
 
+import { formatProviderDisplayName } from "./lib/format-provider-label";
 import { toErrorMessage } from "./lib/to-error-message";
 import {
   BYOK_PROVIDER_OPTIONS,
@@ -104,6 +105,11 @@ export default function App() {
         version: model.contextWindow
           ? `${Math.round(model.contextWindow / 1000)}k`
           : undefined,
+        provider: model.provider,
+        providerLabel: formatProviderDisplayName(
+          model.provider,
+          authStatus.oauthProviders,
+        ),
       })) ?? [],
     [authStatus],
   );
@@ -306,6 +312,19 @@ export default function App() {
     }
   }
 
+  async function handleCreateMockArtifact() {
+    try {
+      setError(undefined);
+      const deck = await window.api.createMockArtifact();
+      const nextDecks = await window.api.listDecks();
+      setDecks(nextDecks.length > 0 ? nextDecks : [deck]);
+      setSelectedDeckId(deck.id);
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+      throw nextError;
+    }
+  }
+
   async function handleExportDeck(
     deckId: string,
     format: StudioDeckExportFormat,
@@ -484,6 +503,7 @@ export default function App() {
           status={conversation.status}
           onOpenDeck={handleOpenDeck}
           onExportDeck={handleExportDeck}
+          onCreateMockArtifact={handleCreateMockArtifact}
         />
       </section>
     </main>

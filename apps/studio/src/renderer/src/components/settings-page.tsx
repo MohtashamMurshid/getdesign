@@ -37,8 +37,16 @@ import type { OauthCard } from "../studio/oauth-cards";
 
 type ProviderOption = { value: string; label: string };
 
+type SettingsModelRow = {
+  id: string;
+  name: string;
+  version?: string;
+  provider?: string;
+  providerLabel?: string;
+};
+
 type SettingsPageProps = {
-  models: { id: string; name: string; version?: string }[];
+  models: SettingsModelRow[];
   visibleModelIds: string[];
   setVisibleModelIds: (
     updater: string[] | ((current: string[]) => string[]),
@@ -95,10 +103,43 @@ export function SettingsPage({
   const filteredModels = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return models;
-    return models.filter(
-      (m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q),
-    );
+    return models.filter((m) => {
+      const providerId = (m.provider ?? "").toLowerCase();
+      const providerLb = (m.providerLabel ?? "").toLowerCase();
+      return (
+        m.name.toLowerCase().includes(q) ||
+        m.id.toLowerCase().includes(q) ||
+        providerId.includes(q) ||
+        providerLb.includes(q)
+      );
+    });
   }, [models, search]);
+
+  const modelsByProvider = useMemo(() => {
+    type Row = SettingsModelRow;
+    const buckets = new Map<
+      string,
+      { label: string; models: Row[] }
+    >();
+    for (const m of filteredModels) {
+      const key = m.provider ?? "unknown";
+      const label = m.providerLabel ?? key;
+      const cur = buckets.get(key);
+      if (cur) cur.models.push(m);
+      else buckets.set(key, { label, models: [m] });
+    }
+    return [...buckets.entries()]
+      .map(([providerKey, { label, models: groupModels }]) => ({
+        providerKey,
+        providerLabel: label,
+        models: groupModels,
+      }))
+      .sort((a, b) =>
+        a.providerLabel.localeCompare(b.providerLabel, undefined, {
+          sensitivity: "base",
+        }),
+      );
+  }, [filteredModels]);
 
   const visibleCount =
     visibleModelIds.length === 0 ? models.length : visibleModelIds.length;
@@ -236,42 +277,66 @@ export function SettingsPage({
               </Button>
             </div>
 
-            <ul className="divide-y divide-border rounded-xl border border-border">
-              {filteredModels.length === 0 ? (
-                <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  No matching models.
-                </li>
-              ) : (
-                filteredModels.map((model) => {
-                  const checked =
-                    visibleModelIds.length === 0 ||
-                    visibleModelIds.includes(model.id);
-                  return (
-                    <li key={model.id}>
-                      <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/40">
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">
-                            {model.name}
-                          </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {model.id}
-                            {model.version ? ` · ${model.version}` : ""}
-                          </span>
-                        </span>
-                        <input
-                          type="checkbox"
-                          className="size-4 accent-foreground"
-                          checked={checked}
-                          onChange={(event) =>
-                            toggleModel(model.id, event.target.checked)
-                          }
-                        />
-                      </label>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
+            {filteredModels.length === 0 ? (
+              <div className="rounded-xl border border-border px-4 py-6 text-center text-sm text-muted-foreground">
+                No matching models.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {modelsByProvider.map((group) => (
+                  <div
+                    key={group.providerKey}
+                    className="overflow-hidden rounded-xl border border-border bg-card/40"
+                  >
+                    <div className="flex items-center justify-between gap-3 border-b border-border/80 bg-muted/30 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold tracking-tight">
+                          {group.providerLabel}
+                        </p>
+                        <p className="truncate font-mono text-[10px] text-muted-foreground">
+                          {group.providerKey === "unknown"
+                            ? "—"
+                            : group.providerKey}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-md bg-muted/50 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                        {group.models.length}
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-border/80">
+                      {group.models.map((model) => {
+                        const checked =
+                          visibleModelIds.length === 0 ||
+                          visibleModelIds.includes(model.id);
+                        return (
+                          <li key={model.id}>
+                            <label className="flex cursor-pointer items-center justify-between gap-4 px-3 py-2.5 transition-colors hover:bg-muted/40 sm:px-4 sm:py-3">
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-medium">
+                                  {model.name}
+                                </span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {model.id}
+                                  {model.version ? ` · ${model.version}` : ""}
+                                </span>
+                              </span>
+                              <input
+                                type="checkbox"
+                                className="size-4 accent-foreground"
+                                checked={checked}
+                                onChange={(event) =>
+                                  toggleModel(model.id, event.target.checked)
+                                }
+                              />
+                            </label>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

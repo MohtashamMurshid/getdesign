@@ -1,9 +1,22 @@
-import { app, BrowserWindow, shell } from "electron";
-import { join } from "node:path";
+import { app, BrowserWindow, net, protocol, shell } from "electron";
+import { isAbsolute, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { initAutoUpdater } from "./updater";
 import { registerStudioIpc } from "./pi-service";
 
 const isDev = !app.isPackaged;
+const ARTIFACT_PROTOCOL = "studio-artifact";
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: ARTIFACT_PROTOCOL,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+    },
+  },
+]);
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -37,6 +50,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  registerArtifactProtocol();
   createWindow();
   initAutoUpdater();
 
@@ -48,3 +62,37 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
+
+function registerArtifactProtocol(): void {
+  protocol.handle(ARTIFACT_PROTOCOL, (request) => {
+    const url = new URL(request.url);
+    if (url.hostname !== "artifacts") {
+      return new Response("Unknown Studio preview host.", { status: 404 });
+    }
+
+    const [artifactId, ...relativeParts] = url.pathname
+      .split("/")
+      .filter(Boolean)
+      .map((part) => decodeURIComponent(part));
+    if (!artifactId) {
+      return new Response("Missing artifact id.", { status: 400 });
+    }
+
+    const artifactRoot = join(app.getPath("userData"), "artifacts", safePathSegment(artifactId));
+    const requestedPath = resolve(artifactRoot, relativeParts.join("/") || "index.html");
+    if (!isPathInside(artifactRoot, requestedPath)) {
+      return new Response("Invalid preview path.", { status: 400 });
+    }
+
+    return net.fetch(pathToFileURL(requestedPath).toString());
+  });
+}
+
+function safePathSegment(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
+function isPathInside(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}

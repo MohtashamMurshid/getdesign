@@ -187,6 +187,7 @@ export function registerStudioIpc(window: BrowserWindow): void {
     removeCustomModel(input),
   );
   ipcMain.handle("studio:list-decks", () => listDecks());
+  ipcMain.handle("studio:create-mock-artifact", () => createMockArtifact());
   ipcMain.handle("studio:create-deck", (_event, input?: StudioCreateDeckInput) => createDeck(input));
   ipcMain.handle("studio:get-deck", (_event, deckId: string) => getDeck(deckId));
   ipcMain.handle("studio:open-deck", (_event, deckId: string) => openDeck(deckId));
@@ -535,6 +536,12 @@ async function listDecks(): Promise<StudioDeckProject[]> {
 
 async function createDeck(input?: StudioCreateDeckInput): Promise<StudioDeckProject> {
   const deck = await getDeckService().createDeck(input);
+  await emitDecks();
+  return deck;
+}
+
+async function createMockArtifact(): Promise<StudioDeckProject> {
+  const deck = await getDeckService().createMockArtifact(currentArtifactId);
   await emitDecks();
   return deck;
 }

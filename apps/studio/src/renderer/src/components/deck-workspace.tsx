@@ -5,6 +5,7 @@ import {
   IconFileTypePdf,
   IconFileTypePpt,
   IconLayoutBoard,
+  IconPlayerPlay,
   IconRefresh,
 } from "@tabler/icons-react";
 
@@ -29,6 +30,7 @@ type DeckWorkspaceProps = {
     deckId: string,
     format: StudioDeckExportFormat,
   ) => Promise<StudioExportDeckResult>;
+  onCreateMockArtifact: () => Promise<void>;
 };
 
 export function DeckWorkspace({
@@ -37,6 +39,7 @@ export function DeckWorkspace({
   status,
   onOpenDeck,
   onExportDeck,
+  onCreateMockArtifact,
 }: DeckWorkspaceProps) {
   const [exportMessage, setExportMessage] = useState<string | undefined>();
   const [previewKey, setPreviewKey] = useState(0);
@@ -80,6 +83,14 @@ export function DeckWorkspace({
                 </p>
               </div>
               <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onCreateMockArtifact}
+                >
+                  <IconPlayerPlay size={15} />
+                  Mock
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -163,6 +174,14 @@ export function DeckWorkspace({
                 Ask the agent to create a deck. The generated HTML artifact will
                 preview here.
               </p>
+              <Button
+                variant="secondary"
+                className="mt-4"
+                onClick={onCreateMockArtifact}
+              >
+                <IconPlayerPlay size={15} />
+                Load Mock HTML
+              </Button>
             </div>
           </div>
         )}
