@@ -1,0 +1,37 @@
+{
+  "name": "studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "getdesign Studio - Electron desktop app",
+  "main": "./out/main/index.js",
+  "trustedDependencies": [
+    "electron",
+    "electron-winstaller",
+    "esbuild"
+  ],
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:win": "electron-vite build && electron-builder --win",
+    "build:linux": "electron-vite build && electron-builder --linux",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "clean": "rm -rf out dist"
+  },
+  "dependencies": {
+    "electron": "^41.3.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

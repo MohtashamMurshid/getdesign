@@ -1,0 +1,19 @@
+appId: com.getdesign.studio
+productName: Studio
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - package.json
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+win:
+  target: nsis
+linux:
+  target:
+    - AppImage
+    - deb
