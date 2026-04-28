@@ -5,11 +5,16 @@ import { join } from "node:path";
 import type {
   StudioAddCustomProviderInput,
   StudioAuthStatus,
+  StudioCreateDeckInput,
   StudioConversationSnapshot,
   StudioCustomModelRow,
+  StudioDeckProject,
   StudioEvent,
+  StudioExportDeckInput,
+  StudioExportDeckResult,
   StudioLoginState,
   StudioMessage,
+  StudioMessagePart,
   StudioModelInfo,
   StudioOAuthProviderInfo,
   StudioRemoveCustomModelInput,
@@ -27,6 +32,7 @@ import {
   removeCustomModelEntry,
   writeModelsJson,
 } from "./models-json";
+import { StudioDeckService } from "./deck-service";
 
 type PiCodingAgent = typeof import("@mariozechner/pi-coding-agent");
 type PiAi = typeof import("@mariozechner/pi-ai");
@@ -40,12 +46,22 @@ type PiSession = {
 };
 type PiSessionEvent = {
   type: string;
+  message?: unknown;
   assistantMessageEvent?: {
     type: string;
     delta?: string;
     text?: string;
+    content?: string;
+    toolCall?: unknown;
+    partial?: unknown;
   };
   messages?: unknown[];
+  toolCallId?: string;
+  toolName?: string;
+  args?: unknown;
+  partialResult?: unknown;
+  result?: unknown;
+  isError?: boolean;
 };
 
 type PiRuntime = {
@@ -80,8 +96,15 @@ const PI_AUTH_DOCS_URL = "https://pi.dev/docs/latest/providers";
 const PI_MODELS_DOCS_URL = "https://pi.dev/docs/latest/models";
 const STUDIO_SYSTEM_PROMPT = [
   "You are Studio, an open-source Claude Design-style design partner.",
-  "For this first milestone, focus on clear back-and-forth conversation.",
-  "If the user asks for slides, first discuss the deck plan before generating files.",
+  "For slide and PPT work, follow Huashu-style HTML-first deck making.",
+  "Always treat the browser-ready HTML deck as the source artifact; PDF and PPTX are exports.",
+  "For decks, create files in the current artifact workspace using Pi file tools. Never paste full deck HTML in chat.",
+  "Write the browser preview to index.html. For multi-slide decks, create slides/*.html and an index.html manifest/iframe stage.",
+  "Use shared/tokens.css for reusable design tokens and assets/ for local assets.",
+  "Before creating a deck, ask which export path matters: HTML only, HTML plus PDF, or editable PPTX.",
+  "For decks with five or more slides, create or propose two showcase slides first to lock the visual grammar before producing the full deck.",
+  "Editable PPTX requires a pptx-safe authoring mode from the first slide: fixed wide layout, text in p/heading tags, real img tags, no gradients, no web components, and no complex SVG.",
+  "When you finish, summarize the files you created or edited and tell the user the preview is visible in the right panel.",
 ].join("\n");
 
 let runtimePromise: Promise<PiRuntime> | undefined;
@@ -91,6 +114,8 @@ let status: StudioConversationSnapshot["status"] = "ready";
 let lastError: string | undefined;
 let loginState: StudioLoginState = { status: "idle" };
 let manualCodeResolver: ((code: string) => void) | undefined;
+let deckService: StudioDeckService | undefined;
+let currentArtifactId = createId("artifact");
 
 export function registerStudioIpc(window: BrowserWindow): void {
   mainWindow = window;
@@ -124,6 +149,13 @@ export function registerStudioIpc(window: BrowserWindow): void {
   );
   ipcMain.handle("studio:remove-custom-model", (_event, input: StudioRemoveCustomModelInput) =>
     removeCustomModel(input),
+  );
+  ipcMain.handle("studio:list-decks", () => listDecks());
+  ipcMain.handle("studio:create-deck", (_event, input?: StudioCreateDeckInput) => createDeck(input));
+  ipcMain.handle("studio:get-deck", (_event, deckId: string) => getDeck(deckId));
+  ipcMain.handle("studio:open-deck", (_event, deckId: string) => openDeck(deckId));
+  ipcMain.handle("studio:export-deck", (_event, input: StudioExportDeckInput) =>
+    exportDeck(input),
   );
 }
 
@@ -384,6 +416,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
     id: createId("user"),
     role: "user",
     content,
+    parts: [{ type: "text", text: content }],
     createdAt: Date.now(),
     status: "done",
   };
@@ -409,6 +442,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
       finishAssistantMessage("done");
       status = "ready";
       emitConversation();
+      void emitDecks();
     })
     .catch((error: unknown) => {
       finishAssistantMessage("error");
@@ -448,23 +482,56 @@ async function newConversation(): Promise<StudioConversationSnapshot> {
   messages = [];
   status = "ready";
   lastError = undefined;
+  currentArtifactId = createId("artifact");
+  await getDeckService().ensureArtifactWorkspace(currentArtifactId);
   emitConversation();
+  await emitDecks();
   return getConversationSnapshot();
+}
+
+async function listDecks(): Promise<StudioDeckProject[]> {
+  const currentDeck = await getDeckService().readArtifactDeck(currentArtifactId);
+  return currentDeck ? [currentDeck] : [];
+}
+
+async function createDeck(input?: StudioCreateDeckInput): Promise<StudioDeckProject> {
+  const deck = await getDeckService().createDeck(input);
+  await emitDecks();
+  return deck;
+}
+
+async function getDeck(deckId: string): Promise<StudioDeckProject> {
+  return getDeckService().readDeck(deckId);
+}
+
+async function openDeck(deckId: string): Promise<void> {
+  await getDeckService().openDeck(deckId);
+}
+
+async function exportDeck(input: StudioExportDeckInput): Promise<StudioExportDeckResult> {
+  return getDeckService().exportDeck(input, mainWindow);
 }
 
 async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   if (runtime.session) return runtime.session;
 
-  const { createAgentSession, DefaultResourceLoader, SessionManager, createReadOnlyTools } =
+  const { createAgentSession, DefaultResourceLoader, SessionManager } =
     await import("@mariozechner/pi-coding-agent");
-  const cwd = app.getPath("userData");
+  const cwd = await getDeckService().ensureArtifactWorkspace(currentArtifactId);
+  // Append Studio guidance instead of overriding Pi's base system prompt: the
+  // base prompt is what tells the model the available tools and how to call
+  // them. Replacing it caused the model to invent <tool_call>...</tool_call>
+  // text instead of emitting structured Pi tool calls.
   const resourceLoader = new DefaultResourceLoader({
     cwd,
     agentDir: getPiAgentDir(),
-    systemPromptOverride: () => STUDIO_SYSTEM_PROMPT,
+    appendSystemPromptOverride: (base) => [...base, STUDIO_SYSTEM_PROMPT],
   });
   await resourceLoader.reload();
 
+  // Don't pass `tools` (string[] allowlist) or hand-built customTools — Pi's
+  // default coding tools (read, bash, edit, write, grep, find, ls) are
+  // registered automatically when both fields are omitted.
   const { session } = await createAgentSession({
     cwd,
     model: runtime.selectedModel as never,
@@ -472,7 +539,6 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
     modelRegistry: runtime.modelRegistry as never,
     resourceLoader,
     sessionManager: SessionManager.inMemory(),
-    tools: createReadOnlyTools(cwd) as never,
   });
 
   runtime.session = session as PiSession;
@@ -481,6 +547,43 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
 }
 
 function handlePiEvent(event: PiSessionEvent): void {
+  if (event.type === "tool_execution_start") {
+    upsertAssistantToolPart(event.toolCallId, event.toolName, event.args, undefined, false);
+    emitConversation();
+    return;
+  }
+
+  if (event.type === "tool_execution_update") {
+    upsertAssistantToolPart(
+      event.toolCallId,
+      event.toolName,
+      event.args,
+      event.partialResult,
+      false,
+      "input-available",
+    );
+    emitConversation();
+    return;
+  }
+
+  if (event.type === "tool_execution_end") {
+    upsertAssistantToolPart(
+      event.toolCallId,
+      event.toolName,
+      undefined,
+      event.result,
+      Boolean(event.isError),
+    );
+    emitConversation();
+    return;
+  }
+
+  if (event.type === "message_end" && event.message) {
+    syncAssistantMessageFromPi(event.message);
+    emitConversation();
+    return;
+  }
+
   if (event.type !== "message_update") return;
 
   const assistantEvent = event.assistantMessageEvent;
@@ -491,8 +594,13 @@ function handlePiEvent(event: PiSessionEvent): void {
     emitConversation();
   }
 
-  if (assistantEvent.type === "text_end" && assistantEvent.text) {
-    replaceStreamingAssistantText(assistantEvent.text);
+  if (assistantEvent.type === "text_end" && typeof assistantEvent.content === "string") {
+    finalizeStreamingTextPart(assistantEvent.content);
+    emitConversation();
+  }
+
+  if (assistantEvent.type === "toolcall_end" && assistantEvent.toolCall) {
+    upsertAssistantToolCall(assistantEvent.toolCall);
     emitConversation();
   }
 }
@@ -502,6 +610,7 @@ function getConversationSnapshot(): StudioConversationSnapshot {
     status,
     messages,
     selectedModelId: undefined,
+    currentArtifactId,
     error: lastError,
   };
 }
@@ -509,15 +618,213 @@ function getConversationSnapshot(): StudioConversationSnapshot {
 function appendAssistantText(delta: string): void {
   messages = messages.map((message, index) => {
     if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    return { ...message, content: `${message.content}${delta}` };
+    const parts = appendDeltaToLastTextPart(message.parts, delta);
+    const content = computeContentFromParts(parts);
+    return { ...message, content, parts };
   });
 }
 
-function replaceStreamingAssistantText(text: string): void {
+/** On text_end, replace the trailing in-flight text part with the final text. */
+function finalizeStreamingTextPart(finalText: string): void {
   messages = messages.map((message, index) => {
     if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    return { ...message, content: text };
+    const parts = replaceLastTextPart(message.parts, finalText);
+    const content = computeContentFromParts(parts);
+    return { ...message, content, parts };
   });
+}
+
+/** On message_end, rebuild parts from Pi's authoritative content array. */
+function syncAssistantMessageFromPi(piMessage: unknown): void {
+  const record = asRecord(piMessage);
+  if (!record || record["role"] !== "assistant" || !Array.isArray(record["content"])) return;
+
+  const piParts = record["content"].flatMap(toStudioPart);
+  if (piParts.length === 0) return;
+
+  messages = messages.map((message, index) => {
+    if (index !== messages.length - 1 || message.role !== "assistant") return message;
+    const parts = mergePiPartsWithExisting(piParts, message.parts);
+    const content = computeContentFromParts(parts);
+    return { ...message, content, parts };
+  });
+}
+
+function toStudioPart(content: unknown): StudioMessagePart[] {
+  const record = asRecord(content);
+  if (!record) return [];
+  if (record["type"] === "text" && typeof record["text"] === "string") {
+    return [{ type: "text", text: record["text"] }];
+  }
+  if (record["type"] === "thinking" && typeof record["thinking"] === "string") {
+    return [
+      {
+        type: "tool-Thinking",
+        toolCallId: `thinking-${hashString(record["thinking"])}`,
+        state: "output-available",
+        input: {},
+        output: record["thinking"],
+      },
+    ];
+  }
+  if (record["type"] === "toolCall") {
+    const part = toolCallToPart(record);
+    return part ? [part] : [];
+  }
+  return [];
+}
+
+function upsertAssistantToolCall(toolCall: unknown): void {
+  const record = asRecord(toolCall);
+  const part = record ? toolCallToPart(record) : undefined;
+  if (!part) return;
+  upsertAssistantPart(part);
+}
+
+function upsertAssistantToolPart(
+  toolCallId: unknown,
+  toolName: unknown,
+  args: unknown,
+  output: unknown,
+  isError: boolean,
+  pendingState: NonNullable<StudioMessagePart["state"]> = "input-available",
+): void {
+  if (typeof toolCallId !== "string" || typeof toolName !== "string") return;
+  upsertAssistantPart({
+    type: `tool-${toAgentElementsToolName(toolName)}`,
+    toolCallId,
+    state: output === undefined ? pendingState : isError ? "output-error" : "output-available",
+    input: args,
+    output,
+    result: output,
+  });
+}
+
+function upsertAssistantPart(part: StudioMessagePart): void {
+  messages = messages.map((message, index) => {
+    if (index !== messages.length - 1 || message.role !== "assistant") return message;
+    return { ...message, parts: upsertPart(message.parts, part) };
+  });
+}
+
+function toolCallToPart(toolCall: Record<string, unknown>): StudioMessagePart | undefined {
+  const id = toolCall["id"];
+  const name = toolCall["name"];
+  if (typeof id !== "string" || typeof name !== "string") return undefined;
+  return {
+    type: `tool-${toAgentElementsToolName(name)}`,
+    toolCallId: id,
+    state: "input-available",
+    input: toolCall["arguments"] ?? {},
+  };
+}
+
+/**
+ * Append a streamed text delta. If the last part is a text part it is grown
+ * in place, otherwise a new text part is pushed. This preserves chronological
+ * ordering so the UI can render text → tool → text → tool sequences.
+ */
+function appendDeltaToLastTextPart(
+  parts: StudioMessagePart[] | undefined,
+  delta: string,
+): StudioMessagePart[] {
+  const list = parts ?? [];
+  const last = list[list.length - 1];
+  if (last && last.type === "text") {
+    return [
+      ...list.slice(0, -1),
+      { ...last, text: `${last.text ?? ""}${delta}` },
+    ];
+  }
+  return [...list, { type: "text", text: delta }];
+}
+
+function replaceLastTextPart(
+  parts: StudioMessagePart[] | undefined,
+  text: string,
+): StudioMessagePart[] {
+  const list = parts ?? [];
+  const last = list[list.length - 1];
+  if (last && last.type === "text") {
+    return [...list.slice(0, -1), { ...last, text }];
+  }
+  return [...list, { type: "text", text }];
+}
+
+function computeContentFromParts(parts: StudioMessagePart[]): string {
+  return parts
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => part.text as string)
+    .join("");
+}
+
+function upsertPart(parts: StudioMessagePart[] | undefined, part: StudioMessagePart): StudioMessagePart[] {
+  if (!part.toolCallId) return [...(parts ?? []), part];
+  const existing = parts ?? [];
+  const index = existing.findIndex((candidate) => candidate.toolCallId === part.toolCallId);
+  if (index === -1) return [...existing, part];
+  return existing.map((candidate, candidateIndex) =>
+    candidateIndex === index
+      ? {
+          ...candidate,
+          ...part,
+          input: part.input ?? candidate.input,
+          output: part.output ?? candidate.output,
+          result: part.result ?? candidate.result,
+        }
+      : candidate,
+  );
+}
+
+/**
+ * Reconcile Pi's authoritative parts (text + toolCall, in order) with the
+ * existing list, preserving any tool execution state (output/result) that
+ * arrived through the tool_execution_* events.
+ */
+function mergePiPartsWithExisting(
+  piParts: StudioMessagePart[],
+  existingParts: StudioMessagePart[] | undefined,
+): StudioMessagePart[] {
+  const existing = existingParts ?? [];
+  return piParts.map((piPart) => {
+    if (!piPart.toolCallId) return piPart;
+    const match = existing.find((candidate) => candidate.toolCallId === piPart.toolCallId);
+    if (!match) return piPart;
+    return {
+      ...piPart,
+      state: match.state ?? piPart.state,
+      input: piPart.input ?? match.input,
+      output: match.output ?? piPart.output,
+      result: match.result ?? piPart.result,
+    };
+  });
+}
+
+function toAgentElementsToolName(toolName: string): string {
+  const aliases: Record<string, string> = {
+    bash: "Bash",
+    read: "Read",
+    edit: "Edit",
+    write: "Write",
+    grep: "Grep",
+    find: "Glob",
+    ls: "Glob",
+  };
+  return aliases[toolName] ?? toolName.replace(/(^|[-_])(\w)/g, (_match, _sep, char: string) =>
+    char.toUpperCase(),
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+}
+
+function hashString(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
 }
 
 function finishAssistantMessage(nextStatus: NonNullable<StudioMessage["status"]>): void {
@@ -529,6 +836,10 @@ function finishAssistantMessage(nextStatus: NonNullable<StudioMessage["status"]>
 
 function emitConversation(): void {
   emit({ type: "conversation", payload: getConversationSnapshot() });
+}
+
+async function emitDecks(): Promise<void> {
+  emit({ type: "decks", payload: await listDecks() });
 }
 
 async function emitAuth(): Promise<void> {
@@ -605,6 +916,11 @@ function getPiAgentDir(): string {
 
 function getModelsJsonPath(): string {
   return join(getPiAgentDir(), "models.json");
+}
+
+function getDeckService(): StudioDeckService {
+  deckService ??= new StudioDeckService(join(app.getPath("userData"), "artifacts"));
+  return deckService;
 }
 
 async function resyncSelectedModelAfterRegistryChange(runtime: PiRuntime): Promise<void> {

@@ -11,6 +11,7 @@ import { Suggestions } from "./components/agent-elements/input/suggestions";
 import { ModelPicker } from "./components/agent-elements/input/model-picker";
 import { ModeSelector } from "./components/agent-elements/input/mode-selector";
 import { AuthLanding } from "./components/auth-landing";
+import { DeckWorkspace } from "./components/deck-workspace";
 import { SettingsPage } from "./components/settings-page";
 
 import { Button } from "./components/ui/button";
@@ -31,6 +32,8 @@ import type {
   StudioAddCustomProviderInput,
   StudioAuthStatus,
   StudioConversationSnapshot,
+  StudioDeckExportFormat,
+  StudioDeckProject,
 } from "../../shared/studio-api";
 
 type View = "chat" | "settings";
@@ -42,6 +45,8 @@ export default function App() {
     status: "ready",
     messages: [],
   });
+  const [decks, setDecks] = useState<StudioDeckProject[]>([]);
+  const [selectedDeckId, setSelectedDeckId] = useState<string | undefined>();
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [provider, setProvider] = useState("anthropic");
   const [apiKey, setApiKey] = useState("");
@@ -76,6 +81,14 @@ export default function App() {
       if (event.type === "conversation") {
         setConversation(event.payload);
         if (event.payload.error) setError(event.payload.error);
+      }
+      if (event.type === "decks") {
+        setDecks(event.payload);
+        setSelectedDeckId((current) =>
+          event.payload.some((deck) => deck.id === current)
+            ? current
+            : event.payload[0]?.id,
+        );
       }
     });
 
@@ -135,8 +148,14 @@ export default function App() {
         window.api.getAuthStatus(),
         window.api.getConversation(),
       ]);
+      const nextDecks = await window.api.listDecks();
       setAuthStatus(nextAuth);
       setConversation(nextConversation);
+      setDecks(nextDecks);
+      setSelectedDeckId(
+        nextDecks.find((deck) => deck.id === nextConversation.currentArtifactId)
+          ?.id,
+      );
       setSelectedModelId((current) => current || nextAuth.selectedModelId || "");
     } catch (nextError) {
       setError(toErrorMessage(nextError));
@@ -270,8 +289,33 @@ export default function App() {
       setError(undefined);
       const next = await window.api.newConversation();
       setConversation(next);
+      setDecks([]);
+      setSelectedDeckId(undefined);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
+    }
+  }
+
+  async function handleOpenDeck(deckId: string) {
+    try {
+      setError(undefined);
+      await window.api.openDeck(deckId);
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+      throw nextError;
+    }
+  }
+
+  async function handleExportDeck(
+    deckId: string,
+    format: StudioDeckExportFormat,
+  ) {
+    try {
+      setError(undefined);
+      return await window.api.exportDeck({ deckId, format });
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+      throw nextError;
     }
   }
 
@@ -370,67 +414,76 @@ export default function App() {
         </div>
       )}
 
-      <section className="flex min-h-0 flex-1 flex-col">
-        {conversation.messages.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center px-6">
-            <h1 className="text-balance text-center text-3xl font-semibold tracking-tight">
-              What should we design today?
-            </h1>
-            <Suggestions
-              items={[
-                {
-                  id: "deck",
-                  label: "Plan a launch deck",
-                  value:
-                    "Help me plan a 7-slide launch deck for an OSS Claude Design alternative.",
-                },
-                {
-                  id: "ask",
-                  label: "Ask me first",
-                  value: "Ask me what you need to plan a deck.",
-                },
-                {
-                  id: "mvp",
-                  label: "MVP narrative",
-                  value: "What should the MVP narrative be for Studio?",
-                },
-              ]}
-              onSelect={(item) =>
-                handleSend({ content: item.value ?? item.label })
-              }
-              className="mt-6 justify-center"
-            />
-          </div>
-        ) : (
-          <Conversation
-            messages={conversation.messages}
-            status={conversation.status}
-          />
-        )}
-
-        <InputBar
-          className="studio-input"
-          status={conversation.status as ChatStatus}
-          onSend={handleSend}
-          onStop={handleStop}
-          placeholder="Send a message..."
-          disabled={displayedModels.length === 0}
-          leftActions={
-            <>
-              <ModelPicker
-                models={displayedModels}
-                value={selectedModelId}
-                onChange={handleModelChange}
-              />
-              <ModeSelector
-                modes={[
-                  { id: "chat", label: "Chat" },
-                  { id: "deck-plan", label: "Deck plan" },
+      <section className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          {conversation.messages.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-6">
+              <h1 className="text-balance text-center text-3xl font-semibold tracking-tight">
+                What should we design today?
+              </h1>
+              <Suggestions
+                items={[
+                  {
+                    id: "deck",
+                    label: "Plan a launch deck",
+                    value:
+                      "Help me plan a 7-slide launch deck for an OSS Claude Design alternative.",
+                  },
+                  {
+                    id: "ask",
+                    label: "Ask me first",
+                    value: "Ask me what you need to plan a deck.",
+                  },
+                  {
+                    id: "mvp",
+                    label: "MVP narrative",
+                    value: "What should the MVP narrative be for Studio?",
+                  },
                 ]}
-                value="chat"
+                onSelect={(item) =>
+                  handleSend({ content: item.value ?? item.label })
+                }
+                className="mt-6 justify-center"
               />
-            </>
-          }
+            </div>
+          ) : (
+            <Conversation
+              messages={conversation.messages}
+              status={conversation.status}
+            />
+          )}
+
+          <InputBar
+            className="studio-input"
+            status={conversation.status as ChatStatus}
+            onSend={handleSend}
+            onStop={handleStop}
+            placeholder="Send a message..."
+            disabled={displayedModels.length === 0}
+            leftActions={
+              <>
+                <ModelPicker
+                  models={displayedModels}
+                  value={selectedModelId}
+                  onChange={handleModelChange}
+                />
+                <ModeSelector
+                  modes={[
+                    { id: "chat", label: "Chat" },
+                    { id: "deck-plan", label: "Deck plan" },
+                  ]}
+                  value="chat"
+                />
+              </>
+            }
+          />
+        </div>
+        <DeckWorkspace
+          decks={decks}
+          selectedDeckId={selectedDeckId}
+          status={conversation.status}
+          onOpenDeck={handleOpenDeck}
+          onExportDeck={handleExportDeck}
         />
       </section>
     </main>

@@ -2,7 +2,9 @@ import { contextBridge, ipcRenderer } from "electron";
 import type {
   StudioAddCustomProviderInput,
   StudioApi,
+  StudioCreateDeckInput,
   StudioEvent,
+  StudioExportDeckInput,
   StudioRemoveCustomModelInput,
   StudioSelectModelInput,
   StudioSendPromptInput,
@@ -35,6 +37,13 @@ const api: StudioApi = {
     ipcRenderer.invoke("studio:add-custom-provider", input),
   removeCustomModel: (input: StudioRemoveCustomModelInput) =>
     ipcRenderer.invoke("studio:remove-custom-model", input),
+  listDecks: () => ipcRenderer.invoke("studio:list-decks"),
+  createDeck: (input?: StudioCreateDeckInput) =>
+    ipcRenderer.invoke("studio:create-deck", input),
+  getDeck: (deckId: string) => ipcRenderer.invoke("studio:get-deck", deckId),
+  openDeck: (deckId: string) => ipcRenderer.invoke("studio:open-deck", deckId),
+  exportDeck: (input: StudioExportDeckInput) =>
+    ipcRenderer.invoke("studio:export-deck", input),
   onStudioEvent: (listener: (event: StudioEvent) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, payload: StudioEvent) => {
       listener(payload);

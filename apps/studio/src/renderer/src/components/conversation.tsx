@@ -3,15 +3,24 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import { IconCheck, IconCopy } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconCopy,
+  IconFile,
+  IconSearch,
+  IconTerminal2,
+  IconTool,
+} from "@tabler/icons-react";
 import { Streamdown } from "streamdown";
 
 import type {
   StudioChatStatus,
   StudioMessage,
+  StudioMessagePart,
 } from "../../../shared/studio-api";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +49,7 @@ export const Conversation = memo(function Conversation({
   const showThinking =
     isStreaming &&
     (!lastAssistant ||
-      lastAssistant.content.trim().length === 0 ||
+      getRenderableParts(lastAssistant).length === 0 ||
       lastMessage?.role === "user");
 
   const isAtBottom = useCallback(() => {
@@ -113,27 +122,64 @@ function AssistantTurn({
   message: StudioMessage;
   isStreaming: boolean;
 }) {
-  const content = message.content;
+  const parts = useMemo(() => getRenderableParts(message), [message]);
+  const copyText = useMemo(() => getCopyText(message), [message]);
   const isError = message.status === "error";
 
-  if (!content && !isStreaming) return null;
+  if (parts.length === 0 && !isStreaming) return null;
 
   return (
-    <div className="group/assistant relative flex flex-col gap-1.5">
-      <AssistantMarkdown text={content} isStreaming={isStreaming} />
-      {isStreaming && content.length > 0 ? (
+    <div className="group/assistant relative flex flex-col gap-3">
+      {parts.map((part, index) => {
+        if (isTextPart(part)) {
+          return (
+            <AssistantMarkdown
+              key={`${message.id}-text-${index}`}
+              text={part.text}
+              isStreaming={isStreaming}
+            />
+          );
+        }
+        if (isToolPart(part)) {
+          return <PiToolRow key={part.toolCallId ?? `${message.id}-tool-${index}`} part={part} />;
+        }
+        return null;
+      })}
+      {isStreaming && parts.length > 0 ? (
         <span
           aria-hidden
           className="ml-0.5 inline-block h-[1em] w-[2px] animate-pulse bg-foreground align-text-bottom"
         />
       ) : null}
-      {!isStreaming && content.length > 0 ? (
-        <CopyButton text={content} />
-      ) : null}
+      {!isStreaming && copyText.length > 0 ? <CopyButton text={copyText} /> : null}
       {isError ? (
-        <p className="mt-1 text-xs text-destructive">
-          Generation failed. Try again.
-        </p>
+        <p className="mt-1 text-xs text-destructive">Generation failed. Try again.</p>
+      ) : null}
+    </div>
+  );
+}
+
+function PiToolRow({ part }: { part: StudioMessagePart }) {
+  const { isPending, isError } = getToolStatus(part);
+  const toolName = getToolName(part);
+  const Icon = getToolIcon(toolName);
+  const subtitle = getToolSubtitle(part);
+
+  return (
+    <div
+      className={cn(
+        "flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-[13px]",
+        "border-border/70 bg-muted/35 text-muted-foreground",
+        isError && "border-destructive/40 bg-destructive/10 text-destructive",
+      )}
+    >
+      <Icon size={15} className="shrink-0" />
+      <span className="font-medium text-foreground">
+        {isPending ? `Running ${toolName}` : toolName}
+      </span>
+      {subtitle ? <span className="min-w-0 truncate">{subtitle}</span> : null}
+      {isPending ? (
+        <span className="ml-auto size-1.5 shrink-0 animate-pulse rounded-full bg-current" />
       ) : null}
     </div>
   );
@@ -193,9 +239,99 @@ function AssistantMarkdown({
   if (!text) return null;
   return (
     <div className="text-[14px] leading-relaxed text-foreground [&>*+*]:mt-3 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
-      <Streamdown mode={isStreaming ? "streaming" : "static"}>
-        {text}
-      </Streamdown>
+      <Streamdown mode={isStreaming ? "streaming" : "static"}>{text}</Streamdown>
     </div>
   );
+}
+
+function getRenderableParts(message: StudioMessage): StudioMessagePart[] {
+  const parts = message.parts?.length
+    ? message.parts
+    : ([{ type: "text", text: message.content }] satisfies StudioMessagePart[]);
+  return parts.flatMap((part) => {
+    if (isTextPart(part)) {
+      const text = stripPiToolMarkup(part.text);
+      return text.trim() ? [{ ...part, text }] : [];
+    }
+    return isToolPart(part) ? [part] : [];
+  });
+}
+
+function getCopyText(message: StudioMessage): string {
+  return getRenderableParts(message)
+    .filter(isTextPart)
+    .map((part) => part.text)
+    .join("\n\n");
+}
+
+function isTextPart(part: StudioMessagePart): part is StudioMessagePart & { type: "text"; text: string } {
+  return part.type === "text" && typeof part.text === "string";
+}
+
+function isToolPart(part: StudioMessagePart): boolean {
+  return (
+    typeof part.type === "string" &&
+    part.type.startsWith("tool-") &&
+    typeof part.toolCallId === "string"
+  );
+}
+
+function getToolStatus(part: StudioMessagePart) {
+  return {
+    isPending: part.state !== "output-available" && part.state !== "output-error",
+    isError: part.state === "output-error",
+  };
+}
+
+function getToolName(part: StudioMessagePart): string {
+  return part.type.startsWith("tool-") ? part.type.slice(5) : "Tool";
+}
+
+function getToolIcon(toolName: string) {
+  if (toolName === "Bash") return IconTerminal2;
+  if (toolName === "Read" || toolName === "Edit" || toolName === "Write") return IconFile;
+  if (toolName === "Grep" || toolName === "Glob") return IconSearch;
+  return IconTool;
+}
+
+function getToolSubtitle(part: StudioMessagePart): string {
+  const input = asRecord(part.input);
+  const output = part.output;
+  const path =
+    getString(input, "file_path") ??
+    getString(input, "path") ??
+    getString(input, "target_notebook");
+  if (path) return path.split("/").pop() ?? path;
+
+  const command = getString(input, "command");
+  if (command) return command.replace(/\s+/g, " ").trim();
+
+  const pattern = getString(input, "pattern") ?? getString(input, "query");
+  if (pattern) return pattern;
+
+  if (typeof output === "string" && output.trim()) return output.trim().slice(0, 80);
+  return "";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+}
+
+function getString(record: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = record?.[key];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function stripPiToolMarkup(text: string): string {
+  return text
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "")
+    .replace(/<tool_call>[\s\S]*$/g, "")
+    .replace(/<\/tool_call>/g, "")
+    .replace(/<tool_use>[\s\S]*?<\/tool_use>/g, "")
+    .replace(/<tool_use>[\s\S]*$/g, "")
+    .replace(/<\/tool_use>/g, "")
+    .replace(/<pi:[\s\S]*?<\/pi:[^>]+>/g, "")
+    .replace(/<\/?pi:[^>]+>/g, "")
+    .replace(/\bpi:[\w-]+\s+\[blocked\]\s*/g, "")
+    .trim();
 }

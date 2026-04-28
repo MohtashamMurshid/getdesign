@@ -75,20 +75,81 @@ export type StudioMessage = {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  parts?: StudioMessagePart[];
   createdAt: number;
   status?: "streaming" | "done" | "error";
+};
+
+export type StudioMessagePart = {
+  type: string;
+  text?: string;
+  toolCallId?: string;
+  state?: "input-streaming" | "input-available" | "output-available" | "output-error";
+  input?: unknown;
+  output?: unknown;
+  result?: unknown;
 };
 
 export type StudioConversationSnapshot = {
   status: StudioChatStatus;
   messages: StudioMessage[];
   selectedModelId?: string;
+  currentArtifactId?: string;
   error?: string;
 };
 
 export type StudioSendPromptInput = {
   content: string;
   modelId?: string;
+};
+
+export type StudioDeckExportFormat = "html" | "pdf" | "pptx";
+
+export type StudioDeckMode = "freeform" | "pptx-safe";
+
+export type StudioDeckSlide = {
+  id: string;
+  file: string;
+  label: string;
+  title: string;
+};
+
+export type StudioDeckSlideContent = {
+  label?: string;
+  title: string;
+  kicker?: string;
+  lede?: string;
+  points?: string[];
+};
+
+export type StudioDeckProject = {
+  id: string;
+  title: string;
+  mode: StudioDeckMode;
+  path: string;
+  indexFile: string;
+  previewUrl: string;
+  createdAt: number;
+  updatedAt: number;
+  slides: StudioDeckSlide[];
+};
+
+export type StudioCreateDeckInput = {
+  title?: string;
+  mode?: StudioDeckMode;
+  slideCount?: number;
+  slides?: StudioDeckSlideContent[];
+};
+
+export type StudioExportDeckInput = {
+  deckId: string;
+  format: StudioDeckExportFormat;
+};
+
+export type StudioExportDeckResult = {
+  format: StudioDeckExportFormat;
+  path: string;
+  message: string;
 };
 
 export type StudioSetRuntimeKeyInput = {
@@ -114,7 +175,8 @@ export type StudioSubmitLoginCodeInput = {
 
 export type StudioEvent =
   | { type: "auth"; payload: StudioAuthStatus }
-  | { type: "conversation"; payload: StudioConversationSnapshot };
+  | { type: "conversation"; payload: StudioConversationSnapshot }
+  | { type: "decks"; payload: StudioDeckProject[] };
 
 export type StudioApi = {
   newConversation: () => Promise<StudioConversationSnapshot>;
@@ -131,5 +193,10 @@ export type StudioApi = {
   openPiModelsDocs: () => Promise<void>;
   addCustomProvider: (input: StudioAddCustomProviderInput) => Promise<StudioAuthStatus>;
   removeCustomModel: (input: StudioRemoveCustomModelInput) => Promise<StudioAuthStatus>;
+  listDecks: () => Promise<StudioDeckProject[]>;
+  createDeck: (input?: StudioCreateDeckInput) => Promise<StudioDeckProject>;
+  getDeck: (deckId: string) => Promise<StudioDeckProject>;
+  openDeck: (deckId: string) => Promise<void>;
+  exportDeck: (input: StudioExportDeckInput) => Promise<StudioExportDeckResult>;
   onStudioEvent: (listener: (event: StudioEvent) => void) => () => void;
 };
