@@ -19,6 +19,11 @@ import {
   Card,
   CardContent,
 } from "./components/ui/card";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "./components/ui/resizable";
 import { Logo } from "./components/logo";
 
 import { formatProviderDisplayName } from "./lib/format-provider-label";
@@ -434,77 +439,109 @@ export default function App() {
       )}
 
       <section className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          {conversation.messages.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center px-6">
-              <h1 className="text-balance text-center text-3xl font-semibold tracking-tight">
-                What should we design today?
-              </h1>
-              <Suggestions
-                items={[
-                  {
-                    id: "deck",
-                    label: "Plan a launch deck",
-                    value:
-                      "Help me plan a 7-slide launch deck for an OSS Claude Design alternative.",
-                  },
-                  {
-                    id: "ask",
-                    label: "Ask me first",
-                    value: "Ask me what you need to plan a deck.",
-                  },
-                  {
-                    id: "mvp",
-                    label: "MVP narrative",
-                    value: "What should the MVP narrative be for Studio?",
-                  },
-                ]}
-                onSelect={(item) =>
-                  handleSend({ content: item.value ?? item.label })
+        {(() => {
+          const hasDeck = Boolean(
+            selectedDeckId && decks.some((deck) => deck.id === selectedDeckId),
+          );
+
+          const chatColumn = (
+            <div className="flex h-full min-w-0 flex-1 flex-col">
+              {conversation.messages.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center px-6">
+                  <h1 className="text-balance text-center text-3xl font-semibold tracking-tight">
+                    What should we design today?
+                  </h1>
+                  <Suggestions
+                    items={[
+                      {
+                        id: "deck",
+                        label: "Plan a launch deck",
+                        value:
+                          "Help me plan a 7-slide launch deck for an OSS Claude Design alternative.",
+                      },
+                      {
+                        id: "ask",
+                        label: "Ask me first",
+                        value: "Ask me what you need to plan a deck.",
+                      },
+                      {
+                        id: "mvp",
+                        label: "MVP narrative",
+                        value: "What should the MVP narrative be for Studio?",
+                      },
+                    ]}
+                    onSelect={(item) =>
+                      handleSend({ content: item.value ?? item.label })
+                    }
+                    className="mt-6 justify-center"
+                  />
+                </div>
+              ) : (
+                <Conversation
+                  messages={conversation.messages}
+                  status={conversation.status}
+                />
+              )}
+
+              <InputBar
+                className="studio-input"
+                status={conversation.status as ChatStatus}
+                onSend={handleSend}
+                onStop={handleStop}
+                placeholder="Send a message..."
+                disabled={displayedModels.length === 0}
+                leftActions={
+                  <>
+                    <ModelPicker
+                      models={displayedModels}
+                      value={selectedModelId}
+                      onChange={handleModelChange}
+                    />
+                    <ModeSelector
+                      modes={[
+                        { id: "chat", label: "Chat" },
+                        { id: "deck-plan", label: "Deck plan" },
+                      ]}
+                      value="chat"
+                    />
+                  </>
                 }
-                className="mt-6 justify-center"
               />
             </div>
-          ) : (
-            <Conversation
-              messages={conversation.messages}
-              status={conversation.status}
-            />
-          )}
+          );
 
-          <InputBar
-            className="studio-input"
-            status={conversation.status as ChatStatus}
-            onSend={handleSend}
-            onStop={handleStop}
-            placeholder="Send a message..."
-            disabled={displayedModels.length === 0}
-            leftActions={
-              <>
-                <ModelPicker
-                  models={displayedModels}
-                  value={selectedModelId}
-                  onChange={handleModelChange}
+          if (!hasDeck) {
+            return chatColumn;
+          }
+
+          return (
+            <ResizablePanelGroup
+              direction="horizontal"
+              autoSaveId="studio.deck-split"
+              className="h-full w-full"
+            >
+              <ResizablePanel defaultSize={70} minSize={30} className="flex">
+                {chatColumn}
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                defaultSize={30}
+                minSize={20}
+                maxSize={60}
+                className="flex"
+              >
+                <DeckWorkspace
+                  decks={decks}
+                  selectedDeckId={selectedDeckId}
+                  status={conversation.status}
+                  onOpenDeck={handleOpenDeck}
+                  onExportDeck={handleExportDeck}
+                  onCreateMockArtifact={handleCreateMockArtifact}
                 />
-                <ModeSelector
-                  modes={[
-                    { id: "chat", label: "Chat" },
-                    { id: "deck-plan", label: "Deck plan" },
-                  ]}
-                  value="chat"
-                />
-              </>
-            }
-          />
-        </div>
-        <DeckWorkspace
-          decks={decks}
-          selectedDeckId={selectedDeckId}
-          status={conversation.status}
-          onOpenDeck={handleOpenDeck}
-          onExportDeck={handleExportDeck}
-          onCreateMockArtifact={handleCreateMockArtifact}
-        />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          );
+        })()}
       </section>
     </main>
   );
