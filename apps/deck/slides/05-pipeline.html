@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>05 · Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 960pt; height: 540pt; background: #0a0a0b; color: #ededee;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; position: relative; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .rail-top, .rail-bottom { position: absolute; left: 36pt; right: 36pt; height: 1pt; display: flex; gap: 4pt; }
+  .rail-top { top: 36pt; } .rail-bottom { bottom: 36pt; }
+  .rail-tick { flex: 1; background: rgba(255,255,255,0.10); height: 1pt; }
+
+  .chrome { position: absolute; top: 54pt; left: 54pt; display: flex; align-items: center; gap: 8pt; }
+  .chrome-dot { width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt; }
+  .chrome p { font-size: 10.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(237,237,238,0.6); }
+  .counter { position: absolute; top: 54pt; right: 54pt; }
+  .counter p { font-size: 10.5pt; letter-spacing: 0.14em; color: rgba(237,237,238,0.38); }
+
+  .section-head { position: absolute; top: 100pt; left: 54pt; right: 54pt; }
+  .section-head-row { display: flex; align-items: baseline; gap: 18pt; }
+  .section-head .tag { font-size: 11pt; color: rgba(237,237,238,0.38); }
+  .section-head h2 { font-size: 32pt; font-weight: 500; letter-spacing: -0.025em; color: #ededee; }
+  .section-head .lede { font-size: 12.5pt; color: rgba(237,237,238,0.6); margin-top: 10pt; max-width: 600pt; line-height: 1.5; }
+
+  /* Pipeline timeline */
+  .pipeline {
+    position: absolute; top: 240pt; left: 54pt; right: 54pt;
+  }
+  .timeline-bar {
+    height: 1pt; background: rgba(255,255,255,0.10);
+    margin: 0 24pt; position: relative;
+  }
+  .timeline-progress {
+    position: absolute; top: 0; left: 0; width: 100%;
+    height: 1pt; background: #a3e635;
+  }
+  .stations {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    margin-top: -7pt;
+  }
+  .station { display: flex; flex-direction: column; align-items: center; padding: 0 12pt; }
+  .station-dot {
+    width: 14pt; height: 14pt; background: #0a0a0b;
+    border: 1pt solid #a3e635; border-radius: 99pt;
+  }
+  .station-dot-inner {
+    width: 6pt; height: 6pt; background: #a3e635; border-radius: 99pt;
+    margin: 3pt;
+  }
+  .station-label { margin-top: 18pt; text-align: center; }
+  .station-label .num p { font-size: 9.5pt; letter-spacing: 0.16em; color: #a3e635; }
+  .station-label h3 { font-size: 16pt; font-weight: 500; color: #ededee; margin-top: 6pt; letter-spacing: -0.015em; }
+  .station-label p.note { font-size: 10.5pt; color: rgba(237,237,238,0.6); margin-top: 8pt; line-height: 1.5; }
+
+  .footer { position: absolute; left: 54pt; right: 54pt; bottom: 54pt; display: flex; justify-content: space-between; }
+  .footer p { font-size: 10.5pt; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(237,237,238,0.38); }
+</style>
+</head>
+<body>
+
+  <div class="rail-top">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+  <div class="chrome"><div class="chrome-dot"></div><p class="mono">design.md</p></div>
+  <div class="counter"><p class="mono">05 / 08</p></div>
+
+  <div class="section-head">
+    <div class="section-head-row">
+      <p class="mono tag">05 · pipeline</p>
+      <h2>Four phases. About ninety seconds.</h2>
+    </div>
+    <p class="lede">A coordinator agent orchestrates four sub-agents inside a Daytona sandbox. Crawl is deterministic. Extraction is deterministic. Only synthesis touches the LLM, and only against grounded tokens.</p>
+  </div>
+
+  <div class="pipeline">
+    <div class="timeline-bar">
+      <div class="timeline-progress"></div>
+    </div>
+
+    <div class="stations">
+      <div class="station">
+        <div class="station-dot"><div class="station-dot-inner"></div></div>
+        <div class="station-label">
+          <div class="num"><p class="mono">PHASE 01</p></div>
+          <h3>Crawl</h3>
+          <p class="note">Fetch HTML, all linked CSS, @import chains, font sources.</p>
+        </div>
+      </div>
+
+      <div class="station">
+        <div class="station-dot"><div class="station-dot-inner"></div></div>
+        <div class="station-label">
+          <div class="num"><p class="mono">PHASE 02</p></div>
+          <h3>Screenshot</h3>
+          <p class="note">Real Chromium in a Daytona sandbox. Hero + full-page stitch.</p>
+        </div>
+      </div>
+
+      <div class="station">
+        <div class="station-dot"><div class="station-dot-inner"></div></div>
+        <div class="station-label">
+          <div class="num"><p class="mono">PHASE 03</p></div>
+          <h3>Extract</h3>
+          <p class="note">Deterministic CSS parse into a DesignTokens Zod object.</p>
+        </div>
+      </div>
+
+      <div class="station">
+        <div class="station-dot"><div class="station-dot-inner"></div></div>
+        <div class="station-label">
+          <div class="num"><p class="mono">PHASE 04</p></div>
+          <h3>Synthesize</h3>
+          <p class="note">GPT-5.5 class via AI Gateway. Structured output, validated.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="mono">cold start &le; 5s</p>
+    <p class="mono">end-to-end &le; 90s · p50</p>
+  </div>
+
+  <div class="rail-bottom">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+</body>
+</html>

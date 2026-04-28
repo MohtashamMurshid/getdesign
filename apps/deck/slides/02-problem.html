@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>02 · Problem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 960pt; height: 540pt; background: #0a0a0b; color: #ededee;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; position: relative; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .rail-top, .rail-bottom { position: absolute; left: 36pt; right: 36pt; height: 1pt; display: flex; gap: 4pt; }
+  .rail-top { top: 36pt; } .rail-bottom { bottom: 36pt; }
+  .rail-tick { flex: 1; background: rgba(255,255,255,0.10); height: 1pt; }
+
+  .chrome { position: absolute; top: 54pt; left: 54pt; display: flex; align-items: center; gap: 8pt; }
+  .chrome-dot { width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt; }
+  .chrome p { font-size: 10.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(237,237,238,0.6); }
+  .counter { position: absolute; top: 54pt; right: 54pt; }
+  .counter p { font-size: 10.5pt; letter-spacing: 0.14em; color: rgba(237,237,238,0.38); }
+
+  .section-head { position: absolute; top: 100pt; left: 54pt; right: 54pt; }
+  .section-head-row { display: flex; align-items: baseline; gap: 18pt; }
+  .section-head .tag { font-size: 11pt; color: rgba(237,237,238,0.38); }
+  .section-head h2 { font-size: 32pt; font-weight: 500; letter-spacing: -0.025em; color: #ededee; }
+  .section-head .lede { font-size: 13pt; color: rgba(237,237,238,0.6); margin-top: 14pt; max-width: 520pt; line-height: 1.5; }
+
+  .grid { position: absolute; top: 235pt; left: 54pt; right: 54pt; display: flex; gap: 18pt; }
+  .card { flex: 1; background: #101012; padding: 22pt; min-height: 220pt; position: relative; border-top: 1pt solid rgba(255,255,255,0.07); }
+
+  .card-num p { font-size: 10pt; letter-spacing: 0.16em; color: rgba(248,113,113,0.85); }
+  .card h3 { font-size: 17pt; font-weight: 500; color: #ededee; letter-spacing: -0.015em; margin-top: 14pt; }
+  .card-body { margin-top: 14pt; }
+  .card-body p { font-size: 11.5pt; line-height: 1.55; color: rgba(237,237,238,0.6); }
+
+  .swatch-row { display: flex; gap: 6pt; margin-top: 18pt; }
+  .swatch { width: 28pt; height: 28pt; }
+  .s1 { background: #5b8def; } .s2 { background: #7c3aed; } .s3 { background: #2dd4bf; } .s4 { background: #f59e0b; }
+  .swatch-cursor { width: 28pt; height: 28pt; border: 1pt dashed rgba(248,113,113,0.6); }
+
+  .shot-block { margin-top: 18pt; background: #141418; padding: 12pt; }
+  .shot-block-img { background: #1a1a20; height: 56pt; }
+  .shot-block-arrow {
+    margin-top: 10pt; display: flex; align-items: center; gap: 8pt;
+  }
+  .shot-block-arrow .a-line { flex: 1; height: 1pt; background: rgba(255,255,255,0.10); }
+  .shot-block-arrow p { font-size: 10pt; color: rgba(248,113,113,0.85); }
+
+  .spec-lines { margin-top: 18pt; }
+  .spec-line { height: 1pt; background: rgba(237,237,238,0.20); margin-bottom: 8pt; }
+  .spec-line.short { width: 60%; }
+  .spec-line.shorter { width: 40%; }
+  .spec-line.strike { background: rgba(248,113,113,0.5); }
+
+  .footer { position: absolute; left: 54pt; right: 54pt; bottom: 54pt; display: flex; justify-content: space-between; }
+  .footer p { font-size: 10.5pt; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(237,237,238,0.38); }
+</style>
+</head>
+<body>
+
+  <div class="rail-top">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+  <div class="chrome"><div class="chrome-dot"></div><p class="mono">design.md</p></div>
+  <div class="counter"><p class="mono">02 / 08</p></div>
+
+  <div class="section-head">
+    <div class="section-head-row">
+      <p class="mono tag">02 · problem</p>
+      <h2>Matching a brand is a manual, lossy ritual.</h2>
+    </div>
+    <p class="lede">Three workflows, all of them wrong. Designers eyedrop. Developers screenshot LLMs and pray. Agents hallucinate hex codes that don&apos;t exist on the page they&apos;re cloning.</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-num"><p class="mono">01 · MANUAL</p></div>
+      <h3>Eyedrop, copy, guess weights.</h3>
+      <div class="swatch-row">
+        <div class="swatch s1"></div>
+        <div class="swatch s2"></div>
+        <div class="swatch s3"></div>
+        <div class="swatch s4"></div>
+        <div class="swatch swatch-cursor"></div>
+      </div>
+      <div class="card-body">
+        <p>DevTools open for 40 minutes. Half the swatches are wrong by a hue.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-num"><p class="mono">02 · LLM</p></div>
+      <h3>Screenshot &rarr; LLM &rarr; hope.</h3>
+      <div class="shot-block">
+        <div class="shot-block-img"></div>
+        <div class="shot-block-arrow">
+          <div class="a-line"></div>
+          <p class="mono">?</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <p>Vision models invent palette values. Nothing is grounded in the actual stylesheet.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-num"><p class="mono">03 · BY HAND</p></div>
+      <h3>Write the spec yourself.</h3>
+      <div class="spec-lines">
+        <div class="spec-line"></div>
+        <div class="spec-line short"></div>
+        <div class="spec-line strike"></div>
+        <div class="spec-line shorter"></div>
+        <div class="spec-line short strike"></div>
+        <div class="spec-line"></div>
+        <div class="spec-line shorter"></div>
+      </div>
+      <div class="card-body">
+        <p>Three drafts in. Inconsistent across teams. No one wants to maintain it.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="mono">today&apos;s workflow</p>
+    <p class="mono">slow · error-prone · inconsistent</p>
+  </div>
+
+  <div class="rail-bottom">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+</body>
+</html>

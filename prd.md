@@ -29,6 +29,11 @@ This is slow, error-prone, and produces inconsistent output. No one wants to do 
 
 ## 3. Goals and non-goals
 
+### Current TODOs
+
+- Add a dashboard-style gallery of famous websites where we use the `getdesign` skill to fetch and display each site's generated `design.md`.
+- Add a benchmark view showing how similar generated `design.md` outputs are across different models.
+
 ### Goals (v1)
 
 - **G1**: Given any public marketing or product URL, return a `design.md` that follows the 9-section template exactly (see [architecture.md §5](architecture.md#5-9-section-schema-exact-template)).

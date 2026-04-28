@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>03 · Solution</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 960pt; height: 540pt;
+    background: #0a0a0b;
+    color: #ededee;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* Rails */
+  .rail-top, .rail-bottom {
+    position: absolute; left: 36pt; right: 36pt; height: 1pt;
+    display: flex; gap: 4pt;
+  }
+  .rail-top { top: 36pt; }
+  .rail-bottom { bottom: 36pt; }
+  .rail-tick { flex: 1; background: rgba(255,255,255,0.10); height: 1pt; }
+
+  /* Top chrome */
+  .chrome { position: absolute; top: 54pt; left: 54pt; display: flex; align-items: center; gap: 8pt; }
+  .chrome-dot { width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt; }
+  .chrome p { font-size: 10.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(237,237,238,0.6); }
+  .counter { position: absolute; top: 54pt; right: 54pt; }
+  .counter p { font-size: 10.5pt; letter-spacing: 0.14em; color: rgba(237,237,238,0.38); }
+
+  /* Section header — tag + title */
+  .section-head {
+    position: absolute; top: 100pt; left: 54pt; right: 54pt;
+    display: flex; align-items: baseline; gap: 18pt;
+  }
+  .section-head .tag {
+    font-size: 11pt; color: rgba(237,237,238,0.38);
+  }
+  .section-head h2 {
+    font-size: 32pt; font-weight: 500; letter-spacing: -0.025em; color: #ededee;
+  }
+
+  /* Body grid: input card → arrow → output card */
+  .grid {
+    position: absolute; top: 200pt; left: 54pt; right: 54pt;
+    display: flex; align-items: stretch; gap: 18pt;
+  }
+
+  /* Input card (URL) */
+  .card {
+    background: #101012; padding: 20pt; flex: 1;
+    border-top: 1pt solid rgba(255,255,255,0.07);
+  }
+  .card-label {
+    display: flex; align-items: center; gap: 8pt;
+    margin-bottom: 18pt;
+  }
+  .card-label-dot { width: 5pt; height: 5pt; background: #a3e635; border-radius: 99pt; }
+  .card-label p {
+    font-size: 9.5pt; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(237,237,238,0.38);
+  }
+  .url-row {
+    background: #141418; padding: 14pt 16pt;
+  }
+  .url-row p {
+    font-size: 14pt; color: #ededee;
+  }
+  .url-row p .scheme { color: rgba(237,237,238,0.38); }
+
+  .card-meta {
+    display: flex; gap: 14pt; margin-top: 16pt;
+  }
+  .meta-pill {
+    background: #141418; padding: 6pt 10pt;
+  }
+  .meta-pill p {
+    font-size: 9.5pt; letter-spacing: 0.10em; text-transform: uppercase;
+    color: rgba(237,237,238,0.6);
+  }
+
+  /* Arrow column */
+  .arrow {
+    width: 80pt; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 10pt;
+  }
+  .arrow-line {
+    width: 56pt; height: 1pt; background: #a3e635;
+  }
+  .arrow-head {
+    width: 0; height: 0;
+    border-top: 6pt solid transparent;
+    border-bottom: 6pt solid transparent;
+    border-left: 8pt solid #a3e635;
+    margin-top: -7pt;
+    transform: translateX(28pt);
+  }
+  .arrow p {
+    font-size: 9pt; letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(237,237,238,0.6);
+  }
+
+  /* Output card (design.md) */
+  .out-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16pt;
+  }
+  .out-filename p {
+    font-size: 12pt; color: #ededee;
+  }
+  .out-badge {
+    background: #a3e635; padding: 3pt 8pt;
+  }
+  .out-badge p {
+    font-size: 8.5pt; letter-spacing: 0.16em; text-transform: uppercase;
+    color: #0a0a0b; font-weight: 500;
+  }
+
+  .toc-row {
+    display: flex; align-items: baseline; gap: 10pt;
+    padding: 6pt 0;
+    border-top: 1pt solid rgba(255,255,255,0.05);
+  }
+  .toc-row .num { color: #a3e635; }
+  .toc-row p { font-size: 10pt; color: rgba(237,237,238,0.85); }
+  .toc-row .num-text {
+    font-size: 9.5pt; color: #a3e635; min-width: 22pt;
+  }
+
+  /* Footer */
+  .footer { position: absolute; left: 54pt; right: 54pt; bottom: 54pt;
+    display: flex; justify-content: space-between; }
+  .footer p { font-size: 10.5pt; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(237,237,238,0.38); }
+</style>
+</head>
+<body>
+
+  <div class="rail-top">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div>
+  </div>
+
+  <div class="chrome">
+    <div class="chrome-dot"></div>
+    <p class="mono">design.md</p>
+  </div>
+
+  <div class="counter"><p class="mono">03 / 08</p></div>
+
+  <div class="section-head">
+    <p class="mono tag">03 · solution</p>
+    <h2>Paste a URL. Get a design.md.</h2>
+  </div>
+
+  <div class="grid">
+    <!-- Input card -->
+    <div class="card">
+      <div class="card-label">
+        <div class="card-label-dot"></div>
+        <p class="mono">Input</p>
+      </div>
+
+      <div class="url-row">
+        <p class="mono"><span class="scheme">https://</span>linear.app</p>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-pill"><p class="mono">Public URL</p></div>
+        <div class="meta-pill"><p class="mono">Read-only</p></div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+      <p class="mono">~90s</p>
+    </div>
+
+    <!-- Output card -->
+    <div class="card">
+      <div class="out-head">
+        <div class="out-filename">
+          <p class="mono">design.md</p>
+        </div>
+        <div class="out-badge"><p class="mono">9 sections</p></div>
+      </div>
+
+      <div class="toc-row"><p class="mono num-text">01</p><p>Visual theme &amp; atmosphere</p></div>
+      <div class="toc-row"><p class="mono num-text">02</p><p>Color palette &amp; roles</p></div>
+      <div class="toc-row"><p class="mono num-text">03</p><p>Typography rules</p></div>
+      <div class="toc-row"><p class="mono num-text">04</p><p>Component stylings</p></div>
+      <div class="toc-row"><p class="mono num-text">05</p><p>Layout principles</p></div>
+      <div class="toc-row"><p class="mono num-text">06</p><p>Depth &amp; elevation</p></div>
+      <div class="toc-row"><p class="mono num-text">07</p><p>Interaction &amp; motion</p></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="mono">getdesign · v1</p>
+    <p class="mono">grounded in real CSS</p>
+  </div>
+
+  <div class="rail-bottom">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div>
+  </div>
+
+</body>
+</html>

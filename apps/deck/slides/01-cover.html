@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>01 · Cover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 960pt; height: 540pt;
+    background: #0a0a0b;
+    color: #ededee;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* Dashed rails — solid color blocks rather than CSS gradients (PPTX-safe) */
+  .rail-top, .rail-bottom {
+    position: absolute; left: 36pt; right: 36pt; height: 1pt;
+    display: flex; gap: 4pt;
+  }
+  .rail-top { top: 36pt; }
+  .rail-bottom { bottom: 36pt; }
+  .rail-tick {
+    flex: 1; background: rgba(255,255,255,0.10); height: 1pt;
+  }
+
+  /* Top-left chrome */
+  .chrome {
+    position: absolute; top: 54pt; left: 54pt;
+    display: flex; align-items: center; gap: 8pt;
+  }
+  .chrome-dot {
+    width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt;
+  }
+  .chrome p {
+    font-size: 10.5pt; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(237,237,238,0.6);
+  }
+
+  /* Top-right page counter */
+  .counter { position: absolute; top: 54pt; right: 54pt; }
+  .counter p {
+    font-size: 10.5pt; letter-spacing: 0.14em;
+    color: rgba(237,237,238,0.38);
+  }
+
+  /* Hero heading — anchored bottom-left */
+  .hero {
+    position: absolute; left: 54pt; right: 54pt; bottom: 130pt;
+  }
+  .hero h1 {
+    font-size: 76pt; font-weight: 500; line-height: 1.02; letter-spacing: -0.035em;
+    color: #ededee;
+  }
+  .hero h1 .dim { color: rgba(237,237,238,0.38); }
+  .hero h1 .accent { color: #a3e635; }
+  .hero p {
+    margin-top: 22pt;
+    font-size: 14pt; line-height: 1.55; color: rgba(237,237,238,0.6);
+    max-width: 540pt;
+  }
+
+  /* Footer meta row */
+  .footer {
+    position: absolute; left: 54pt; right: 54pt; bottom: 54pt;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer-left { display: flex; gap: 28pt; }
+  .footer p {
+    font-size: 10.5pt; letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(237,237,238,0.6);
+  }
+  .footer .label { color: rgba(237,237,238,0.38); }
+
+  /* Tiny bracket — bottom right */
+  .bracket {
+    position: absolute; right: 54pt; bottom: 80pt;
+    width: 10pt; height: 10pt;
+  }
+  .bracket-corner {
+    position: absolute; background: #a3e635;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Top dashed rail (10 ticks) -->
+  <div class="rail-top">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div>
+  </div>
+
+  <div class="chrome">
+    <div class="chrome-dot"></div>
+    <p class="mono">design.md</p>
+  </div>
+
+  <div class="counter">
+    <p class="mono">01 / 08</p>
+  </div>
+
+  <div class="hero">
+    <h1>
+      The design system<br>
+      for any <span class="dim">URL</span><span class="accent">.</span>
+    </h1>
+    <p>
+      An open-source agent that opens any public URL, screenshots it, extracts the real CSS tokens, and writes a structured design.md. Every swatch grounded. No hallucinated palettes.
+    </p>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <p class="mono"><span class="label">REPO · </span>github.com/mohtashammurshid/getdesign</p>
+      <p class="mono"><span class="label">PKG · </span>npm i @getdesign/sdk</p>
+    </div>
+    <p class="mono">v1 · 2026</p>
+  </div>
+
+  <!-- Bottom dashed rail -->
+  <div class="rail-bottom">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+    <div class="rail-tick"></div>
+  </div>
+
+</body>
+</html>

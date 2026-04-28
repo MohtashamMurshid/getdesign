@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>04 · 9 Sections</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 960pt; height: 540pt; background: #0a0a0b; color: #ededee;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; position: relative; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .rail-top, .rail-bottom { position: absolute; left: 36pt; right: 36pt; height: 1pt; display: flex; gap: 4pt; }
+  .rail-top { top: 36pt; } .rail-bottom { bottom: 36pt; }
+  .rail-tick { flex: 1; background: rgba(255,255,255,0.10); height: 1pt; }
+
+  .chrome { position: absolute; top: 54pt; left: 54pt; display: flex; align-items: center; gap: 8pt; }
+  .chrome-dot { width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt; }
+  .chrome p { font-size: 10.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(237,237,238,0.6); }
+  .counter { position: absolute; top: 54pt; right: 54pt; }
+  .counter p { font-size: 10.5pt; letter-spacing: 0.14em; color: rgba(237,237,238,0.38); }
+
+  .section-head { position: absolute; top: 100pt; left: 54pt; right: 54pt; }
+  .section-head-row { display: flex; align-items: baseline; gap: 18pt; }
+  .section-head .tag { font-size: 11pt; color: rgba(237,237,238,0.38); }
+  .section-head h2 { font-size: 32pt; font-weight: 500; letter-spacing: -0.025em; color: #ededee; }
+  .section-head .lede { font-size: 12pt; color: rgba(237,237,238,0.6); margin-top: 10pt; max-width: 580pt; line-height: 1.45; }
+
+  .grid {
+    position: absolute; top: 195pt; left: 54pt; right: 54pt;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10pt;
+  }
+  .tile { background: #101012; padding: 14pt 16pt; min-height: 70pt; border-top: 1pt solid rgba(255,255,255,0.07); position: relative; }
+  .tile-num p { font-size: 9.5pt; letter-spacing: 0.16em; color: #a3e635; }
+  .tile h3 { font-size: 12.5pt; font-weight: 500; color: #ededee; margin-top: 6pt; letter-spacing: -0.01em; }
+  .tile p.note { font-size: 9.5pt; color: rgba(237,237,238,0.6); margin-top: 5pt; line-height: 1.4; }
+
+  .footer { position: absolute; left: 54pt; right: 54pt; bottom: 54pt; display: flex; justify-content: space-between; }
+  .footer p { font-size: 10.5pt; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(237,237,238,0.38); }
+</style>
+</head>
+<body>
+
+  <div class="rail-top">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+  <div class="chrome"><div class="chrome-dot"></div><p class="mono">design.md</p></div>
+  <div class="counter"><p class="mono">04 / 08</p></div>
+
+  <div class="section-head">
+    <div class="section-head-row">
+      <p class="mono tag">04 · output</p>
+      <h2>Nine sections, in this order, every time.</h2>
+    </div>
+    <p class="lede">Validated by a Zod schema on the LLM&apos;s structured output. The model can&apos;t skip a section, can&apos;t reorder, can&apos;t invent a tenth. The renderer is deterministic.</p>
+  </div>
+
+  <div class="grid">
+    <div class="tile">
+      <div class="tile-num"><p class="mono">01</p></div>
+      <h3>Visual Theme &amp; Atmosphere</h3>
+      <p class="note">Mood, density, signature gestures.</p>
+    </div>
+    <div class="tile">
+      <div class="tile-num"><p class="mono">02</p></div>
+      <h3>Color Palette &amp; Roles</h3>
+      <p class="note">Hex values + semantic roles.</p>
+    </div>
+    <div class="tile">
+      <div class="tile-num"><p class="mono">03</p></div>
+      <h3>Typography Rules</h3>
+      <p class="note">Stacks, scale, weights, leading.</p>
+    </div>
+
+    <div class="tile">
+      <div class="tile-num"><p class="mono">04</p></div>
+      <h3>Component Stylings</h3>
+      <p class="note">Buttons, inputs, cards, badges.</p>
+    </div>
+    <div class="tile">
+      <div class="tile-num"><p class="mono">05</p></div>
+      <h3>Layout Principles</h3>
+      <p class="note">Grids, rhythm, alignment.</p>
+    </div>
+    <div class="tile">
+      <div class="tile-num"><p class="mono">06</p></div>
+      <h3>Depth &amp; Elevation</h3>
+      <p class="note">Shadows, surfaces, hierarchy.</p>
+    </div>
+
+    <div class="tile">
+      <div class="tile-num"><p class="mono">07</p></div>
+      <h3>Interaction &amp; Motion</h3>
+      <p class="note">Easings, durations, gestures.</p>
+    </div>
+    <div class="tile">
+      <div class="tile-num"><p class="mono">08</p></div>
+      <h3>Responsive Behavior</h3>
+      <p class="note">Breakpoints, fluid scale.</p>
+    </div>
+    <div class="tile">
+      <div class="tile-num"><p class="mono">09</p></div>
+      <h3>Agent Prompt Guide</h3>
+      <p class="note">How to feed this into Cursor / Claude / v0.</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="mono">schema · zod v4</p>
+    <p class="mono">renderer · deterministic</p>
+  </div>
+
+  <div class="rail-bottom">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+</body>
+</html>

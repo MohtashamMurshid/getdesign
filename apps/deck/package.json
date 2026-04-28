@@ -1,0 +1,20 @@
+{
+  "name": "getdesign-deck",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Launch deck for getdesign — 8 slides, exports to PDF + editable PPTX",
+  "scripts": {
+    "preview": "bunx serve -p 4321 .",
+    "build": "bun run build:pdf && bun run build:pptx",
+    "build:pdf": "node scripts/export_deck_pdf.mjs --slides slides --out exports/getdesign-deck.pdf --width 1280 --height 720",
+    "build:pptx": "node scripts/export_deck_pptx.mjs --slides slides --out exports/getdesign-deck.pptx",
+    "clean": "rm -f exports/getdesign-deck.pdf exports/getdesign-deck.pptx"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "playwright": "^1.59.1",
+    "pptxgenjs": "^4.0.1",
+    "sharp": "^0.34.5"
+  }
+}

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>06 · Grounded</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 960pt; height: 540pt; background: #0a0a0b; color: #ededee;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; position: relative; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .rail-top, .rail-bottom { position: absolute; left: 36pt; right: 36pt; height: 1pt; display: flex; gap: 4pt; }
+  .rail-top { top: 36pt; } .rail-bottom { bottom: 36pt; }
+  .rail-tick { flex: 1; background: rgba(255,255,255,0.10); height: 1pt; }
+
+  .chrome { position: absolute; top: 54pt; left: 54pt; display: flex; align-items: center; gap: 8pt; }
+  .chrome-dot { width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt; }
+  .chrome p { font-size: 10.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(237,237,238,0.6); }
+  .counter { position: absolute; top: 54pt; right: 54pt; }
+  .counter p { font-size: 10.5pt; letter-spacing: 0.14em; color: rgba(237,237,238,0.38); }
+
+  .section-head { position: absolute; top: 100pt; left: 54pt; right: 54pt; }
+  .section-head-row { display: flex; align-items: baseline; gap: 18pt; }
+  .section-head .tag { font-size: 11pt; color: rgba(237,237,238,0.38); }
+  .section-head h2 { font-size: 32pt; font-weight: 500; letter-spacing: -0.025em; color: #ededee; }
+  .section-head .lede { font-size: 12.5pt; color: rgba(237,237,238,0.6); margin-top: 10pt; max-width: 600pt; line-height: 1.5; }
+
+  .compare {
+    position: absolute; top: 230pt; left: 54pt; right: 54pt;
+    display: flex; gap: 18pt;
+  }
+  .col { flex: 1; background: #101012; padding: 22pt; min-height: 230pt; border-top: 1pt solid rgba(255,255,255,0.07); position: relative; }
+  .col-bad { border-top-color: rgba(248,113,113,0.5); }
+  .col-good { border-top-color: #a3e635; }
+
+  .col-head { display: flex; align-items: center; gap: 10pt; }
+  .col-mark {
+    width: 16pt; height: 16pt; border-radius: 99pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .col-mark p {
+    font-size: 11pt; font-weight: 500; line-height: 1;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+  .col-mark-bad { background: #1a1a20; border: 1pt solid #f87171; }
+  .col-mark-bad p { color: #f87171; }
+  .col-mark-good { background: #a3e635; }
+  .col-mark-good p { color: #0a0a0b; }
+  .col-head h3 { font-size: 17pt; font-weight: 500; color: #ededee; letter-spacing: -0.015em; }
+
+  .col-sub { margin-top: 6pt; }
+  .col-sub p { font-size: 10pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(237,237,238,0.38); }
+
+  .swatch-list { margin-top: 18pt; display: flex; flex-direction: column; gap: 10pt; }
+  .swatch-row { display: flex; align-items: center; gap: 12pt; padding: 8pt 10pt; background: #141418; }
+  .swatch-row .chip { width: 22pt; height: 22pt; }
+  .swatch-row .meta { display: flex; flex-direction: column; }
+  .swatch-row .meta p.hex { font-size: 11pt; color: #ededee; }
+  .swatch-row .meta p.src { font-size: 9.5pt; color: rgba(237,237,238,0.38); margin-top: 2pt; }
+  .swatch-row .meta p.src.warn { color: rgba(248,113,113,0.85); }
+  .swatch-row .meta p.src.ok { color: rgba(163,230,53,0.85); }
+
+  /* Bad swatches (vibrant LLM cliches) */
+  .b1 { background: #7c3aed; } .b2 { background: #06b6d4; } .b3 { background: #f97316; } .b4 { background: #ec4899; }
+  /* Good swatches (real getdesign tokens) */
+  .g1 { background: #0a0a0b; } .g2 { background: #ededee; } .g3 { background: #a3e635; } .g4 { background: #141418; }
+
+  .footer { position: absolute; left: 54pt; right: 54pt; bottom: 54pt; display: flex; justify-content: space-between; }
+  .footer p { font-size: 10.5pt; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(237,237,238,0.38); }
+</style>
+</head>
+<body>
+
+  <div class="rail-top">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+  <div class="chrome"><div class="chrome-dot"></div><p class="mono">design.md</p></div>
+  <div class="counter"><p class="mono">06 / 08</p></div>
+
+  <div class="section-head">
+    <div class="section-head-row">
+      <p class="mono tag">06 · grounding</p>
+      <h2>Every color appears in the actual stylesheet.</h2>
+    </div>
+    <p class="lede">Validation rule: 100% of palette values must trace back to the crawled CSS. Anything the model invents is rejected. This is the line between a spec and a hallucination.</p>
+  </div>
+
+  <div class="compare">
+    <!-- BAD column -->
+    <div class="col col-bad">
+      <div class="col-head">
+        <div class="col-mark col-mark-bad"><p>&times;</p></div>
+        <h3>Vision-only LLM</h3>
+      </div>
+      <div class="col-sub"><p class="mono">invented from a screenshot</p></div>
+
+      <div class="swatch-list">
+        <div class="swatch-row">
+          <div class="chip b1"></div>
+          <div class="meta">
+            <p class="mono hex">#7C3AED</p>
+            <p class="mono src warn">not in any stylesheet</p>
+          </div>
+        </div>
+        <div class="swatch-row">
+          <div class="chip b2"></div>
+          <div class="meta">
+            <p class="mono hex">#06B6D4</p>
+            <p class="mono src warn">not in any stylesheet</p>
+          </div>
+        </div>
+        <div class="swatch-row">
+          <div class="chip b3"></div>
+          <div class="meta">
+            <p class="mono hex">#F97316</p>
+            <p class="mono src warn">not in any stylesheet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GOOD column -->
+    <div class="col col-good">
+      <div class="col-head">
+        <div class="col-mark col-mark-good"><p>&#10003;</p></div>
+        <h3>getdesign · grounded</h3>
+      </div>
+      <div class="col-sub"><p class="mono">parsed from real CSS variables</p></div>
+
+      <div class="swatch-list">
+        <div class="swatch-row">
+          <div class="chip g3"></div>
+          <div class="meta">
+            <p class="mono hex">#A3E635</p>
+            <p class="mono src ok">--accent · :root</p>
+          </div>
+        </div>
+        <div class="swatch-row">
+          <div class="chip g1"></div>
+          <div class="meta">
+            <p class="mono hex">#0A0A0B</p>
+            <p class="mono src ok">--background · :root</p>
+          </div>
+        </div>
+        <div class="swatch-row">
+          <div class="chip g2"></div>
+          <div class="meta">
+            <p class="mono hex">#EDEDEE</p>
+            <p class="mono src ok">--foreground · :root</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="mono">100% palette grounding</p>
+    <p class="mono">determinism &ge; 95% on repeat runs</p>
+  </div>
+
+  <div class="rail-bottom">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+</body>
+</html>

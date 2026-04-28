@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>08 · CTA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 960pt; height: 540pt; background: #0a0a0b; color: #ededee;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; position: relative; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  .rail-top, .rail-bottom { position: absolute; left: 36pt; right: 36pt; height: 1pt; display: flex; gap: 4pt; }
+  .rail-top { top: 36pt; } .rail-bottom { bottom: 36pt; }
+  .rail-tick { flex: 1; background: rgba(255,255,255,0.10); height: 1pt; }
+
+  .chrome { position: absolute; top: 54pt; left: 54pt; display: flex; align-items: center; gap: 8pt; }
+  .chrome-dot { width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt; }
+  .chrome p { font-size: 10.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(237,237,238,0.6); }
+  .counter { position: absolute; top: 54pt; right: 54pt; }
+  .counter p { font-size: 10.5pt; letter-spacing: 0.14em; color: rgba(237,237,238,0.38); }
+
+  .hero {
+    position: absolute; left: 54pt; right: 54pt; top: 130pt;
+  }
+  .hero h1 {
+    font-size: 76pt; font-weight: 500; line-height: 1.02; letter-spacing: -0.035em; color: #ededee;
+  }
+  .hero h1 .accent { color: #a3e635; }
+  .hero h1 .dim { color: rgba(237,237,238,0.38); }
+  .hero p {
+    margin-top: 22pt;
+    font-size: 14pt; line-height: 1.55; color: rgba(237,237,238,0.6);
+    max-width: 540pt;
+  }
+
+  /* Install card */
+  .install {
+    position: absolute; left: 54pt; right: 54pt; bottom: 130pt;
+    background: #101012; padding: 20pt 24pt;
+    border-top: 1pt solid rgba(255,255,255,0.07);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .install-prompt { display: flex; align-items: center; gap: 14pt; }
+  .install-prompt .caret { color: #a3e635; }
+  .install-prompt p { font-size: 18pt; }
+  .install-prompt p .cmd { color: #ededee; }
+  .install-prompt p .arg { color: rgba(237,237,238,0.6); }
+  .install-side { display: flex; gap: 20pt; align-items: center; }
+  .install-side .label p { font-size: 9.5pt; letter-spacing: 0.16em; color: rgba(237,237,238,0.38); }
+  .install-side .pulse {
+    width: 8pt; height: 8pt; background: #a3e635; border-radius: 99pt;
+  }
+
+  /* Footer destinations */
+  .footer-row {
+    position: absolute; left: 54pt; right: 54pt; bottom: 54pt;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14pt;
+  }
+  .dest { padding-top: 12pt; border-top: 1pt solid rgba(255,255,255,0.07); }
+  .dest .label p { font-size: 9.5pt; letter-spacing: 0.16em; color: rgba(237,237,238,0.38); }
+  .dest .value p { font-size: 11.5pt; color: #ededee; margin-top: 4pt; }
+</style>
+</head>
+<body>
+
+  <div class="rail-top">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+  <div class="chrome"><div class="chrome-dot"></div><p class="mono">design.md</p></div>
+  <div class="counter"><p class="mono">08 / 08</p></div>
+
+  <div class="hero">
+    <h1>
+      Open-source.<br>
+      Available <span class="dim">today</span><span class="accent">.</span>
+    </h1>
+    <p>MIT-licensed agent core, hosted API, npm packages. Bring your own AI Gateway key or use the hosted run. Star it, fork it, build the surface that doesn&apos;t exist yet.</p>
+  </div>
+
+  <div class="install">
+    <div class="install-prompt">
+      <p class="mono caret">&gt;</p>
+      <p class="mono"><span class="cmd">npx @getdesign/cli</span> <span class="arg">https://linear.app</span></p>
+    </div>
+    <div class="install-side">
+      <div class="label"><p class="mono">PASTE · GET · COMMIT</p></div>
+      <div class="pulse"></div>
+    </div>
+  </div>
+
+  <div class="footer-row">
+    <div class="dest">
+      <div class="label"><p class="mono">WEB</p></div>
+      <div class="value"><p class="mono">getdesign.app</p></div>
+    </div>
+    <div class="dest">
+      <div class="label"><p class="mono">REPO</p></div>
+      <div class="value"><p class="mono">github.com/mohtashammurshid/getdesign</p></div>
+    </div>
+    <div class="dest">
+      <div class="label"><p class="mono">NPM</p></div>
+      <div class="value"><p class="mono">@getdesign/sdk</p></div>
+    </div>
+    <div class="dest">
+      <div class="label"><p class="mono">LICENSE</p></div>
+      <div class="value"><p class="mono">MIT</p></div>
+    </div>
+  </div>
+
+  <div class="rail-bottom">
+    <div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div><div class="rail-tick"></div>
+  </div>
+
+</body>
+</html>
