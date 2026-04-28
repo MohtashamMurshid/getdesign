@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type {
@@ -92,6 +91,43 @@ type PiRuntime = {
   unsubscribe?: () => void;
 };
 
+const PI_PROVIDER_ENV_KEYS = [
+  "AI_GATEWAY_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_OAUTH_TOKEN",
+  "AWS_ACCESS_KEY_ID",
+  "AWS_BEARER_TOKEN_BEDROCK",
+  "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+  "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+  "AWS_PROFILE",
+  "AWS_SECRET_ACCESS_KEY",
+  "AWS_WEB_IDENTITY_TOKEN_FILE",
+  "AZURE_OPENAI_API_KEY",
+  "CEREBRAS_API_KEY",
+  "COPILOT_GITHUB_TOKEN",
+  "DEEPSEEK_API_KEY",
+  "FIREWORKS_API_KEY",
+  "GCLOUD_PROJECT",
+  "GEMINI_API_KEY",
+  "GH_TOKEN",
+  "GITHUB_TOKEN",
+  "GOOGLE_APPLICATION_CREDENTIALS",
+  "GOOGLE_CLOUD_API_KEY",
+  "GOOGLE_CLOUD_LOCATION",
+  "GOOGLE_CLOUD_PROJECT",
+  "GROQ_API_KEY",
+  "HF_TOKEN",
+  "KIMI_API_KEY",
+  "MINIMAX_API_KEY",
+  "MINIMAX_CN_API_KEY",
+  "MISTRAL_API_KEY",
+  "OPENCODE_API_KEY",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "XAI_API_KEY",
+  "ZAI_API_KEY",
+] as const;
+
 const PI_AUTH_DOCS_URL = "https://pi.dev/docs/latest/providers";
 const PI_MODELS_DOCS_URL = "https://pi.dev/docs/latest/models";
 const STUDIO_SYSTEM_PROMPT = [
@@ -165,13 +201,16 @@ async function getRuntime(): Promise<PiRuntime> {
 }
 
 async function createRuntime(): Promise<PiRuntime> {
+  process.env.PI_CODING_AGENT_DIR = getPiAgentDir();
+  stripPiProviderEnvironment();
+
   const [{ AuthStorage, ModelRegistry }, { getModel }] = await Promise.all([
     import("@mariozechner/pi-coding-agent") as Promise<PiCodingAgent>,
     import("@mariozechner/pi-ai") as Promise<PiAi>,
   ]);
 
-  const authStorage = AuthStorage.create();
-  const modelRegistry = ModelRegistry.create(authStorage);
+  const authStorage = AuthStorage.create(join(getPiAgentDir(), "auth.json"));
+  const modelRegistry = ModelRegistry.create(authStorage, getModelsJsonPath());
   const availableModels = await Promise.resolve(modelRegistry.getAvailable());
   const selectedModel = availableModels[0] ?? getModel("anthropic", "claude-sonnet-4-6");
 
@@ -220,7 +259,7 @@ async function getAuthStatus(): Promise<StudioAuthStatus> {
     setupHint:
       availableModels.length > 0
         ? undefined
-        : "No Pi models are authenticated yet. Add a BYOK runtime key here, set an API key env var, or run `pi` then `/login`.",
+        : "No Pi models are authenticated yet for Studio. Add a BYOK runtime key here or sign in from this app.",
   };
 
   emit({ type: "auth", payload: statusPayload });
@@ -515,7 +554,7 @@ async function exportDeck(input: StudioExportDeckInput): Promise<StudioExportDec
 async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   if (runtime.session) return runtime.session;
 
-  const { createAgentSession, DefaultResourceLoader, SessionManager } =
+  const { createAgentSession, DefaultResourceLoader, SessionManager, SettingsManager } =
     await import("@mariozechner/pi-coding-agent");
   const cwd = await getDeckService().ensureArtifactWorkspace(currentArtifactId);
   // Append Studio guidance instead of overriding Pi's base system prompt: the
@@ -525,7 +564,18 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   const resourceLoader = new DefaultResourceLoader({
     cwd,
     agentDir: getPiAgentDir(),
-    appendSystemPromptOverride: (base) => [...base, STUDIO_SYSTEM_PROMPT],
+    settingsManager: SettingsManager.inMemory(),
+    noContextFiles: true,
+    noExtensions: true,
+    noPromptTemplates: true,
+    noSkills: true,
+    noThemes: true,
+    appendSystemPrompt: [STUDIO_SYSTEM_PROMPT],
+    agentsFilesOverride: () => ({ agentsFiles: [] }),
+    extensionsOverride: (base) => ({ ...base, extensions: [], errors: [] }),
+    promptsOverride: () => ({ prompts: [], diagnostics: [] }),
+    skillsOverride: () => ({ skills: [], diagnostics: [] }),
+    themesOverride: () => ({ themes: [], diagnostics: [] }),
   });
   await resourceLoader.reload();
 
@@ -538,6 +588,7 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
     authStorage: runtime.authStorage as never,
     modelRegistry: runtime.modelRegistry as never,
     resourceLoader,
+    settingsManager: SettingsManager.inMemory(),
     sessionManager: SessionManager.inMemory(),
   });
 
@@ -903,15 +954,15 @@ function splitModelId(modelId: string): [provider: string, id: string] {
   return [provider, rest.join("/")];
 }
 
-/** Pi agent config dir; matches pi-coding-agent getAgentDir without a static ESM import (Electron main is CJS, package exports are import-only). */
+/** Studio-specific Pi agent config dir. Do not read the user's global `~/.pi/agent` config. */
 function getPiAgentDir(): string {
-  const envDir = process.env.PI_CODING_AGENT_DIR;
-  if (envDir) {
-    if (envDir === "~") return homedir();
-    if (envDir.startsWith("~/")) return homedir() + envDir.slice(1);
-    return envDir;
+  return join(app.getPath("userData"), "pi-agent");
+}
+
+function stripPiProviderEnvironment(): void {
+  for (const key of PI_PROVIDER_ENV_KEYS) {
+    delete process.env[key];
   }
-  return join(homedir(), ".pi", "agent");
 }
 
 function getModelsJsonPath(): string {
