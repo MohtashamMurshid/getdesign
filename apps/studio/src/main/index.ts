@@ -1,5 +1,7 @@
 import { app, BrowserWindow, shell } from "electron";
 import { join } from "node:path";
+import { initAutoUpdater } from "./updater";
+import { registerStudioIpc } from "./pi-service";
 
 const isDev = !app.isPackaged;
 
@@ -19,6 +21,7 @@ function createWindow(): void {
   });
 
   mainWindow.on("ready-to-show", () => mainWindow.show());
+  registerStudioIpc(mainWindow);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -35,6 +38,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   createWindow();
+  initAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

@@ -38,11 +38,17 @@
     "clean": "rm -rf out dist"
   },
   "dependencies": {
+    "@mariozechner/pi-ai": "^0.70.5",
+    "@mariozechner/pi-coding-agent": "^0.70.5",
+    "@tabler/icons-react": "^3.41.1",
+    "ai": "^6.0.168",
+    "clsx": "^2.1.1",
     "electron": "^41.3.0",
     "electron-log": "^5.4.3",
     "electron-updater": "^6.8.3",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",

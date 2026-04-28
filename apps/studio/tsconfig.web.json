@@ -18,6 +18,7 @@
   },
   "include": [
     "src/renderer/**/*",
-    "src/preload/index.d.ts"
+    "src/preload/index.d.ts",
+    "src/shared/**/*"
   ]
 }

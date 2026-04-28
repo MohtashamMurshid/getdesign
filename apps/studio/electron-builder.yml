@@ -6,14 +6,34 @@ directories:
 files:
   - out/**
   - package.json
+asar: true
 mac:
   category: public.app-category.developer-tools
   target:
-    - dmg
-    - zip
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  notarize: false
 win:
-  target: nsis
-linux:
   target:
-    - AppImage
-    - deb
+    - target: nsis
+      arch: [x64, arm64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+linux:
+  category: Development
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]
+publish:
+  provider: github
+  owner: MohtashamMurshid
+  repo: getdesign
+  releaseType: release
