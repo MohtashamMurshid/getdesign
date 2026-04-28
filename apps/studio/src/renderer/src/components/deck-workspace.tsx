@@ -57,7 +57,7 @@ export function DeckWorkspace({
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col border-l border-border/70 bg-muted/20">
+    <aside className="flex min-h-0 w-[42%] min-w-[420px] flex-col border-l border-border/70 bg-muted/20">
       <div className="border-b border-border/70 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div>
