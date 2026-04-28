@@ -3,18 +3,17 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { IconCheck, IconCopy } from "@tabler/icons-react";
+import { Streamdown } from "streamdown";
 
 import type {
   StudioChatStatus,
   StudioMessage,
 } from "../../../shared/studio-api";
-import { cn } from "./agent-elements/utils/cn";
+import { cn } from "@/lib/utils";
 
 type ConversationProps = {
   messages: StudioMessage[];
@@ -72,10 +71,6 @@ export const Conversation = memo(function Conversation({
     if (shouldAutoScrollRef.current) scrollToBottom();
   }, [messages, showThinking, scrollToBottom]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
-
   return (
     <div
       ref={containerRef}
@@ -125,7 +120,7 @@ function AssistantTurn({
 
   return (
     <div className="group/assistant relative flex flex-col gap-1.5">
-      <SimpleMarkdown text={content} />
+      <AssistantMarkdown text={content} isStreaming={isStreaming} />
       {isStreaming && content.length > 0 ? (
         <span
           aria-hidden
@@ -188,133 +183,19 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-type Block =
-  | { kind: "code"; language?: string; content: string }
-  | { kind: "text"; content: string };
-
-function parseBlocks(text: string): Block[] {
-  const blocks: Block[] = [];
-  const fence = /```([\w-]*)\n([\s\S]*?)(?:```|$)/g;
-  let cursor = 0;
-  let match: RegExpExecArray | null;
-  while ((match = fence.exec(text))) {
-    if (match.index > cursor) {
-      blocks.push({
-        kind: "text",
-        content: text.slice(cursor, match.index),
-      });
-    }
-    blocks.push({
-      kind: "code",
-      language: match[1] || undefined,
-      content: match[2] ?? "",
-    });
-    cursor = fence.lastIndex;
-  }
-  if (cursor < text.length) {
-    blocks.push({ kind: "text", content: text.slice(cursor) });
-  }
-  return blocks;
-}
-
-const SimpleMarkdown = memo(function SimpleMarkdown({ text }: { text: string }) {
-  const blocks = useMemo(() => parseBlocks(text), [text]);
-  if (blocks.length === 0) return null;
-
-  return (
-    <div className="space-y-3 text-[14px] leading-relaxed text-foreground">
-      {blocks.map((block, index) =>
-        block.kind === "code" ? (
-          <CodeBlock
-            key={index}
-            language={block.language}
-            content={block.content}
-          />
-        ) : (
-          <TextBlock key={index} content={block.content} />
-        ),
-      )}
-    </div>
-  );
-});
-
-function TextBlock({ content }: { content: string }) {
-  const paragraphs = content.split(/\n{2,}/).map((p) => p.replace(/\n+$/g, ""));
-  return (
-    <>
-      {paragraphs.map((paragraph, index) => {
-        if (!paragraph.trim()) return null;
-        const lines = paragraph.split("\n");
-        return (
-          <p
-            key={index}
-            className="whitespace-pre-wrap break-words [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.92em]"
-          >
-            {lines.map((line, lineIndex) => (
-              <span key={lineIndex}>
-                {renderInline(line)}
-                {lineIndex < lines.length - 1 ? <br /> : null}
-              </span>
-            ))}
-          </p>
-        );
-      })}
-    </>
-  );
-}
-
-function renderInline(line: string) {
-  const parts: ReactNode[] = [];
-  const regex = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
-  let last = 0;
-  let key = 0;
-  let m: RegExpExecArray | null;
-  while ((m = regex.exec(line))) {
-    if (m.index > last) parts.push(line.slice(last, m.index));
-    if (m[1] !== undefined) {
-      parts.push(<code key={key++}>{m[1]}</code>);
-    } else if (m[2] !== undefined) {
-      parts.push(<strong key={key++}>{m[2]}</strong>);
-    } else if (m[3] !== undefined) {
-      parts.push(<em key={key++}>{m[3]}</em>);
-    }
-    last = regex.lastIndex;
-  }
-  if (last < line.length) parts.push(line.slice(last));
-  return parts;
-}
-
-function CodeBlock({
-  language,
-  content,
+function AssistantMarkdown({
+  text,
+  isStreaming,
 }: {
-  language?: string;
-  content: string;
+  text: string;
+  isStreaming: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(content);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  }, [content]);
-
+  if (!text) return null;
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-muted/40">
-      <div className="flex items-center justify-between border-b border-border/60 px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
-        <span>{language ?? "text"}</span>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted hover:text-foreground"
-          aria-label="Copy code"
-        >
-          {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
-      <pre className="overflow-x-auto px-3 py-3 font-mono text-[12.5px] leading-relaxed text-foreground">
-        <code>{content}</code>
-      </pre>
+    <div className="text-[14px] leading-relaxed text-foreground [&>*+*]:mt-3 [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+      <Streamdown mode={isStreaming ? "streaming" : "static"}>
+        {text}
+      </Streamdown>
     </div>
   );
 }

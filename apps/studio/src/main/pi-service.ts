@@ -1,7 +1,6 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { homedir } from "node:os";
 import { join } from "node:path";
-
-import { getAgentDir } from "@mariozechner/pi-coding-agent";
 
 import type {
   StudioAddCustomProviderInput,
@@ -175,8 +174,8 @@ async function getAuthStatus(): Promise<StudioAuthStatus> {
   }
 
   const statusPayload: StudioAuthStatus = {
-    agentDir: getAgentDir(),
-    authFile: join(getAgentDir(), "auth.json"),
+    agentDir: getPiAgentDir(),
+    authFile: join(getPiAgentDir(), "auth.json"),
     modelsFile: modelsPath,
     availableModels,
     oauthProviders,
@@ -461,7 +460,7 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   const cwd = app.getPath("userData");
   const resourceLoader = new DefaultResourceLoader({
     cwd,
-    agentDir: getAgentDir(),
+    agentDir: getPiAgentDir(),
     systemPromptOverride: () => STUDIO_SYSTEM_PROMPT,
   });
   await resourceLoader.reload();
@@ -593,8 +592,19 @@ function splitModelId(modelId: string): [provider: string, id: string] {
   return [provider, rest.join("/")];
 }
 
+/** Pi agent config dir; matches pi-coding-agent getAgentDir without a static ESM import (Electron main is CJS, package exports are import-only). */
+function getPiAgentDir(): string {
+  const envDir = process.env.PI_CODING_AGENT_DIR;
+  if (envDir) {
+    if (envDir === "~") return homedir();
+    if (envDir.startsWith("~/")) return homedir() + envDir.slice(1);
+    return envDir;
+  }
+  return join(homedir(), ".pi", "agent");
+}
+
 function getModelsJsonPath(): string {
-  return join(getAgentDir(), "models.json");
+  return join(getPiAgentDir(), "models.json");
 }
 
 async function resyncSelectedModelAfterRegistryChange(runtime: PiRuntime): Promise<void> {
