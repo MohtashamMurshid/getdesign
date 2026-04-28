@@ -1,9 +1,19 @@
 {
   "name": "studio",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "getdesign Studio - Electron desktop app",
   "main": "./out/main/index.js",
+  "author": {
+    "name": "Mohtasham Murshid",
+    "email": "mohtashammurshid@gmail.com"
+  },
+  "homepage": "https://github.com/MohtashamMurshid/getdesign",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MohtashamMurshid/getdesign.git",
+    "directory": "apps/studio"
+  },
   "trustedDependencies": [
     "electron",
     "electron-winstaller",
@@ -16,15 +26,26 @@
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:win": "electron-vite build && electron-builder --win",
     "build:linux": "electron-vite build && electron-builder --linux",
+    "build:unpack": "electron-vite build && electron-builder --dir",
+    "release": "electron-vite build && electron-builder --publish always",
+    "release:mac": "electron-vite build && electron-builder --mac --publish always",
+    "release:win": "electron-vite build && electron-builder --win --publish always",
+    "release:linux": "electron-vite build && electron-builder --linux --publish always",
+    "version:patch": "node scripts/version.mjs patch",
+    "version:minor": "node scripts/version.mjs minor",
+    "version:major": "node scripts/version.mjs major",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "clean": "rm -rf out dist"
   },
   "dependencies": {
     "electron": "^41.3.0",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
