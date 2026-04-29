@@ -20,6 +20,11 @@ function stripProviderPrefix(name: string, providerId?: string): string {
   return name;
 }
 
+function truncateName(name: string, max = 15): string {
+  if (!name) return name;
+  return name.length > max ? `${name.slice(0, max).trimEnd()}…` : name;
+}
+
 function ProviderGlyph({
   providerId,
   providerLabel,
@@ -135,12 +140,12 @@ export const ModelPicker = memo(function ModelPicker({
       onOpenChange={setOpen}
       side="top"
       align="start"
-      className="max-h-[min(420px,calc(100vh-96px))] min-w-[240px] max-w-[min(100vw-24px,320px)] overflow-hidden p-0"
+      className="max-h-[min(420px,calc(100vh-96px))] min-w-[260px] max-w-[min(100vw-24px,440px)] overflow-hidden p-0"
       trigger={
         <button
           type="button"
           className={cn(
-            "inline-flex h-7 max-w-[min(100%,320px)] min-w-0 items-center gap-1.5 rounded-[6px] px-2 text-[12px] leading-4 text-foreground/55 transition-colors hover:bg-foreground/6 cursor-pointer",
+            "inline-flex h-7 max-w-[min(100%,440px)] min-w-0 items-center gap-1.5 rounded-[6px] px-2 text-[12px] leading-4 text-foreground/55 transition-colors hover:bg-foreground/6 cursor-pointer",
             className,
           )}
           aria-label="Select model"
@@ -152,9 +157,14 @@ export const ModelPicker = memo(function ModelPicker({
               size={13}
             />
           ) : null}
-          <span className="min-w-0 truncate font-normal">
+          <span
+            className="min-w-0 truncate font-normal"
+            title={activeModel?.name}
+          >
             {activeModel
-              ? stripProviderPrefix(activeModel.name, activeModel.provider)
+              ? truncateName(
+                  stripProviderPrefix(activeModel.name, activeModel.provider),
+                )
               : placeholder}
           </span>
           {activeModel?.version ? (
@@ -241,9 +251,11 @@ export const ModelBadge = memo(function ModelBadge({
           size={13}
         />
       ) : null}
-      <span className="font-normal">
+      <span className="font-normal" title={activeModel?.name}>
         {activeModel
-          ? stripProviderPrefix(activeModel.name, activeModel.provider)
+          ? truncateName(
+              stripProviderPrefix(activeModel.name, activeModel.provider),
+            )
           : placeholder}
       </span>
       {activeModel?.version && (

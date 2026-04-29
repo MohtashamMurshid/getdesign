@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   IconCheck,
+  IconChevronRight,
   IconCopy,
   IconFile,
   IconSearch,
@@ -141,6 +142,15 @@ function AssistantTurn({
           );
         }
         if (isToolPart(part)) {
+          if (getToolName(part) === "Thinking") {
+            return (
+              <ThinkingBlock
+                key={part.toolCallId ?? `${message.id}-thinking-${index}`}
+                part={part}
+                isStreaming={isStreaming}
+              />
+            );
+          }
           return <PiToolRow key={part.toolCallId ?? `${message.id}-tool-${index}`} part={part} />;
         }
         return null;
@@ -184,6 +194,86 @@ function PiToolRow({ part }: { part: StudioMessagePart }) {
       ) : null}
     </div>
   );
+}
+
+function ThinkingBlock({
+  part,
+  isStreaming,
+}: {
+  part: StudioMessagePart;
+  isStreaming: boolean;
+}) {
+  const { isPending } = getToolStatus(part);
+  const text = getThinkingText(part);
+  const animated = isPending && isStreaming;
+  const [open, setOpen] = useState(animated);
+  const wasAnimatingRef = useRef(animated);
+
+  useEffect(() => {
+    if (animated) {
+      wasAnimatingRef.current = true;
+      setOpen(true);
+    } else if (wasAnimatingRef.current) {
+      wasAnimatingRef.current = false;
+      setOpen(false);
+    }
+  }, [animated]);
+
+  const label = animated ? "Thinking" : "Thought";
+  const canToggle = text.trim().length > 0;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => canToggle && setOpen((v) => !v)}
+        disabled={!canToggle}
+        className={cn(
+          "inline-flex w-fit items-center gap-1 rounded-md text-[13px] text-muted-foreground transition-colors",
+          canToggle && "hover:text-foreground cursor-pointer",
+          !canToggle && "cursor-default",
+        )}
+        aria-expanded={open}
+      >
+        <IconChevronRight
+          size={13}
+          className={cn(
+            "shrink-0 transition-transform duration-150 ease-out",
+            open && "rotate-90",
+            !canToggle && "opacity-0",
+          )}
+        />
+        <span
+          className={cn(
+            "font-medium",
+            animated &&
+              "bg-gradient-to-r from-muted-foreground via-foreground to-muted-foreground bg-[length:200%_100%] bg-clip-text text-transparent animate-shimmer",
+          )}
+        >
+          {label}
+        </span>
+      </button>
+      {open && canToggle ? (
+        <div className="ml-[6px] border-l border-border/60 pl-3">
+          <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-muted-foreground/90">
+            {text}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function getThinkingText(part: StudioMessagePart): string {
+  const out = part.output;
+  if (typeof out === "string") return out;
+  const input = asRecord(part.input);
+  const fromInput =
+    getString(input, "thinking") ??
+    getString(input, "thought") ??
+    getString(input, "reasoning") ??
+    getString(input, "text");
+  return fromInput ?? "";
 }
 
 function ThinkingRow() {
