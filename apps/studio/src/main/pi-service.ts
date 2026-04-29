@@ -1,9 +1,12 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type {
+  StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
   StudioAuthStatus,
+  StudioChatSessionSummary,
   StudioCreateDeckInput,
   StudioConversationSnapshot,
   StudioCustomModelRow,
@@ -25,6 +28,7 @@ import type {
   StudioSetRuntimeKeyInput,
 } from "../shared/studio-api";
 import {
+  addCustomModelEntry,
   addCustomProviderEntry,
   listCustomModelRows,
   readModelsJson,
@@ -145,6 +149,7 @@ const STUDIO_SYSTEM_PROMPT = [
 
 let runtimePromise: Promise<PiRuntime> | undefined;
 let mainWindow: BrowserWindow | undefined;
+let currentSessionId = createId("session");
 let messages: StudioMessage[] = [];
 let status: StudioConversationSnapshot["status"] = "ready";
 let lastError: string | undefined;
@@ -152,6 +157,12 @@ let loginState: StudioLoginState = { status: "idle" };
 let manualCodeResolver: ((code: string) => void) | undefined;
 let deckService: StudioDeckService | undefined;
 let currentArtifactId = createId("artifact");
+let sessionsLoaded = false;
+let chatSessions: StoredChatSession[] = [];
+
+type StoredChatSession = StudioChatSessionSummary & {
+  messages: StudioMessage[];
+};
 
 export function registerStudioIpc(window: BrowserWindow): void {
   mainWindow = window;
@@ -172,7 +183,11 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:select-model", (_event, input: StudioSelectModelInput) =>
     selectModel(input),
   );
-  ipcMain.handle("studio:get-conversation", () => getConversationSnapshot());
+  ipcMain.handle("studio:get-conversation", () => getConversation());
+  ipcMain.handle("studio:list-chat-sessions", () => listChatSessions());
+  ipcMain.handle("studio:open-chat-session", (_event, sessionId: string) =>
+    openChatSession(sessionId),
+  );
   ipcMain.handle("studio:send-prompt", (_event, input: StudioSendPromptInput) =>
     sendPrompt(input),
   );
@@ -182,6 +197,9 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:open-pi-models-docs", () => shell.openExternal(PI_MODELS_DOCS_URL));
   ipcMain.handle("studio:add-custom-provider", (_event, input: StudioAddCustomProviderInput) =>
     addCustomProvider(input),
+  );
+  ipcMain.handle("studio:add-custom-model", (_event, input: StudioAddCustomModelInput) =>
+    addCustomModel(input),
   );
   ipcMain.handle("studio:remove-custom-model", (_event, input: StudioRemoveCustomModelInput) =>
     removeCustomModel(input),
@@ -397,6 +415,20 @@ async function addCustomProvider(input: StudioAddCustomProviderInput): Promise<S
   return getAuthStatus();
 }
 
+async function addCustomModel(input: StudioAddCustomModelInput): Promise<StudioAuthStatus> {
+  const path = getModelsJsonPath();
+  const read = readModelsJson(path);
+  if (!read.ok) {
+    throw new Error(read.error);
+  }
+  const next = addCustomModelEntry(read.data, input);
+  writeModelsJson(path, next);
+
+  const runtime = await getRuntime();
+  runtime.modelRegistry.refresh?.();
+  return getAuthStatus();
+}
+
 async function removeCustomModel(input: StudioRemoveCustomModelInput): Promise<StudioAuthStatus> {
   const path = getModelsJsonPath();
   const read = readModelsJson(path);
@@ -446,6 +478,7 @@ async function selectModel(input: StudioSelectModelInput): Promise<StudioAuthSta
 async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversationSnapshot> {
   const content = input.content.trim();
   if (!content) return getConversationSnapshot();
+  await ensureChatSessionsLoaded();
 
   const runtime = await getRuntime();
   if (input.modelId) {
@@ -468,6 +501,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
     status: "streaming",
   };
   messages = [...messages, userMessage, assistantMessage];
+  await saveCurrentChatSession();
   status = "submitted";
   lastError = undefined;
   emitConversation();
@@ -482,6 +516,8 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
       finishAssistantMessage("done");
       status = "ready";
       emitConversation();
+      void saveCurrentChatSession();
+      void emitSessions();
       void emitDecks();
     })
     .catch((error: unknown) => {
@@ -490,6 +526,8 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
       lastError = error instanceof Error ? error.message : String(error);
       appendAssistantText(`\n\n${lastError}`);
       emitConversation();
+      void saveCurrentChatSession();
+      void emitSessions();
     });
 
   return getConversationSnapshot();
@@ -503,35 +541,64 @@ async function stopGeneration(): Promise<StudioConversationSnapshot> {
   finishAssistantMessage("done");
   status = "ready";
   emitConversation();
+  await saveCurrentChatSession();
+  await emitSessions();
+  return getConversationSnapshot();
+}
+
+async function getConversation(): Promise<StudioConversationSnapshot> {
+  await ensureChatSessionsLoaded();
+  if (messages.length === 0 && chatSessions[0]) {
+    currentSessionId = chatSessions[0].id;
+    currentArtifactId = chatSessions[0].artifactId;
+    messages = chatSessions[0].messages;
+  }
   return getConversationSnapshot();
 }
 
 async function newConversation(): Promise<StudioConversationSnapshot> {
+  await ensureChatSessionsLoaded();
+  await saveCurrentChatSession();
   const runtime = await getRuntime();
-  if (runtime.session) {
-    try {
-      await runtime.session.abort();
-    } catch {
-      // ignore abort errors when no generation is in flight
-    }
-    runtime.unsubscribe?.();
-    runtime.session.dispose();
-    runtime.session = undefined;
-    runtime.unsubscribe = undefined;
-  }
+  await disposeRuntimeSession(runtime);
   messages = [];
   status = "ready";
   lastError = undefined;
+  currentSessionId = createId("session");
   currentArtifactId = createId("artifact");
   await getDeckService().ensureArtifactWorkspace(currentArtifactId);
   emitConversation();
+  await emitSessions();
+  await emitDecks();
+  return getConversationSnapshot();
+}
+
+async function listChatSessions(): Promise<StudioChatSessionSummary[]> {
+  await ensureChatSessionsLoaded();
+  await saveCurrentChatSession();
+  return chatSessions.map(({ messages: _messages, ...summary }) => summary);
+}
+
+async function openChatSession(sessionId: string): Promise<StudioConversationSnapshot> {
+  await ensureChatSessionsLoaded();
+  await saveCurrentChatSession();
+  const runtime = await getRuntime();
+  await disposeRuntimeSession(runtime);
+  const session = chatSessions.find((candidate) => candidate.id === sessionId);
+  if (!session) throw new Error("Chat session not found.");
+  currentSessionId = session.id;
+  currentArtifactId = session.artifactId;
+  messages = session.messages;
+  status = "ready";
+  lastError = undefined;
+  emitConversation();
+  await emitSessions();
   await emitDecks();
   return getConversationSnapshot();
 }
 
 async function listDecks(): Promise<StudioDeckProject[]> {
-  const currentDeck = await getDeckService().readArtifactDeck(currentArtifactId);
-  return currentDeck ? [currentDeck] : [];
+  return getDeckService().listDecks();
 }
 
 async function createDeck(input?: StudioCreateDeckInput): Promise<StudioDeckProject> {
@@ -547,7 +614,7 @@ async function createMockArtifact(): Promise<StudioDeckProject> {
 }
 
 async function getDeck(deckId: string): Promise<StudioDeckProject> {
-  return getDeckService().readDeck(deckId);
+  return (await getDeckService().readArtifactDeck(deckId)) ?? getDeckService().readDeck(deckId);
 }
 
 async function openDeck(deckId: string): Promise<void> {
@@ -604,6 +671,19 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   return runtime.session;
 }
 
+async function disposeRuntimeSession(runtime: PiRuntime): Promise<void> {
+  if (!runtime.session) return;
+  try {
+    await runtime.session.abort();
+  } catch {
+    // ignore abort errors when no generation is in flight
+  }
+  runtime.unsubscribe?.();
+  runtime.session.dispose();
+  runtime.session = undefined;
+  runtime.unsubscribe = undefined;
+}
+
 function handlePiEvent(event: PiSessionEvent): void {
   if (event.type === "tool_execution_start") {
     upsertAssistantToolPart(event.toolCallId, event.toolName, event.args, undefined, false);
@@ -633,6 +713,9 @@ function handlePiEvent(event: PiSessionEvent): void {
       Boolean(event.isError),
     );
     emitConversation();
+    if (!event.isError && isArtifactFileTool(event.toolName)) {
+      void emitDecks();
+    }
     return;
   }
 
@@ -665,6 +748,7 @@ function handlePiEvent(event: PiSessionEvent): void {
 
 function getConversationSnapshot(): StudioConversationSnapshot {
   return {
+    id: currentSessionId,
     status,
     messages,
     selectedModelId: undefined,
@@ -873,6 +957,10 @@ function toAgentElementsToolName(toolName: string): string {
   );
 }
 
+function isArtifactFileTool(toolName: unknown): boolean {
+  return toolName === "write" || toolName === "edit" || toolName === "bash";
+}
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
 }
@@ -898,6 +986,10 @@ function emitConversation(): void {
 
 async function emitDecks(): Promise<void> {
   emit({ type: "decks", payload: await listDecks() });
+}
+
+async function emitSessions(): Promise<void> {
+  emit({ type: "sessions", payload: await listChatSessions() });
 }
 
 async function emitAuth(): Promise<void> {
@@ -979,6 +1071,64 @@ function getModelsJsonPath(): string {
 function getDeckService(): StudioDeckService {
   deckService ??= new StudioDeckService(join(app.getPath("userData"), "artifacts"));
   return deckService;
+}
+
+async function ensureChatSessionsLoaded(): Promise<void> {
+  if (sessionsLoaded) return;
+  sessionsLoaded = true;
+  try {
+    const raw = await readFile(getChatSessionsPath(), "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    chatSessions = Array.isArray(parsed)
+      ? parsed.filter(isStoredChatSession).sort((a, b) => b.updatedAt - a.updatedAt)
+      : [];
+  } catch {
+    chatSessions = [];
+  }
+}
+
+async function saveCurrentChatSession(): Promise<void> {
+  await ensureChatSessionsLoaded();
+  if (messages.length === 0) return;
+  const now = Date.now();
+  const existing = chatSessions.find((session) => session.id === currentSessionId);
+  const session: StoredChatSession = {
+    id: currentSessionId,
+    title: getSessionTitle(messages),
+    artifactId: currentArtifactId,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    messages,
+  };
+  chatSessions = [
+    session,
+    ...chatSessions.filter((candidate) => candidate.id !== currentSessionId),
+  ].sort((a, b) => b.updatedAt - a.updatedAt);
+  await mkdir(getPiAgentDir(), { recursive: true });
+  await writeFile(getChatSessionsPath(), JSON.stringify(chatSessions, null, 2), "utf8");
+}
+
+function getChatSessionsPath(): string {
+  return join(getPiAgentDir(), "chat-sessions.json");
+}
+
+function getSessionTitle(sessionMessages: StudioMessage[]): string {
+  const firstUserMessage = sessionMessages.find((message) => message.role === "user");
+  const title = firstUserMessage?.content.trim().replace(/\s+/g, " ");
+  return title ? title.slice(0, 64) : "Untitled chat";
+}
+
+function isStoredChatSession(value: unknown): value is StoredChatSession {
+  const record = asRecord(value);
+  return Boolean(
+    record &&
+      typeof record["id"] === "string" &&
+      typeof record["title"] === "string" &&
+      typeof record["artifactId"] === "string" &&
+      typeof record["createdAt"] === "number" &&
+      typeof record["updatedAt"] === "number" &&
+      Array.isArray(record["messages"]),
+  );
 }
 
 async function resyncSelectedModelAfterRegistryChange(runtime: PiRuntime): Promise<void> {

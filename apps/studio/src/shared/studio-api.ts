@@ -36,6 +36,12 @@ export type StudioRemoveCustomModelInput = {
   modelId: string;
 };
 
+export type StudioAddCustomModelInput = {
+  providerId: string;
+  modelId: string;
+  modelName?: string;
+};
+
 export type StudioAuthStatus = {
   agentDir: string;
   authFile: string;
@@ -91,11 +97,20 @@ export type StudioMessagePart = {
 };
 
 export type StudioConversationSnapshot = {
+  id?: string;
   status: StudioChatStatus;
   messages: StudioMessage[];
   selectedModelId?: string;
   currentArtifactId?: string;
   error?: string;
+};
+
+export type StudioChatSessionSummary = {
+  id: string;
+  title: string;
+  artifactId: string;
+  createdAt: number;
+  updatedAt: number;
 };
 
 export type StudioSendPromptInput = {
@@ -176,7 +191,8 @@ export type StudioSubmitLoginCodeInput = {
 export type StudioEvent =
   | { type: "auth"; payload: StudioAuthStatus }
   | { type: "conversation"; payload: StudioConversationSnapshot }
-  | { type: "decks"; payload: StudioDeckProject[] };
+  | { type: "decks"; payload: StudioDeckProject[] }
+  | { type: "sessions"; payload: StudioChatSessionSummary[] };
 
 export type StudioApi = {
   newConversation: () => Promise<StudioConversationSnapshot>;
@@ -187,11 +203,14 @@ export type StudioApi = {
   submitLoginCode: (input: StudioSubmitLoginCodeInput) => Promise<StudioAuthStatus>;
   selectModel: (input: StudioSelectModelInput) => Promise<StudioAuthStatus>;
   getConversation: () => Promise<StudioConversationSnapshot>;
+  listChatSessions: () => Promise<StudioChatSessionSummary[]>;
+  openChatSession: (sessionId: string) => Promise<StudioConversationSnapshot>;
   sendPrompt: (input: StudioSendPromptInput) => Promise<StudioConversationSnapshot>;
   stop: () => Promise<StudioConversationSnapshot>;
   openPiAuthDocs: () => Promise<void>;
   openPiModelsDocs: () => Promise<void>;
   addCustomProvider: (input: StudioAddCustomProviderInput) => Promise<StudioAuthStatus>;
+  addCustomModel: (input: StudioAddCustomModelInput) => Promise<StudioAuthStatus>;
   removeCustomModel: (input: StudioRemoveCustomModelInput) => Promise<StudioAuthStatus>;
   listDecks: () => Promise<StudioDeckProject[]>;
   createMockArtifact: () => Promise<StudioDeckProject>;

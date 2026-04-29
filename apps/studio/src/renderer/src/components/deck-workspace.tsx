@@ -4,6 +4,7 @@ import {
   IconFileExport,
   IconFileTypePdf,
   IconFileTypePpt,
+  IconLayoutSidebarRightCollapse,
   IconLayoutBoard,
   IconPlayerPlay,
   IconRefresh,
@@ -25,6 +26,8 @@ type DeckWorkspaceProps = {
   decks: StudioDeckProject[];
   selectedDeckId?: string;
   status: "ready" | "submitted" | "streaming" | "error";
+  onClose: () => void;
+  onSelectDeck: (deckId: string) => void;
   onOpenDeck: (deckId: string) => Promise<void>;
   onExportDeck: (
     deckId: string,
@@ -37,6 +40,8 @@ export function DeckWorkspace({
   decks,
   selectedDeckId,
   status,
+  onClose,
+  onSelectDeck,
   onOpenDeck,
   onExportDeck,
   onCreateMockArtifact,
@@ -49,6 +54,9 @@ export function DeckWorkspace({
     () => decks.find((deck) => deck.id === selectedDeckId),
     [decks, selectedDeckId],
   );
+  const previewSrc = selectedDeck
+    ? `${selectedDeck.previewUrl}?v=${selectedDeck.updatedAt}-${previewKey}`
+    : undefined;
 
   async function handleExport(format: StudioDeckExportFormat) {
     if (!selectedDeck) return;
@@ -57,16 +65,24 @@ export function DeckWorkspace({
   }
 
   return (
-    <aside className="flex min-h-0 w-[42%] min-w-[420px] flex-col border-l border-border/70 bg-muted/20">
-      <div className="border-b border-border/70 px-4 py-3">
+    <aside className="flex min-h-0 w-[42%] min-w-[420px] flex-col border-l border-border bg-background">
+      <div className="px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold">Preview</h2>
-            <p className="text-xs text-muted-foreground">
+            <h2 className="text-sm font-medium">Preview</h2>
+            <p className="text-xs font-light text-muted-foreground">
               Agent-generated HTML decks appear here.
             </p>
           </div>
-          <IconLayoutBoard className="size-5 text-muted-foreground" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close artifact"
+            title="Close artifact"
+          >
+            <IconLayoutSidebarRightCollapse size={17} />
+          </Button>
         </div>
       </div>
 
@@ -75,10 +91,10 @@ export function DeckWorkspace({
           <>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="truncate text-sm font-medium">
+                <h3 className="truncate text-sm font-normal">
                   {selectedDeck.title}
                 </h3>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs font-light text-muted-foreground">
                   {selectedDeck.slides.length} slides · {selectedDeck.mode}
                 </p>
               </div>
@@ -113,11 +129,29 @@ export function DeckWorkspace({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-black">
+            {decks.length > 1 ? (
+              <select
+                value={selectedDeck.id}
+                onChange={(event) => {
+                  setPreviewError(undefined);
+                  onSelectDeck(event.target.value);
+                }}
+                className="mb-3 h-9 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-ring"
+                aria-label="Select previous generation"
+              >
+                {decks.map((deck) => (
+                  <option key={deck.id} value={deck.id}>
+                    {deck.title}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border/80 bg-black">
               <iframe
-                key={`${selectedDeck.id}-${previewKey}`}
+                key={`${selectedDeck.id}-${selectedDeck.updatedAt}-${previewKey}`}
                 title={`${selectedDeck.title} preview`}
-                src={selectedDeck.previewUrl}
+                src={previewSrc}
                 onLoad={() => setPreviewError(undefined)}
                 onError={() => setPreviewError("Preview failed to load.")}
                 className="h-full w-full border-0 bg-black"
@@ -155,22 +189,28 @@ export function DeckWorkspace({
             ) : null}
           </>
         ) : status === "submitted" || status === "streaming" ? (
-          <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-background/60 p-8 text-center">
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/80 p-8 text-center">
             <div className="w-full max-w-xs">
-              <IconLayoutBoard className="mx-auto mb-3 size-8 animate-pulse text-muted-foreground" />
-              <p className="text-sm font-medium">Waiting for artifact</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <IconLayoutBoard
+                className="mx-auto mb-3 size-7 animate-pulse text-muted-foreground"
+                strokeWidth={1.4}
+              />
+              <p className="text-sm font-normal">Waiting for artifact</p>
+              <p className="mt-1 text-xs font-light text-muted-foreground">
                 The agent is working. Once it writes `index.html`, the preview
                 will appear here.
               </p>
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-background/60 p-8 text-center">
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/80 p-8 text-center">
             <div>
-              <IconLayoutBoard className="mx-auto mb-3 size-8 text-muted-foreground" />
-              <p className="text-sm font-medium">No decks yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <IconLayoutBoard
+                className="mx-auto mb-3 size-7 text-muted-foreground"
+                strokeWidth={1.4}
+              />
+              <p className="text-sm font-normal">No decks yet</p>
+              <p className="mt-1 text-xs font-light text-muted-foreground">
                 Ask the agent to create a deck. The generated HTML artifact will
                 preview here.
               </p>

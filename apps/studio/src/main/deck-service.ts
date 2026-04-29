@@ -1,5 +1,5 @@
 import { BrowserWindow, shell } from "electron";
-import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type {
@@ -41,7 +41,7 @@ export class StudioDeckService {
     const decks = await Promise.all(
       entries
         .filter((entry) => entry.isDirectory())
-        .map((entry) => this.readDeck(entry.name).catch(() => undefined)),
+        .map((entry) => this.readArtifactDeck(entry.name).catch(() => undefined)),
     );
     return decks
       .filter((deck): deck is StudioDeckProject => Boolean(deck))
@@ -138,8 +138,9 @@ export class StudioDeckService {
   async readArtifactDeck(artifactId: string): Promise<StudioDeckProject | undefined> {
     const artifactPath = this.getArtifactPath(artifactId);
     const indexFile = join(artifactPath, "index.html");
+    let indexUpdatedAt: number;
     try {
-      await access(indexFile);
+      indexUpdatedAt = (await stat(indexFile)).mtimeMs;
     } catch {
       return undefined;
     }
@@ -149,6 +150,7 @@ export class StudioDeckService {
       ...manifest,
       path: artifactPath,
       indexFile,
+      updatedAt: Math.max(manifest.updatedAt, indexUpdatedAt),
     });
   }
 

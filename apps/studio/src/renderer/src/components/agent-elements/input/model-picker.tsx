@@ -1,11 +1,68 @@
 "use client";
 
 import { memo, useCallback, useMemo, useState } from "react";
-import { IconCheck, IconChevronDown } from "@tabler/icons-react";
+import { IconCheck, IconChevronDown, IconCpu } from "@tabler/icons-react";
 import type { ModelOption } from "../types";
 import { cn } from "../utils/cn";
 import { formatProviderDisplayName } from "../../../lib/format-provider-label";
+import { getProviderLogo } from "../../../lib/provider-logo";
 import { Popover } from "./popover";
+
+function stripProviderPrefix(name: string, providerId?: string): string {
+  if (!name) return name;
+  const slash = name.indexOf("/");
+  if (slash > 0) {
+    const prefix = name.slice(0, slash).toLowerCase();
+    if (!providerId || prefix === providerId.toLowerCase()) {
+      return name.slice(slash + 1);
+    }
+  }
+  return name;
+}
+
+function ProviderGlyph({
+  providerId,
+  providerLabel,
+  size = 14,
+  className,
+}: {
+  providerId?: string;
+  providerLabel?: string;
+  size?: number;
+  className?: string;
+}) {
+  const logo = getProviderLogo(providerId, providerLabel);
+  if (!logo) {
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center rounded-[3px] bg-foreground/8 text-foreground/55",
+          className,
+        )}
+        style={{ width: size, height: size }}
+        title="Custom model"
+      >
+        <IconCpu size={Math.round(size * 0.72)} strokeWidth={1.6} />
+      </span>
+    );
+  }
+  return (
+    <img
+      src={logo.src}
+      alt=""
+      aria-hidden
+      width={size}
+      height={size}
+      className={cn(
+        "shrink-0 select-none object-contain",
+        logo.monochrome && "dark:invert",
+        className,
+      )}
+      draggable={false}
+    />
+  );
+}
 
 export type ModelPickerProps = {
   models: ModelOption[];
@@ -83,21 +140,25 @@ export const ModelPicker = memo(function ModelPicker({
         <button
           type="button"
           className={cn(
-            "inline-flex h-7 max-w-[min(100%,320px)] min-w-0 items-center gap-1 rounded-[6px] px-2 text-[12px] leading-4 text-foreground/40 transition-colors hover:bg-foreground/6 cursor-pointer",
+            "inline-flex h-7 max-w-[min(100%,320px)] min-w-0 items-center gap-1.5 rounded-[6px] px-2 text-[12px] leading-4 text-foreground/55 transition-colors hover:bg-foreground/6 cursor-pointer",
             className,
           )}
           aria-label="Select model"
         >
-          <span className="min-w-0 truncate font-medium">
-            {activeModel?.name ?? placeholder}
-          </span>
-          {activeModel?.providerLabel ? (
-            <span className="shrink-0 text-foreground/25">
-              · {activeModel.providerLabel}
-            </span>
+          {activeModel ? (
+            <ProviderGlyph
+              providerId={activeModel.provider}
+              providerLabel={activeModel.providerLabel}
+              size={13}
+            />
           ) : null}
+          <span className="min-w-0 truncate font-normal">
+            {activeModel
+              ? stripProviderPrefix(activeModel.name, activeModel.provider)
+              : placeholder}
+          </span>
           {activeModel?.version ? (
-            <span className="shrink-0 font-normal text-foreground/25">
+            <span className="shrink-0 font-light text-foreground/25">
               {activeModel.version}
             </span>
           ) : null}
@@ -128,10 +189,15 @@ export const ModelPicker = memo(function ModelPicker({
                     isActive && "bg-foreground/6",
                   )}
                 >
+                  <ProviderGlyph
+                    providerId={model.provider}
+                    providerLabel={model.providerLabel}
+                    size={13}
+                  />
                   <span className="min-w-0 flex-1 truncate">
-                    {model.name}
+                    {stripProviderPrefix(model.name, model.provider)}
                     {model.version ? (
-                      <span className="text-foreground/40"> {model.version}</span>
+                      <span className="font-light text-foreground/40"> {model.version}</span>
                     ) : null}
                   </span>
                   {isActive ? (
@@ -164,13 +230,24 @@ export const ModelBadge = memo(function ModelBadge({
   return (
     <div
       className={cn(
-        "inline-flex h-7 items-center px-2 text-[12px] leading-4 text-foreground/30",
+        "inline-flex h-7 items-center gap-1.5 px-2 text-[12px] leading-4 text-foreground/40",
         className,
       )}
     >
-      <span className="font-medium">{activeModel?.name ?? placeholder}</span>
+      {activeModel ? (
+        <ProviderGlyph
+          providerId={activeModel.provider}
+          providerLabel={activeModel.providerLabel}
+          size={13}
+        />
+      ) : null}
+      <span className="font-normal">
+        {activeModel
+          ? stripProviderPrefix(activeModel.name, activeModel.provider)
+          : placeholder}
+      </span>
       {activeModel?.version && (
-        <span className="ml-0.5 font-normal text-foreground/20">
+        <span className="ml-0.5 font-light text-foreground/25">
           {activeModel.version}
         </span>
       )}

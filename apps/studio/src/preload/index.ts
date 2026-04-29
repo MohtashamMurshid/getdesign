@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type {
+  StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
   StudioApi,
   StudioCreateDeckInput,
@@ -27,6 +28,9 @@ const api: StudioApi = {
   selectModel: (input: StudioSelectModelInput) =>
     ipcRenderer.invoke("studio:select-model", input),
   getConversation: () => ipcRenderer.invoke("studio:get-conversation"),
+  listChatSessions: () => ipcRenderer.invoke("studio:list-chat-sessions"),
+  openChatSession: (sessionId: string) =>
+    ipcRenderer.invoke("studio:open-chat-session", sessionId),
   sendPrompt: (input: StudioSendPromptInput) =>
     ipcRenderer.invoke("studio:send-prompt", input),
   stop: () => ipcRenderer.invoke("studio:stop"),
@@ -35,6 +39,8 @@ const api: StudioApi = {
   openPiModelsDocs: () => ipcRenderer.invoke("studio:open-pi-models-docs"),
   addCustomProvider: (input: StudioAddCustomProviderInput) =>
     ipcRenderer.invoke("studio:add-custom-provider", input),
+  addCustomModel: (input: StudioAddCustomModelInput) =>
+    ipcRenderer.invoke("studio:add-custom-model", input),
   removeCustomModel: (input: StudioRemoveCustomModelInput) =>
     ipcRenderer.invoke("studio:remove-custom-model", input),
   listDecks: () => ipcRenderer.invoke("studio:list-decks"),

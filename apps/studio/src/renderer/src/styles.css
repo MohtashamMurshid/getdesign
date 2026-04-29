@@ -135,10 +135,46 @@ body,
   }
   body {
     @apply bg-background text-foreground;
+    font-weight: 380;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv11";
+    letter-spacing: -0.005em;
   }
   html {
     @apply font-sans;
   }
+  /* Globally lighten Tailwind weight utilities for a more minimal feel */
+  .font-bold {
+    font-weight: 560;
+  }
+  .font-semibold {
+    font-weight: 500;
+  }
+  .font-medium {
+    font-weight: 450;
+  }
+  .font-normal {
+    font-weight: 380;
+  }
+  /* Headings inherit the lighter, tighter feel */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 500;
+    letter-spacing: -0.018em;
+  }
+}
+
+/* Soften borders app-wide for a quieter, more minimal surface */
+:root {
+  --border: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.95 0 0);
+}
+.dark {
+  --border: oklch(1 0 0 / 7%);
+  --sidebar-border: oklch(1 0 0 / 7%);
 }
 
 @keyframes studio-shimmer {

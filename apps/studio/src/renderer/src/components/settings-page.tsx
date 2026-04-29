@@ -2,11 +2,13 @@ import { useMemo, useState } from "react";
 import {
   IconArrowLeft,
   IconCheck,
+  IconChevronDown,
+  IconCpu,
   IconExternalLink,
   IconKey,
   IconLogout,
+  IconPlus,
   IconRefresh,
-  IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
 
@@ -29,11 +31,142 @@ import {
 } from "./ui/select";
 
 import type {
+  StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
   StudioAuthStatus,
+  StudioCustomModelRow,
   StudioCustomProviderApi,
 } from "../../../shared/studio-api";
 import type { OauthCard } from "../studio/oauth-cards";
+import { getProviderLogo } from "../lib/provider-logo";
+
+function ProviderLogo({
+  providerId,
+  providerLabel,
+  size = 18,
+  className,
+}: {
+  providerId?: string;
+  providerLabel?: string;
+  size?: number;
+  className?: string;
+}) {
+  const logo = getProviderLogo(providerId, providerLabel);
+  if (!logo) {
+    return (
+      <span
+        aria-hidden
+        title="Custom model"
+        className={`inline-flex shrink-0 items-center justify-center rounded-[4px] bg-foreground/8 text-foreground/55 ${className ?? ""}`}
+        style={{ width: size, height: size }}
+      >
+        <IconCpu size={Math.round(size * 0.7)} strokeWidth={1.6} />
+      </span>
+    );
+  }
+  return (
+    <img
+      src={logo.src}
+      alt=""
+      aria-hidden
+      width={size}
+      height={size}
+      className={`shrink-0 select-none object-contain ${logo.monochrome ? "dark:invert" : ""} ${className ?? ""}`}
+      draggable={false}
+    />
+  );
+}
+
+function AddCustomModelInline({
+  providerId,
+  onSubmit,
+}: {
+  providerId: string;
+  onSubmit: (input: StudioAddCustomModelInput) => Promise<void>;
+}) {
+  const [modelId, setModelId] = useState("");
+  const [modelName, setModelName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit() {
+    if (!modelId.trim()) return;
+    setBusy(true);
+    try {
+      await onSubmit({
+        providerId,
+        modelId: modelId.trim(),
+        modelName: modelName.trim() || undefined,
+      });
+      setModelId("");
+      setModelName("");
+    } catch {
+      /* error surfaces in parent */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-end">
+      <div className="flex-1 space-y-1.5">
+        <Label htmlFor={`add-model-id-${providerId}`} className="text-[11px] font-light uppercase tracking-[0.12em] text-muted-foreground">
+          Model id
+        </Label>
+        <Input
+          id={`add-model-id-${providerId}`}
+          value={modelId}
+          onChange={(event) => setModelId(event.target.value)}
+          placeholder="llama3.1:8b"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && modelId.trim() && !busy) {
+              event.preventDefault();
+              void handleSubmit();
+            }
+          }}
+        />
+      </div>
+      <div className="flex-1 space-y-1.5">
+        <Label htmlFor={`add-model-name-${providerId}`} className="text-[11px] font-light uppercase tracking-[0.12em] text-muted-foreground">
+          Display name (optional)
+        </Label>
+        <Input
+          id={`add-model-name-${providerId}`}
+          value={modelName}
+          onChange={(event) => setModelName(event.target.value)}
+          placeholder="Llama 3.1 8B"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && modelId.trim() && !busy) {
+              event.preventDefault();
+              void handleSubmit();
+            }
+          }}
+        />
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={busy || !modelId.trim()}
+        onClick={() => void handleSubmit()}
+      >
+        <IconPlus size={14} strokeWidth={1.6} />
+        Add model
+      </Button>
+    </div>
+  );
+}
+
+function stripProviderPrefix(name: string, providerId?: string): string {
+  if (!name) return name;
+  const slash = name.indexOf("/");
+  if (slash > 0) {
+    const prefix = name.slice(0, slash).toLowerCase();
+    if (!providerId || prefix === providerId.toLowerCase()) {
+      return name.slice(slash + 1);
+    }
+  }
+  return name;
+}
 
 type ProviderOption = { value: string; label: string };
 
@@ -56,6 +189,7 @@ type SettingsPageProps = {
   onStartLogin: (providerId: string) => void;
   onDisconnectProvider: (providerId: string) => void;
   onAddCustomProvider: (input: StudioAddCustomProviderInput) => Promise<void>;
+  onAddCustomModel: (input: StudioAddCustomModelInput) => Promise<void>;
   onRemoveCustomModel: (providerId: string, modelId: string) => Promise<void>;
   customProviderApiOptions: { value: StudioCustomProviderApi; label: string }[];
   provider: string;
@@ -78,6 +212,7 @@ export function SettingsPage({
   onStartLogin,
   onDisconnectProvider,
   onAddCustomProvider,
+  onAddCustomModel,
   onRemoveCustomModel,
   customProviderApiOptions,
   provider,
@@ -90,7 +225,6 @@ export function SettingsPage({
   onRefresh,
   error,
 }: SettingsPageProps) {
-  const [search, setSearch] = useState("");
   const [cpId, setCpId] = useState("");
   const [cpBaseUrl, setCpBaseUrl] = useState("http://localhost:11434/v1");
   const [cpApi, setCpApi] =
@@ -100,49 +234,50 @@ export function SettingsPage({
   const [cpModelName, setCpModelName] = useState("");
   const [customFormBusy, setCustomFormBusy] = useState(false);
 
-  const filteredModels = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return models;
-    return models.filter((m) => {
-      const providerId = (m.provider ?? "").toLowerCase();
-      const providerLb = (m.providerLabel ?? "").toLowerCase();
-      return (
-        m.name.toLowerCase().includes(q) ||
-        m.id.toLowerCase().includes(q) ||
-        providerId.includes(q) ||
-        providerLb.includes(q)
-      );
-    });
-  }, [models, search]);
+  const modelsByProviderId = useMemo(() => {
+    const buckets = new Map<string, SettingsModelRow[]>();
+    for (const model of models) {
+      const key = model.provider ?? "unknown";
+      const list = buckets.get(key);
+      if (list) list.push(model);
+      else buckets.set(key, [model]);
+    }
+    return buckets;
+  }, [models]);
 
-  const modelsByProvider = useMemo(() => {
-    type Row = SettingsModelRow;
+  function modelsForProvider(providerId: string): SettingsModelRow[] {
+    const exact = modelsByProviderId.get(providerId);
+    if (exact && exact.length > 0) return exact;
+    // Fall back to a fuzzy match (e.g. `gemini` against `gemini-cli`)
+    const out: SettingsModelRow[] = [];
+    for (const [key, list] of modelsByProviderId.entries()) {
+      if (
+        key === providerId ||
+        key.includes(providerId) ||
+        providerId.includes(key)
+      ) {
+        out.push(...list);
+      }
+    }
+    return out;
+  }
+
+  const customProvidersGrouped = useMemo(() => {
     const buckets = new Map<
       string,
-      { label: string; models: Row[] }
+      { providerId: string; rows: StudioCustomModelRow[] }
     >();
-    for (const m of filteredModels) {
-      const key = m.provider ?? "unknown";
-      const label = m.providerLabel ?? key;
-      const cur = buckets.get(key);
-      if (cur) cur.models.push(m);
-      else buckets.set(key, { label, models: [m] });
+    for (const row of authStatus?.customModels ?? []) {
+      const cur = buckets.get(row.providerId);
+      if (cur) cur.rows.push(row);
+      else buckets.set(row.providerId, { providerId: row.providerId, rows: [row] });
     }
-    return [...buckets.entries()]
-      .map(([providerKey, { label, models: groupModels }]) => ({
-        providerKey,
-        providerLabel: label,
-        models: groupModels,
-      }))
-      .sort((a, b) =>
-        a.providerLabel.localeCompare(b.providerLabel, undefined, {
-          sensitivity: "base",
-        }),
-      );
-  }, [filteredModels]);
-
-  const visibleCount =
-    visibleModelIds.length === 0 ? models.length : visibleModelIds.length;
+    return [...buckets.values()].sort((a, b) =>
+      a.providerId.localeCompare(b.providerId, undefined, {
+        sensitivity: "base",
+      }),
+    );
+  }, [authStatus?.customModels]);
 
   function toggleModel(id: string, checked: boolean) {
     setVisibleModelIds((current) => {
@@ -182,27 +317,27 @@ export function SettingsPage({
 
   return (
     <main className="min-h-full overflow-y-auto bg-background text-foreground">
-      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/85 backdrop-blur">
+      <header className="sticky top-0 z-10 bg-background/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
-              <IconArrowLeft size={18} />
+              <IconArrowLeft size={18} strokeWidth={1.5} />
             </Button>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              <p className="text-[10px] font-light uppercase tracking-[0.18em] text-muted-foreground">
                 Studio
               </p>
-              <h1 className="text-base font-semibold">Agent settings</h1>
+              <h1 className="text-base font-normal">Agent settings</h1>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={onRefresh}>
-            <IconRefresh size={15} />
+            <IconRefresh size={15} strokeWidth={1.5} />
             Refresh
           </Button>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-8">
+      <div className="mx-auto w-full max-w-3xl space-y-8 px-6 py-8">
         {error ? (
           <Card className="border-destructive/40 bg-destructive/10">
             <CardContent className="py-3 text-sm text-destructive">
@@ -229,114 +364,247 @@ export function SettingsPage({
 
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-base">Visible models</CardTitle>
-                <CardDescription>
-                  Choose which authenticated models appear in the picker.
-                </CardDescription>
-              </div>
-              <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
-                {visibleCount} / {models.length}
-              </span>
-            </div>
+            <CardTitle className="text-base">Connected providers</CardTitle>
+            <CardDescription>
+              Pi stores subscription OAuth and API keys in{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                ~/.pi/agent/auth.json
+              </code>
+              . Expand a provider to choose which of its models appear in the
+              picker. Disconnect clears that provider the same way Pi&apos;s{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                /logout
+              </code>{" "}
+              command does.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <IconSearch
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search models"
-                  className="pl-8"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setVisibleModelIds(
-                    visibleModelIds.length === 0 ? [] : models.map((m) => m.id),
-                  )
-                }
-              >
-                Show all
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setVisibleModelIds(models.length > 0 ? [models[0].id] : [])
-                }
-              >
-                Reset
-              </Button>
-            </div>
-
-            {filteredModels.length === 0 ? (
-              <div className="rounded-xl border border-border px-4 py-6 text-center text-sm text-muted-foreground">
-                No matching models.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {modelsByProvider.map((group) => (
-                  <div
-                    key={group.providerKey}
-                    className="overflow-hidden rounded-xl border border-border bg-card/40"
+          <CardContent className="space-y-1">
+            {oauthProviderCards.length === 0 &&
+            customProvidersGrouped.length === 0 ? (
+              <p className="text-sm font-light text-muted-foreground">
+                No providers detected.
+              </p>
+            ) : null}
+            {oauthProviderCards.map((p) => {
+                const providerModels = modelsForProvider(p.id);
+                const authed = providerModels.length > 0;
+                const visibleHere = providerModels.filter(
+                  (m) =>
+                    visibleModelIds.length === 0 ||
+                    visibleModelIds.includes(m.id),
+                ).length;
+                return (
+                  <details
+                    key={p.id}
+                    className="group/prov border-b border-border last:border-b-0 [&_summary]:list-none [&_summary::-webkit-details-marker]:hidden"
                   >
-                    <div className="flex items-center justify-between gap-3 border-b border-border/80 bg-muted/30 px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-semibold tracking-tight">
-                          {group.providerLabel}
+                    <summary className="flex cursor-pointer items-center justify-between gap-3 py-3 outline-none transition-colors hover:bg-muted/30 -mx-1 px-1 rounded-md">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <IconChevronDown
+                          size={14}
+                          strokeWidth={1.5}
+                          className="shrink-0 text-muted-foreground transition-transform group-open/prov:rotate-180"
+                        />
+                        <ProviderLogo
+                          providerId={p.id}
+                          providerLabel={p.name}
+                          size={20}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-normal">
+                            {p.name}
+                          </p>
+                          <p className="truncate text-xs font-light text-muted-foreground">
+                            {p.description}
+                            {authed
+                              ? ` · ${visibleHere} of ${providerModels.length} visible`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        className="flex shrink-0 flex-wrap items-center justify-end gap-2"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                      >
+                        {authed ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-light text-muted-foreground">
+                            <IconCheck size={12} strokeWidth={1.6} />
+                            Connected
+                          </span>
+                        ) : null}
+                        {authed ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => onDisconnectProvider(p.id)}
+                          >
+                            Disconnect
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant={authed ? "ghost" : "outline"}
+                          size="sm"
+                          onClick={() => onStartLogin(p.id)}
+                        >
+                          {authed ? "Reconnect" : "Connect"}
+                        </Button>
+                      </div>
+                    </summary>
+
+                    <div className="pb-3 pl-9 pr-1">
+                      {providerModels.length === 0 ? (
+                        <p className="py-2 text-xs font-light text-muted-foreground">
+                          No models available. Connect this provider to see its
+                          models here.
                         </p>
-                        <p className="truncate font-mono text-[10px] text-muted-foreground">
-                          {group.providerKey === "unknown"
-                            ? "—"
-                            : group.providerKey}
+                      ) : (
+                        <ul className="divide-y divide-border">
+                          {providerModels.map((model) => {
+                            const checked =
+                              visibleModelIds.length === 0 ||
+                              visibleModelIds.includes(model.id);
+                            return (
+                              <li key={model.id}>
+                                <label className="flex cursor-pointer items-center justify-between gap-4 py-2.5 transition-colors hover:bg-muted/30">
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-sm font-normal">
+                                      {stripProviderPrefix(
+                                        model.name,
+                                        model.provider,
+                                      )}
+                                    </span>
+                                    <span className="block truncate text-xs font-light text-muted-foreground">
+                                      {model.id}
+                                      {model.version
+                                        ? ` · ${model.version}`
+                                        : ""}
+                                    </span>
+                                  </span>
+                                  <input
+                                    type="checkbox"
+                                    className="size-4 accent-foreground"
+                                    checked={checked}
+                                    onChange={(event) =>
+                                      toggleModel(
+                                        model.id,
+                                        event.target.checked,
+                                      )
+                                    }
+                                  />
+                                </label>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  </details>
+                );
+              })}
+
+            {customProvidersGrouped.map((group) => {
+              const providerLabel = group.providerId;
+              return (
+                <details
+                  key={`custom-${group.providerId}`}
+                  className="group/prov border-b border-border last:border-b-0 [&_summary]:list-none [&_summary::-webkit-details-marker]:hidden"
+                >
+                  <summary className="-mx-1 flex cursor-pointer items-center justify-between gap-3 rounded-md px-1 py-3 outline-none transition-colors hover:bg-muted/30">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <IconChevronDown
+                        size={14}
+                        strokeWidth={1.5}
+                        className="shrink-0 text-muted-foreground transition-transform group-open/prov:rotate-180"
+                      />
+                      <ProviderLogo
+                        providerId={group.providerId}
+                        providerLabel={providerLabel}
+                        size={20}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-normal">
+                          {providerLabel}
+                        </p>
+                        <p className="truncate text-xs font-light text-muted-foreground">
+                          Custom · {group.rows.length}{" "}
+                          {group.rows.length === 1 ? "model" : "models"}
                         </p>
                       </div>
-                      <span className="shrink-0 rounded-md bg-muted/50 px-2 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
-                        {group.models.length}
-                      </span>
                     </div>
-                    <ul className="divide-y divide-border/80">
-                      {group.models.map((model) => {
+                    <span className="inline-flex items-center gap-1 text-xs font-light text-muted-foreground">
+                      <IconCpu size={12} strokeWidth={1.6} />
+                      Local
+                    </span>
+                  </summary>
+
+                  <div className="pb-3 pl-9 pr-1">
+                    <ul className="divide-y divide-border">
+                      {group.rows.map((row) => {
                         const checked =
                           visibleModelIds.length === 0 ||
-                          visibleModelIds.includes(model.id);
+                          visibleModelIds.includes(row.fullId);
                         return (
-                          <li key={model.id}>
-                            <label className="flex cursor-pointer items-center justify-between gap-4 px-3 py-2.5 transition-colors hover:bg-muted/40 sm:px-4 sm:py-3">
-                              <span className="min-w-0">
-                                <span className="block truncate text-sm font-medium">
-                                  {model.name}
+                          <li key={`${row.providerId}/${row.modelId}`}>
+                            <div className="flex items-center justify-between gap-4 py-2.5">
+                              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm font-normal">
+                                    {row.name ?? row.modelId}
+                                  </span>
+                                  <span className="block truncate text-xs font-light text-muted-foreground">
+                                    {row.fullId}
+                                  </span>
                                 </span>
-                                <span className="block truncate text-xs text-muted-foreground">
-                                  {model.id}
-                                  {model.version ? ` · ${model.version}` : ""}
-                                </span>
-                              </span>
-                              <input
-                                type="checkbox"
-                                className="size-4 accent-foreground"
-                                checked={checked}
-                                onChange={(event) =>
-                                  toggleModel(model.id, event.target.checked)
+                                <input
+                                  type="checkbox"
+                                  className="size-4 accent-foreground"
+                                  checked={checked}
+                                  onChange={(event) =>
+                                    toggleModel(row.fullId, event.target.checked)
+                                  }
+                                />
+                              </label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() =>
+                                  void removeCustomModelRow(
+                                    row.providerId,
+                                    row.modelId,
+                                  )
                                 }
-                              />
-                            </label>
+                                aria-label={`Remove ${row.fullId}`}
+                              >
+                                <IconTrash size={15} strokeWidth={1.5} />
+                              </Button>
+                            </div>
                           </li>
                         );
                       })}
                     </ul>
+                    <AddCustomModelInline
+                      providerId={group.providerId}
+                      onSubmit={onAddCustomModel}
+                    />
                   </div>
-                ))}
-              </div>
-            )}
+                </details>
+              );
+            })}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full"
+              onClick={window.api.openPiAuthDocs}
+            >
+              <IconExternalLink size={14} />
+              Open Pi auth docs
+            </Button>
           </CardContent>
         </Card>
 
@@ -362,8 +630,11 @@ export function SettingsPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-3 rounded-xl border border-border bg-card/40 p-4">
-              <p className="text-sm font-medium">Add provider &amp; model</p>
+            <div className="space-y-3">
+              <p className="flex items-center gap-2 text-sm font-normal">
+                <IconCpu size={14} strokeWidth={1.6} className="text-muted-foreground" />
+                Add provider &amp; model
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="cp-id">Provider id</Label>
@@ -449,50 +720,12 @@ export function SettingsPage({
               </Button>
             </div>
 
-            <div>
-              <p className="mb-2 text-sm font-medium">Entries in models.json</p>
-              {authStatus?.customModels?.length ? (
-                <ul className="divide-y divide-border rounded-xl border border-border">
-                  {authStatus.customModels.map((row) => (
-                    <li
-                      key={`${row.providerId}/${row.modelId}`}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {row.fullId}
-                        </p>
-                        {row.name ? (
-                          <p className="truncate text-xs text-muted-foreground">
-                            {row.name}
-                          </p>
-                        ) : null}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() =>
-                          void removeCustomModelRow(
-                            row.providerId,
-                            row.modelId,
-                          )
-                        }
-                        aria-label={`Remove ${row.fullId}`}
-                      >
-                        <IconTrash size={16} />
-                        Remove
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-                  No custom model entries in models.json yet.
-                </p>
-              )}
-            </div>
+            <p className="text-xs font-light text-muted-foreground">
+              Added entries appear under{" "}
+              <span className="text-foreground/70">Connected providers</span>{" "}
+              above, where you can toggle visibility or remove individual
+              models.
+            </p>
 
             <Button
               type="button"
@@ -503,87 +736,6 @@ export function SettingsPage({
             >
               <IconExternalLink size={14} />
               Open Pi custom models docs
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Connected providers</CardTitle>
-            <CardDescription>
-              Pi stores subscription OAuth and API keys in{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                ~/.pi/agent/auth.json
-              </code>
-              . Disconnect clears that provider the same way Pi&apos;s{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                /logout
-              </code>{" "}
-              command does (see Pi provider docs below). If models remain,
-              credentials may still come from environment variables.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {oauthProviderCards.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No providers detected.
-              </p>
-            ) : (
-              oauthProviderCards.map((p) => {
-                const authed = authStatus?.availableModels.some(
-                  (model) =>
-                    model.provider === p.id ||
-                    model.provider.includes(p.id) ||
-                    p.id.includes(model.provider),
-                );
-                return (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/60 p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{p.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {p.description}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                      {authed ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground">
-                          <IconCheck size={12} />
-                          Connected
-                        </span>
-                      ) : null}
-                      {authed ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => onDisconnectProvider(p.id)}
-                        >
-                          Disconnect
-                        </Button>
-                      ) : null}
-                      <Button
-                        variant={authed ? "ghost" : "outline"}
-                        size="sm"
-                        onClick={() => onStartLogin(p.id)}
-                      >
-                        {authed ? "Reconnect" : "Connect"}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full"
-              onClick={window.api.openPiAuthDocs}
-            >
-              <IconExternalLink size={14} />
-              Open Pi auth docs
             </Button>
           </CardContent>
         </Card>

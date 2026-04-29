@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ChatStatus } from "ai";
 import {
   IconPlus,
+  IconLayoutSidebarRightExpand,
   IconSettings,
 } from "@tabler/icons-react";
 
@@ -32,6 +33,7 @@ import { buildOauthProviderCards } from "./studio/oauth-cards";
 import type {
   StudioAddCustomProviderInput,
   StudioAuthStatus,
+  StudioChatSessionSummary,
   StudioConversationSnapshot,
   StudioDeckExportFormat,
   StudioDeckProject,
@@ -46,8 +48,10 @@ export default function App() {
     status: "ready",
     messages: [],
   });
+  const [chatSessions, setChatSessions] = useState<StudioChatSessionSummary[]>([]);
   const [decks, setDecks] = useState<StudioDeckProject[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | undefined>();
+  const [isArtifactOpen, setIsArtifactOpen] = useState(true);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [provider, setProvider] = useState("anthropic");
   const [apiKey, setApiKey] = useState("");
@@ -90,6 +94,9 @@ export default function App() {
             ? current
             : event.payload[0]?.id,
         );
+      }
+      if (event.type === "sessions") {
+        setChatSessions(event.payload);
       }
     });
 
@@ -154,10 +161,14 @@ export default function App() {
         window.api.getAuthStatus(),
         window.api.getConversation(),
       ]);
-      const nextDecks = await window.api.listDecks();
+      const [nextDecks, nextSessions] = await Promise.all([
+        window.api.listDecks(),
+        window.api.listChatSessions(),
+      ]);
       setAuthStatus(nextAuth);
       setConversation(nextConversation);
       setDecks(nextDecks);
+      setChatSessions(nextSessions);
       setSelectedDeckId(
         nextDecks.find((deck) => deck.id === nextConversation.currentArtifactId)
           ?.id,
@@ -236,6 +247,21 @@ export default function App() {
     }
   }
 
+  async function handleAddCustomModel(input: {
+    providerId: string;
+    modelId: string;
+    modelName?: string;
+  }) {
+    try {
+      setError(undefined);
+      const nextAuth = await window.api.addCustomModel(input);
+      setAuthStatus(nextAuth);
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+      throw nextError;
+    }
+  }
+
   async function handleRemoveCustomModel(providerId: string, modelId: string) {
     const ok = window.confirm(
       `Remove "${providerId}/${modelId}" from models.json? This cannot be undone.`,
@@ -294,9 +320,32 @@ export default function App() {
     try {
       setError(undefined);
       const next = await window.api.newConversation();
+      const nextDecks = await window.api.listDecks();
       setConversation(next);
-      setDecks([]);
-      setSelectedDeckId(undefined);
+      setDecks(nextDecks);
+      setSelectedDeckId(
+        nextDecks.find((deck) => deck.id === next.currentArtifactId)?.id ??
+          nextDecks[0]?.id,
+      );
+      setIsArtifactOpen(true);
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+    }
+  }
+
+  async function handleOpenChatSession(sessionId: string) {
+    if (sessionId === conversation.id) return;
+    try {
+      setError(undefined);
+      const nextConversation = await window.api.openChatSession(sessionId);
+      const nextDecks = await window.api.listDecks();
+      setConversation(nextConversation);
+      setDecks(nextDecks);
+      setSelectedDeckId(
+        nextDecks.find((deck) => deck.id === nextConversation.currentArtifactId)
+          ?.id ?? nextDecks[0]?.id,
+      );
+      setIsArtifactOpen(true);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -370,6 +419,7 @@ export default function App() {
         onStartLogin={handleStartLogin}
         onDisconnectProvider={handleDisconnectProvider}
         onAddCustomProvider={handleAddCustomProvider}
+        onAddCustomModel={handleAddCustomModel}
         onRemoveCustomModel={handleRemoveCustomModel}
         customProviderApiOptions={CUSTOM_PROVIDER_API_OPTIONS}
         provider={provider}
@@ -387,11 +437,36 @@ export default function App() {
 
   return (
     <main className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex items-center justify-between gap-3 border-b border-border/60 bg-background/80 px-4 py-2.5 backdrop-blur">
+      <header className="flex items-center justify-between gap-3 bg-background/80 px-4 py-2 backdrop-blur">
         <div className="flex items-center gap-3">
           <Logo size="sm" />
         </div>
         <div className="flex items-center gap-1">
+          {chatSessions.length > 0 ? (
+            <select
+              value={conversation.id ?? ""}
+              onChange={(event) => handleOpenChatSession(event.target.value)}
+              className="mr-1 h-9 max-w-56 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-ring"
+              aria-label="Open previous chat"
+            >
+              {chatSessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.title}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {!isArtifactOpen ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsArtifactOpen(true)}
+              aria-label="Open artifact"
+              title="Open artifact"
+            >
+              <IconLayoutSidebarRightExpand size={18} />
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="icon"
@@ -437,7 +512,7 @@ export default function App() {
         <div className="flex min-w-0 flex-1 flex-col">
           {conversation.messages.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center px-6">
-              <h1 className="text-balance text-center text-3xl font-semibold tracking-tight">
+              <h1 className="text-balance text-center text-3xl font-light tracking-tight text-foreground/90">
                 What should we design today?
               </h1>
               <Suggestions
@@ -497,14 +572,18 @@ export default function App() {
             }
           />
         </div>
-        <DeckWorkspace
-          decks={decks}
-          selectedDeckId={selectedDeckId}
-          status={conversation.status}
-          onOpenDeck={handleOpenDeck}
-          onExportDeck={handleExportDeck}
-          onCreateMockArtifact={handleCreateMockArtifact}
-        />
+        {isArtifactOpen ? (
+          <DeckWorkspace
+            decks={decks}
+            selectedDeckId={selectedDeckId}
+            status={conversation.status}
+            onClose={() => setIsArtifactOpen(false)}
+            onSelectDeck={setSelectedDeckId}
+            onOpenDeck={handleOpenDeck}
+            onExportDeck={handleExportDeck}
+            onCreateMockArtifact={handleCreateMockArtifact}
+          />
+        ) : null}
       </section>
     </main>
   );

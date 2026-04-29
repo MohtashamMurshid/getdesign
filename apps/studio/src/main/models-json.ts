@@ -2,6 +2,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { dirname } from "node:path";
 
 import type {
+  StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
   StudioCustomModelRow,
   StudioRemoveCustomModelInput,
@@ -121,6 +122,42 @@ export function addCustomProviderEntry(
       models: nextModels,
     };
   }
+
+  return { providers };
+}
+
+export function addCustomModelEntry(
+  data: ModelsJsonRoot,
+  input: StudioAddCustomModelInput,
+): ModelsJsonRoot {
+  const providerId = input.providerId.trim();
+  const modelId = input.modelId.trim();
+  if (!providerId || !modelId) {
+    throw new Error("Provider id and model id are required.");
+  }
+
+  const providers = { ...data.providers };
+  const existing = providers[providerId];
+  if (!existing) {
+    throw new Error(
+      `Custom provider "${providerId}" does not exist. Add the provider first.`,
+    );
+  }
+  const existingModels = existing.models ?? [];
+  if (existingModels.some((m) => m.id === modelId)) {
+    throw new Error(
+      `Model "${modelId}" already exists for provider "${providerId}".`,
+    );
+  }
+
+  const modelEntry: { id: string; name?: string } = { id: modelId };
+  const modelName = input.modelName?.trim();
+  if (modelName) modelEntry.name = modelName;
+
+  providers[providerId] = {
+    ...existing,
+    models: [...existingModels, modelEntry],
+  };
 
   return { providers };
 }
