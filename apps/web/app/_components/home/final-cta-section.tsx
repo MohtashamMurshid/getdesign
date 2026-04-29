@@ -1,7 +1,14 @@
 import { SkillInstallCommand } from "../skill-install-command";
+import { WaitlistCount } from "../waitlist-count";
 import WaitlistForm from "../waitlist-form";
 
-export function FinalCtaSection() {
+type FinalCtaSectionProps = {
+  waitlistCount?: number | null;
+};
+
+export function FinalCtaSection({
+  waitlistCount = null,
+}: FinalCtaSectionProps) {
   return (
     <div className="mx-auto max-w-2xl text-center">
       <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-100)] px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-muted">
@@ -17,7 +24,8 @@ export function FinalCtaSection() {
         One email per milestone. The API, the CLI, the SDK. Nothing else.
       </p>
 
-      <div className="mt-8 flex justify-center">
+      <div className="mt-8 flex flex-col items-center">
+        <WaitlistCount count={waitlistCount} align="center" />
         <WaitlistForm variant="compact" />
       </div>
 

@@ -1,15 +1,24 @@
 import { PRODUCT_SURFACES } from "../../_lib/site";
+import { WaitlistCount } from "../waitlist-count";
 import WaitlistForm from "../waitlist-form";
 import HeroCard from "./hero-card";
 
-export function HeroSection() {
+type HeroSectionProps = {
+  waitlistCount?: number | null;
+};
+
+export function HeroSection({ waitlistCount = null }: HeroSectionProps) {
   return (
     <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-12">
       <div>
-        <div className="flex items-center gap-2 text-[12px] text-muted">
-          <span className="text-[var(--accent)]">✦</span>
-          Own your design system
-        </div>
+        {waitlistCount != null && waitlistCount > 0 ? (
+          <WaitlistCount count={waitlistCount} />
+        ) : (
+          <div className="flex items-center gap-2 text-[12px] text-muted">
+            <span className="text-[var(--accent)]">✦</span>
+            Own your design system
+          </div>
+        )}
 
         <h1 className="display-hero mt-6 max-w-[560px]">
           The design system
