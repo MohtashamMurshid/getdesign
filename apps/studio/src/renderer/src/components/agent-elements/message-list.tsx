@@ -8,7 +8,8 @@ import React, {
   useMemo,
 } from "react";
 import type { UIMessage, ChatStatus } from "ai";
-import { cn } from "./utils/cn";
+import { isRecord } from "@/lib/type-guards";
+import { cn } from "@/lib/utils";
 
 import { UserMessage } from "./user-message";
 import { Markdown } from "./markdown";
@@ -113,10 +114,6 @@ function getLastUserMessageId(messages: UIMessage[]) {
     if (msg?.role === "user") return msg.id;
   }
   return null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function isTextPart(part: unknown): part is { type: "text"; text: string } {

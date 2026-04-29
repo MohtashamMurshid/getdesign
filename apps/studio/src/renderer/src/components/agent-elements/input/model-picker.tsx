@@ -3,22 +3,11 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { IconCheck, IconChevronDown, IconCpu } from "@tabler/icons-react";
 import type { ModelOption } from "../types";
-import { cn } from "../utils/cn";
-import { formatProviderDisplayName } from "../../../lib/format-provider-label";
-import { getProviderLogo } from "../../../lib/provider-logo";
+import { stripProviderPrefix } from "@/lib/format-model-label";
+import { formatProviderDisplayName } from "@/lib/format-provider-label";
+import { getProviderLogo } from "@/lib/provider-logo";
+import { cn } from "@/lib/utils";
 import { Popover } from "./popover";
-
-function stripProviderPrefix(name: string, providerId?: string): string {
-  if (!name) return name;
-  const slash = name.indexOf("/");
-  if (slash > 0) {
-    const prefix = name.slice(0, slash).toLowerCase();
-    if (!providerId || prefix === providerId.toLowerCase()) {
-      return name.slice(slash + 1);
-    }
-  }
-  return name;
-}
 
 function truncateName(name: string, max = 15): string {
   if (!name) return name;

@@ -1,8 +1,4 @@
-type AnyRecord = Record<string, any>;
-
-function isRecord(value: unknown): value is AnyRecord {
-  return typeof value === "object" && value !== null;
-}
+import { isRecord } from "@/lib/type-guards";
 
 function parseStructuredJson(value: unknown): unknown {
   if (typeof value !== "string") return value;
@@ -34,7 +30,7 @@ export function normalizeToolPart(part: unknown): unknown {
     return part;
   }
 
-  const normalizedPart: AnyRecord = { ...part };
+  const normalizedPart: Record<string, unknown> = { ...part };
   if (inputChanged) normalizedPart.input = normalizedInput;
   if (outputChanged) normalizedPart.output = normalizedOutput;
   if (resultChanged) normalizedPart.result = normalizedResult;

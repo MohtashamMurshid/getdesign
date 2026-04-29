@@ -7,7 +7,7 @@ title: "streamDesign"
 
 > **streamDesign**(`url`, `_options?`): `AsyncGenerator`\<`string`, `void`, `void`\>
 
-Defined in: [sdk/src/index.ts:38](https://github.com/MohtashamMurshid/getdesign/blob/03302ffe7bb4023d88cd9ccc94c3e88d30d53763/packages/sdk/src/index.ts#L38)
+Defined in: [sdk/src/index.ts:38](https://github.com/MohtashamMurshid/getdesign/blob/df80b21de18dcdb08f6d29fe504cda46292775aa/packages/sdk/src/index.ts#L38)
 
 Placeholder streaming API. Yields nothing today.
 

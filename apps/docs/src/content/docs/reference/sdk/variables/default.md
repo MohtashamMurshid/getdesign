@@ -7,7 +7,7 @@ title: "default"
 
 > **default**: `object`
 
-Defined in: [sdk/src/index.ts:47](https://github.com/MohtashamMurshid/getdesign/blob/03302ffe7bb4023d88cd9ccc94c3e88d30d53763/packages/sdk/src/index.ts#L47)
+Defined in: [sdk/src/index.ts:47](https://github.com/MohtashamMurshid/getdesign/blob/df80b21de18dcdb08f6d29fe504cda46292775aa/packages/sdk/src/index.ts#L47)
 
 ## Type Declaration
 

@@ -17,8 +17,6 @@ import type {
   StudioLoginState,
   StudioMessage,
   StudioMessagePart,
-  StudioModelInfo,
-  StudioOAuthProviderInfo,
   StudioDeleteChatSessionInput,
   StudioRemoveCustomModelInput,
   StudioRenameChatSessionInput,
@@ -39,148 +37,47 @@ import {
 } from "./models-json";
 import { StudioDeckService } from "./deck-service";
 
-type PiCodingAgent = typeof import("@mariozechner/pi-coding-agent");
-type PiAi = typeof import("@mariozechner/pi-ai");
-type PiSession = {
-  prompt: (text: string) => Promise<void>;
-  abort: () => Promise<void>;
-  dispose: () => void;
-  subscribe: (listener: (event: PiSessionEvent) => void) => () => void;
-  setModel?: (model: unknown) => Promise<void>;
-  model?: unknown;
-};
-type PiSessionEvent = {
-  type: string;
-  message?: unknown;
-  assistantMessageEvent?: {
-    type: string;
-    contentIndex?: number;
-    delta?: string;
-    text?: string;
-    content?: string;
-    thinking?: string;
-    toolCall?: unknown;
-    partial?: unknown;
-  };
-  messages?: unknown[];
-  toolCallId?: string;
-  toolName?: string;
-  args?: unknown;
-  partialResult?: unknown;
-  result?: unknown;
-  isError?: boolean;
-};
-
-/**
- * Tracks the array indices of streaming parts on the in-flight assistant
- * message. Pi emits `contentIndex` on every text/thinking delta, which lets us
- * keep parts in chronological order even across multiple LLM turns within a
- * single assistant message (text → tool → text → tool → …). Without this we
- * fall back to the "last part is text? append : push" heuristic, which loses
- * ordering once a tool call lands between two text segments.
- */
-type AssistantStreamState = {
-  textIndices: Map<string, number>;
-  thinkingIndices: Map<string, number>;
-  toolIndices: Map<string, number>;
-  turn: number;
-};
-
-function createAssistantStreamState(): AssistantStreamState {
-  return {
-    textIndices: new Map(),
-    thinkingIndices: new Map(),
-    toolIndices: new Map(),
-    turn: 0,
-  };
-}
-
-let assistantStream: AssistantStreamState = createAssistantStreamState();
-
-type PiRuntime = {
-  authStorage: {
-    setRuntimeApiKey: (provider: string, apiKey: string) => void;
-    removeRuntimeApiKey: (provider: string) => void;
-    logout: (provider: string) => void;
-    login: (
-      providerId: string,
-      callbacks: {
-        onAuth: (info: { url: string; instructions?: string }) => void;
-        onPrompt: (prompt: { message: string; placeholder?: string; allowEmpty?: boolean }) => Promise<string>;
-        onProgress?: (message: string) => void;
-        onManualCodeInput?: () => Promise<string>;
-      },
-    ) => Promise<void>;
-    getOAuthProviders?: () => Array<{ id: string; name: string }>;
-  };
-  modelRegistry: {
-    getAvailable: () => unknown[] | Promise<unknown[]>;
-    find?: (provider: string, id: string) => unknown;
-    refresh?: () => void | Promise<void>;
-    getError?: () => string | undefined;
-  };
-  selectedModel?: unknown;
-  selectedModelId?: string;
-  modelRegistryRefreshed?: boolean;
-  session?: PiSession;
-  unsubscribe?: () => void;
-};
-
-const PI_PROVIDER_ENV_KEYS = [
-  "AI_GATEWAY_API_KEY",
-  "ANTHROPIC_API_KEY",
-  "ANTHROPIC_OAUTH_TOKEN",
-  "AWS_ACCESS_KEY_ID",
-  "AWS_BEARER_TOKEN_BEDROCK",
-  "AWS_CONTAINER_CREDENTIALS_FULL_URI",
-  "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
-  "AWS_PROFILE",
-  "AWS_SECRET_ACCESS_KEY",
-  "AWS_WEB_IDENTITY_TOKEN_FILE",
-  "AZURE_OPENAI_API_KEY",
-  "CEREBRAS_API_KEY",
-  "COPILOT_GITHUB_TOKEN",
-  "DEEPSEEK_API_KEY",
-  "FIREWORKS_API_KEY",
-  "GCLOUD_PROJECT",
-  "GEMINI_API_KEY",
-  "GH_TOKEN",
-  "GITHUB_TOKEN",
-  "GOOGLE_APPLICATION_CREDENTIALS",
-  "GOOGLE_CLOUD_API_KEY",
-  "GOOGLE_CLOUD_LOCATION",
-  "GOOGLE_CLOUD_PROJECT",
-  "GROQ_API_KEY",
-  "HF_TOKEN",
-  "KIMI_API_KEY",
-  "MINIMAX_API_KEY",
-  "MINIMAX_CN_API_KEY",
-  "MISTRAL_API_KEY",
-  "OPENCODE_API_KEY",
-  "OPENAI_API_KEY",
-  "OPENROUTER_API_KEY",
-  "XAI_API_KEY",
-  "ZAI_API_KEY",
-] as const;
-
-const PI_AUTH_DOCS_URL = "https://pi.dev/docs/latest/providers";
-const PI_MODELS_DOCS_URL = "https://pi.dev/docs/latest/models";
-const STUDIO_SYSTEM_PROMPT = [
-  "You are Studio, an open-source Claude Design-style design partner.",
-  "For slide and PPT work, follow Studio's HTML-first deck workflow.",
-  "Always treat the browser-ready HTML deck as the source artifact; PDF and PPTX are exports.",
-  "For decks, create files in the current artifact workspace using Pi file tools. Never paste full deck HTML in chat.",
-  "Write the browser preview to index.html. For multi-slide decks, create slides/*.html and an index.html manifest/iframe stage.",
-  "Use shared/tokens.css for reusable design tokens and assets/ for local assets.",
-  "Before creating a deck, ask which export path matters: HTML only, HTML plus PDF, or editable PPTX.",
-  "For decks with five or more slides, create or propose two showcase slides first to lock the visual grammar before producing the full deck.",
-  "Editable PPTX requires pptx-safe authoring from the first slide: fixed 16:9 layout, text only in p/heading/list tags, real img tags, backgrounds/borders on wrapper elements only, no gradients, no web components, and no complex SVG.",
-  "If the user asks for editable PowerPoint, prioritize clean layout primitives that can become native PPT text boxes, shapes, and images.",
-  "When you finish, summarize the files you created or edited and tell the user the preview is visible in the right panel.",
-].join("\n");
-
-let runtimePromise: Promise<PiRuntime> | undefined;
+import { isStoredChatSession } from "./pi/chat-guards";
+import {
+  PI_AUTH_DOCS_URL,
+  PI_MODELS_DOCS_URL,
+  STUDIO_SYSTEM_PROMPT,
+} from "./pi/constants";
+import { createId, createIdSuffix } from "./pi/id-utils";
+import {
+  findModel,
+  getModelKey,
+  getOAuthProviders,
+  modelRegistryAsRuntime,
+  splitModelId,
+  toModelInfo,
+} from "./pi/model-format";
+import {
+  computeContentFromParts,
+  extractTitleFromAssistantMessage,
+  getSessionTitle,
+  isArtifactFileTool,
+  toAgentElementsToolName,
+  truncate,
+} from "./pi/message-text";
+import {
+  getChatSessionsPath,
+  getModelsJsonPath,
+  getPiAgentDir,
+  stripPiProviderEnvironment,
+} from "./pi/paths";
+import { asRecord } from "./pi/record-utils";
+import type {
+  PiAi,
+  PiCodingAgent,
+  PiRuntime,
+  PiSession,
+  PiSessionEvent,
+  StoredChatSession,
+} from "./pi/types";
+import { createAssistantStreamState, type AssistantStreamState } from "./pi/types";
 let mainWindow: BrowserWindow | undefined;
+let runtimePromise: Promise<PiRuntime> | undefined;
 let currentSessionId = createId("session");
 let messages: StudioMessage[] = [];
 let status: StudioConversationSnapshot["status"] = "ready";
@@ -191,11 +88,7 @@ let deckService: StudioDeckService | undefined;
 let currentArtifactId = createId("artifact");
 let sessionsLoaded = false;
 let chatSessions: StoredChatSession[] = [];
-
-type StoredChatSession = StudioChatSessionSummary & {
-  messages: StudioMessage[];
-  manualTitle?: boolean;
-};
+let assistantStream: AssistantStreamState = createAssistantStreamState();
 
 export function registerStudioIpc(window: BrowserWindow): void {
   mainWindow = window;
@@ -285,10 +178,6 @@ async function createRuntime(): Promise<PiRuntime> {
     selectedModel,
     selectedModelId: selectedModel ? getModelKey(selectedModel) : undefined,
   };
-}
-
-function modelRegistryAsRuntime(modelRegistry: unknown): PiRuntime["modelRegistry"] {
-  return modelRegistry as PiRuntime["modelRegistry"];
 }
 
 async function refreshModelRegistry(runtime: PiRuntime): Promise<void> {
@@ -1158,40 +1047,6 @@ function backfillFromMessage(piMessage: unknown): void {
   }
 }
 
-function computeContentFromParts(parts: StudioMessagePart[]): string {
-  return parts
-    .filter((part) => part.type === "text" && typeof part.text === "string")
-    .map((part) => part.text as string)
-    .join("");
-}
-
-function createIdSuffix(): string {
-  return Math.random().toString(36).slice(2, 8);
-}
-
-function toAgentElementsToolName(toolName: string): string {
-  const aliases: Record<string, string> = {
-    bash: "Bash",
-    read: "Read",
-    edit: "Edit",
-    write: "Write",
-    grep: "Grep",
-    find: "Glob",
-    ls: "Glob",
-  };
-  return aliases[toolName] ?? toolName.replace(/(^|[-_])(\w)/g, (_match, _sep, char: string) =>
-    char.toUpperCase(),
-  );
-}
-
-function isArtifactFileTool(toolName: unknown): boolean {
-  return toolName === "write" || toolName === "edit" || toolName === "bash";
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
-}
-
 function finishAssistantMessage(nextStatus: NonNullable<StudioMessage["status"]>): void {
   messages = messages.map((message, index) => {
     if (index !== messages.length - 1 || message.role !== "assistant") return message;
@@ -1219,72 +1074,10 @@ function emit(event: StudioEvent): void {
   mainWindow?.webContents.send("studio:event", event);
 }
 
-function findModel(runtime: PiRuntime, provider: string, id: string): unknown {
-  return runtime.modelRegistry.find?.(provider, id);
-}
-
-function toModelInfo(model: unknown): StudioModelInfo {
-  const record = model as Record<string, unknown>;
-  const provider = String(record["provider"] ?? "unknown");
-  const id = String(record["id"] ?? "unknown");
-  const name = String(record["name"] ?? id);
-  return {
-    id: `${provider}/${id}`,
-    provider,
-    name,
-    label: `${provider}/${name}`,
-    contextWindow: typeof record["contextWindow"] === "number" ? record["contextWindow"] : undefined,
-    maxTokens: typeof record["maxTokens"] === "number" ? record["maxTokens"] : undefined,
-  };
-}
-
-function getOAuthProviders(runtime: PiRuntime): StudioOAuthProviderInfo[] {
-  const authStorage = runtime.authStorage as {
-    getOAuthProviders?: () => Array<{ id: string; name: string }>;
-  };
-  return (
-    authStorage.getOAuthProviders?.().map((provider) => ({
-      id: provider.id,
-      name: provider.name,
-    })) ?? []
-  );
-}
-
 function waitForManualCode(): Promise<string> {
   return new Promise((resolve) => {
     manualCodeResolver = resolve;
   });
-}
-
-function getModelKey(model: unknown): string | undefined {
-  const record = model as Record<string, unknown>;
-  const provider = record["provider"];
-  const id = record["id"];
-  if (typeof provider !== "string" || typeof id !== "string") return undefined;
-  return `${provider}/${id}`;
-}
-
-function splitModelId(modelId: string): [provider: string, id: string] {
-  const [provider, ...rest] = modelId.split("/");
-  if (!provider || rest.length === 0) {
-    throw new Error(`Invalid model id: ${modelId}`);
-  }
-  return [provider, rest.join("/")];
-}
-
-/** Studio-specific Pi agent config dir. Do not read the user's global `~/.pi/agent` config. */
-function getPiAgentDir(): string {
-  return join(app.getPath("userData"), "pi-agent");
-}
-
-function stripPiProviderEnvironment(): void {
-  for (const key of PI_PROVIDER_ENV_KEYS) {
-    delete process.env[key];
-  }
-}
-
-function getModelsJsonPath(): string {
-  return join(getPiAgentDir(), "models.json");
 }
 
 function getDeckService(): StudioDeckService {
@@ -1330,10 +1123,6 @@ async function saveCurrentChatSession(): Promise<void> {
 async function persistChatSessions(): Promise<void> {
   await mkdir(getPiAgentDir(), { recursive: true });
   await writeFile(getChatSessionsPath(), JSON.stringify(chatSessions, null, 2), "utf8");
-}
-
-function getChatSessionsPath(): string {
-  return join(getPiAgentDir(), "chat-sessions.json");
 }
 
 async function maybeGenerateSessionTitle(sessionId: string): Promise<void> {
@@ -1383,80 +1172,6 @@ async function maybeGenerateSessionTitle(sessionId: string): Promise<void> {
   }
 }
 
-function extractTitleFromAssistantMessage(message: unknown): string | undefined {
-  const record = asRecord(message);
-  const content = record?.["content"];
-  if (!Array.isArray(content)) return undefined;
-  const text = content
-    .map((part) => {
-      const partRecord = asRecord(part);
-      return partRecord?.["type"] === "text" && typeof partRecord["text"] === "string"
-        ? (partRecord["text"] as string)
-        : "";
-    })
-    .join(" ")
-    .trim();
-  if (!text) return undefined;
-  const cleaned = text
-    .split("\n")[0]!
-    .replace(/^["'`*_\s]+|["'`*_\s.]+$/g, "")
-    .trim();
-  if (!cleaned) return undefined;
-  return cleaned.length > 64 ? `${cleaned.slice(0, 61).trimEnd()}…` : cleaned;
-}
-
-function truncate(value: string, max: number): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max).trimEnd()}…`;
-}
-
-function getSessionTitle(sessionMessages: StudioMessage[]): string {
-  const firstUser = sessionMessages.find((message) => message.role === "user");
-  const raw = firstUser?.content.trim().replace(/\s+/g, " ");
-  if (!raw) return "Untitled chat";
-
-  // Strip common conversational fillers so the title focuses on the topic.
-  const stripped = raw
-    .replace(
-      /^(please|hey|hi|hello|ok|okay|so|um|now|alright)[, ]+/i,
-      "",
-    )
-    .replace(
-      /^(can|could|would|will)\s+(you|we)\s+(please\s+)?/i,
-      "",
-    )
-    .replace(/^(i\s+)?(want|need|would like|'?d like|wanna)\s+(to\s+)?/i, "")
-    .replace(/^(let'?s|let us|help me|help us)\s+/i, "")
-    .replace(/^(make|build|create|design|draft|write|generate)\s+(me\s+|us\s+)?/i, "Make ");
-
-  // Use the first sentence/clause for a concise label.
-  const firstClause = stripped.split(/[.!?\n]/)[0]?.trim() ?? stripped;
-  const compact = firstClause.split(/[,;:—–-]/)[0]?.trim() || firstClause;
-  const capitalized = compact.charAt(0).toUpperCase() + compact.slice(1);
-
-  if (capitalized.length <= 48) return capitalized || "Untitled chat";
-  const words = capitalized.split(" ");
-  let title = "";
-  for (const word of words) {
-    if ((title + (title ? " " : "") + word).length > 45) break;
-    title = title ? `${title} ${word}` : word;
-  }
-  return `${title}…`;
-}
-
-function isStoredChatSession(value: unknown): value is StoredChatSession {
-  const record = asRecord(value);
-  return Boolean(
-    record &&
-      typeof record["id"] === "string" &&
-      typeof record["title"] === "string" &&
-      typeof record["artifactId"] === "string" &&
-      typeof record["createdAt"] === "number" &&
-      typeof record["updatedAt"] === "number" &&
-      Array.isArray(record["messages"]),
-  );
-}
-
 async function resyncSelectedModelAfterRegistryChange(runtime: PiRuntime): Promise<void> {
   const availableModels = (await Promise.resolve(runtime.modelRegistry.getAvailable())).map(
     toModelInfo,
@@ -1478,8 +1193,4 @@ async function resyncSelectedModelAfterRegistryChange(runtime: PiRuntime): Promi
   if (runtime.session?.setModel && runtime.selectedModel) {
     await runtime.session.setModel(runtime.selectedModel);
   }
-}
-
-function createId(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

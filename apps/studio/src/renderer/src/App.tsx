@@ -1,439 +1,64 @@
-import { useEffect, useMemo, useState } from "react";
-import type { ChatStatus } from "ai";
-import {
-  IconPlus,
-  IconLayoutSidebarLeftCollapse,
-  IconLayoutSidebarLeftExpand,
-  IconRefresh,
-  IconSettings,
-} from "@tabler/icons-react";
-
-import { InputBar } from "./components/agent-elements/input-bar";
-import { Conversation } from "./components/conversation";
-import { Suggestions } from "./components/agent-elements/input/suggestions";
-import { ModelPicker } from "./components/agent-elements/input/model-picker";
-import { AuthLanding } from "./components/auth-landing";
-import { ChatHistoryMenu } from "./components/chat-history-menu";
-import { DeckWorkspace } from "./components/deck-workspace";
-import { SettingsPage } from "./components/settings-page";
-
-import { Button } from "./components/ui/button";
-import {
-  Card,
-  CardContent,
-} from "./components/ui/card";
-import { Logo } from "./components/logo";
-
-import { formatProviderDisplayName } from "./lib/format-provider-label";
-import { toErrorMessage } from "./lib/to-error-message";
-import {
-  BYOK_PROVIDER_OPTIONS,
-  CUSTOM_PROVIDER_API_OPTIONS,
-} from "./studio/constants";
-import { buildOauthProviderCards } from "./studio/oauth-cards";
-
-import type {
-  StudioAddCustomProviderInput,
-  StudioAuthStatus,
-  StudioChatSessionSummary,
-  StudioConversationSnapshot,
-  StudioDeckExportFormat,
-  StudioDeckProject,
-} from "../../shared/studio-api";
-
-type View = "chat" | "settings";
+import { AuthLanding } from "@/components/auth-landing";
+import { ChatSidebar } from "@/components/studio/chat-sidebar";
+import { StudioLoadingScreen } from "@/components/studio/studio-loading-screen";
+import { DeckWorkspace } from "@/components/deck-workspace";
+import { SettingsPage } from "@/components/settings-page";
+import { useStudioAppState } from "@/hooks/use-studio-app-state";
 
 export default function App() {
-  const [view, setView] = useState<View>("chat");
-  const [authStatus, setAuthStatus] = useState<StudioAuthStatus | undefined>();
-  const [authLoaded, setAuthLoaded] = useState(false);
-  const [previewAuth, setPreviewAuth] = useState(false);
-  const [conversation, setConversation] = useState<StudioConversationSnapshot>({
-    status: "ready",
-    messages: [],
-  });
-  const [chatSessions, setChatSessions] = useState<StudioChatSessionSummary[]>([]);
-  const [decks, setDecks] = useState<StudioDeckProject[]>([]);
-  const [userSelectedDeckId, setUserSelectedDeckId] = useState<string | undefined>();
-  const [isChatOpen, setIsChatOpen] = useState(true);
-  const [selectedModelId, setSelectedModelId] = useState<string>("");
-  const [provider, setProvider] = useState("anthropic");
-  const [apiKey, setApiKey] = useState("");
-  const [manualCode, setManualCode] = useState("");
-  const [error, setError] = useState<string | undefined>();
-  const [visibleModelIds, setVisibleModelIds] = useState<string[]>(() => {
-    const raw = localStorage.getItem("studio.visibleModelIds");
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const oauthProviderCards = useMemo(
-    () => buildOauthProviderCards(authStatus?.oauthProviders),
-    [authStatus?.oauthProviders],
-  );
-
-  useEffect(() => {
-    const unsubscribe = window.api.onStudioEvent((event) => {
-      if (event.type === "auth") {
-        setAuthStatus(event.payload);
-        setAuthLoaded(true);
-        setSelectedModelId(
-          (current) => current || event.payload.selectedModelId || "",
-        );
-      }
-      if (event.type === "conversation") {
-        setConversation(event.payload);
-        if (event.payload.error) setError(event.payload.error);
-      }
-      if (event.type === "decks") {
-        setDecks(event.payload);
-        setUserSelectedDeckId((current) =>
-          current && event.payload.some((deck) => deck.id === current)
-            ? current
-            : undefined,
-        );
-      }
-      if (event.type === "sessions") {
-        setChatSessions(event.payload);
-      }
-    });
-
-    void refresh();
-    return unsubscribe;
-  }, []);
-
-  const models = useMemo(
-    () =>
-      authStatus?.availableModels.map((model) => ({
-        id: model.id,
-        name: model.label,
-        version: model.contextWindow
-          ? `${Math.round(model.contextWindow / 1000)}k`
-          : undefined,
-        provider: model.provider,
-        providerLabel: formatProviderDisplayName(
-          model.provider,
-          authStatus.oauthProviders,
-        ),
-      })) ?? [],
-    [authStatus],
-  );
-
-  const displayedModels = useMemo(() => {
-    if (models.length === 0) return [];
-    if (visibleModelIds.length === 0) return models;
-    const allowed = new Set(visibleModelIds);
-    const filtered = models.filter((model) => allowed.has(model.id));
-    return filtered.length > 0 ? filtered : models;
-  }, [models, visibleModelIds]);
-
-  const isAuthed = Boolean(authStatus?.hasAvailableModels);
-
-  const selectedDeckId = useMemo(() => {
-    if (
-      userSelectedDeckId &&
-      decks.some((deck) => deck.id === userSelectedDeckId)
-    ) {
-      return userSelectedDeckId;
-    }
-    return decks.find((deck) => deck.id === conversation.currentArtifactId)?.id;
-  }, [decks, conversation.currentArtifactId, userSelectedDeckId]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "studio.visibleModelIds",
-      JSON.stringify(visibleModelIds),
-    );
-  }, [visibleModelIds]);
-
-  useEffect(() => {
-    if (!selectedModelId && displayedModels[0]) {
-      setSelectedModelId(displayedModels[0].id);
-      void window.api.selectModel({ modelId: displayedModels[0].id });
-    }
-    if (selectedModelId && displayedModels.length > 0) {
-      const isVisible = displayedModels.some(
-        (model) => model.id === selectedModelId,
-      );
-      if (!isVisible) {
-        setSelectedModelId(displayedModels[0].id);
-        void window.api.selectModel({ modelId: displayedModels[0].id });
-      }
-    }
-  }, [displayedModels, selectedModelId]);
-
-  async function refresh() {
-    try {
-      setError(undefined);
-      const [nextAuth, nextConversation] = await Promise.all([
-        window.api.getAuthStatus(),
-        window.api.getConversation(),
-      ]);
-      const [nextDecks, nextSessions] = await Promise.all([
-        window.api.listDecks(),
-        window.api.listChatSessions(),
-      ]);
-      setAuthStatus(nextAuth);
-      setAuthLoaded(true);
-      setConversation(nextConversation);
-      setDecks(nextDecks);
-      setChatSessions(nextSessions);
-      setUserSelectedDeckId(undefined);
-      setSelectedModelId((current) => current || nextAuth.selectedModelId || "");
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    } finally {
-      setAuthLoaded(true);
-    }
-  }
-
-  async function handleLogoutAll() {
-    const ok = window.confirm(
-      "Sign out of all providers? This clears OAuth tokens and runtime API keys for every connected provider.",
-    );
-    if (!ok) return;
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.logoutAll();
-      setAuthStatus(nextAuth);
-      setSelectedModelId("");
-      setView("chat");
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleRuntimeKey() {
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.setRuntimeApiKey({ provider, apiKey });
-      setAuthStatus(nextAuth);
-      setApiKey("");
-      setSelectedModelId(
-        nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-      );
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleSubmitLoginCode() {
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.submitLoginCode({ code: manualCode });
-      setAuthStatus(nextAuth);
-      setManualCode("");
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleStartLogin(providerId: string) {
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.startLogin({ providerId });
-      setAuthStatus(nextAuth);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleDisconnectProvider(providerId: string) {
-    const label =
-      oauthProviderCards.find((p) => p.id === providerId)?.name ?? providerId;
-    const ok = window.confirm(
-      `Disconnect ${label}? This removes that provider from Pi auth storage (same as the /logout command in Pi) and clears any runtime API key Studio set for it. Models that only relied on those credentials will disappear.`,
-    );
-    if (!ok) return;
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.disconnectProvider({ providerId });
-      setAuthStatus(nextAuth);
-      setSelectedModelId(
-        nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-      );
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleAddCustomProvider(input: StudioAddCustomProviderInput) {
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.addCustomProvider(input);
-      setAuthStatus(nextAuth);
-      setSelectedModelId(
-        nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-      );
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-      throw nextError;
-    }
-  }
-
-  async function handleAddCustomModel(input: {
-    providerId: string;
-    modelId: string;
-    modelName?: string;
-  }) {
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.addCustomModel(input);
-      setAuthStatus(nextAuth);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-      throw nextError;
-    }
-  }
-
-  async function handleRemoveCustomModel(providerId: string, modelId: string) {
-    const ok = window.confirm(
-      `Remove "${providerId}/${modelId}" from models.json? This cannot be undone.`,
-    );
-    if (!ok) return;
-    try {
-      setError(undefined);
-      const nextAuth = await window.api.removeCustomModel({
-        providerId,
-        modelId,
-      });
-      setAuthStatus(nextAuth);
-      setSelectedModelId(
-        nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-      );
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-      throw nextError;
-    }
-  }
-
-  async function handleModelChange(modelId: string) {
-    try {
-      setError(undefined);
-      setSelectedModelId(modelId);
-      const nextAuth = await window.api.selectModel({ modelId });
-      setAuthStatus(nextAuth);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleSend(message: { content: string }) {
-    if (!message.content.trim()) return;
-    try {
-      setError(undefined);
-      const nextConversation = await window.api.sendPrompt({
-        content: message.content,
-        modelId: selectedModelId || undefined,
-      });
-      setConversation(nextConversation);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleStop() {
-    try {
-      setConversation(await window.api.stop());
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleNewChat() {
-    try {
-      setError(undefined);
-      const next = await window.api.newConversation();
-      const nextDecks = await window.api.listDecks();
-      setConversation(next);
-      setDecks(nextDecks);
-      setUserSelectedDeckId(undefined);
-      setIsChatOpen(true);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleRenameChatSession(sessionId: string, title: string) {
-    try {
-      setError(undefined);
-      const next = await window.api.renameChatSession({ sessionId, title });
-      setChatSessions(next);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleDeleteChatSession(sessionId: string) {
-    try {
-      setError(undefined);
-      const next = await window.api.deleteChatSession({ sessionId });
-      setConversation(next);
-      const [nextSessions, nextDecks] = await Promise.all([
-        window.api.listChatSessions(),
-        window.api.listDecks(),
-      ]);
-      setChatSessions(nextSessions);
-      setDecks(nextDecks);
-      setUserSelectedDeckId(undefined);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleOpenChatSession(sessionId: string) {
-    if (sessionId === conversation.id) return;
-    try {
-      setError(undefined);
-      const nextConversation = await window.api.openChatSession(sessionId);
-      const nextDecks = await window.api.listDecks();
-      setConversation(nextConversation);
-      setDecks(nextDecks);
-      setUserSelectedDeckId(undefined);
-      setIsChatOpen(true);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-    }
-  }
-
-  async function handleOpenDeck(deckId: string) {
-    try {
-      setError(undefined);
-      await window.api.openDeck(deckId);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-      throw nextError;
-    }
-  }
-
-  async function handleExportDeck(
-    deckId: string,
-    format: StudioDeckExportFormat,
-  ) {
-    try {
-      setError(undefined);
-      return await window.api.exportDeck({ deckId, format });
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-      throw nextError;
-    }
-  }
+  const studio = useStudioAppState();
+  const {
+    view,
+    setView,
+    authStatus,
+    authLoaded,
+    previewAuth,
+    setPreviewAuth,
+    conversation,
+    chatSessions,
+    decks,
+    userSelectedDeckId,
+    setUserSelectedDeckId,
+    isChatOpen,
+    setIsChatOpen,
+    selectedModelId,
+    provider,
+    setProvider,
+    apiKey,
+    setApiKey,
+    manualCode,
+    setManualCode,
+    error,
+    visibleModelIds,
+    setVisibleModelIds,
+    oauthProviderCards,
+    models,
+    displayedModels,
+    isAuthed,
+    selectedDeckId,
+    refresh,
+    handleLogoutAll,
+    handleRuntimeKey,
+    handleSubmitLoginCode,
+    handleStartLogin,
+    handleDisconnectProvider,
+    handleAddCustomProvider,
+    handleAddCustomModel,
+    handleRemoveCustomModel,
+    handleModelChange,
+    handleSend,
+    handleStop,
+    handleNewChat,
+    handleRenameChatSession,
+    handleDeleteChatSession,
+    handleOpenChatSession,
+    handleOpenDeck,
+    handleExportDeck,
+    constants,
+  } = studio;
 
   if (!authLoaded) {
-    return (
-      <main className="flex h-full items-center justify-center bg-background text-foreground">
-        <div className="opacity-60">
-          <Logo size="md" variant="mark" />
-        </div>
-      </main>
-    );
+    return <StudioLoadingScreen />;
   }
 
   if (!isAuthed || previewAuth) {
@@ -450,12 +75,12 @@ export default function App() {
         onStartLogin={handleStartLogin}
         provider={provider}
         setProvider={setProvider}
-        providers={BYOK_PROVIDER_OPTIONS}
+        providers={constants.byokProviderOptions}
         apiKey={apiKey}
         setApiKey={setApiKey}
         onRuntimeKey={handleRuntimeKey}
         onAddCustomProvider={handleAddCustomProvider}
-        customProviderApiOptions={CUSTOM_PROVIDER_API_OPTIONS}
+        customProviderApiOptions={constants.customProviderApiOptions}
         onRefresh={refresh}
       />
     );
@@ -479,10 +104,10 @@ export default function App() {
         onAddCustomProvider={handleAddCustomProvider}
         onAddCustomModel={handleAddCustomModel}
         onRemoveCustomModel={handleRemoveCustomModel}
-        customProviderApiOptions={CUSTOM_PROVIDER_API_OPTIONS}
+        customProviderApiOptions={constants.customProviderApiOptions}
         provider={provider}
         setProvider={setProvider}
-        providers={BYOK_PROVIDER_OPTIONS}
+        providers={constants.byokProviderOptions}
         apiKey={apiKey}
         setApiKey={setApiKey}
         onRuntimeKey={handleRuntimeKey}
@@ -496,137 +121,24 @@ export default function App() {
   return (
     <main className="flex h-full overflow-hidden bg-background text-foreground">
       {isChatOpen ? (
-      <aside className="flex min-h-0 w-[30%] min-w-[320px] max-w-[460px] flex-col border-r border-border bg-background">
-        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
-          <div className="flex items-center gap-3">
-            <Logo size="sm" />
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsChatOpen(false)}
-              aria-label="Hide chat"
-              title="Hide chat"
-            >
-              <IconLayoutSidebarLeftCollapse size={18} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={refresh}
-              aria-label="Refresh"
-              title="Refresh"
-            >
-              <IconRefresh size={17} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNewChat}
-              disabled={conversation.messages.length === 0}
-              aria-label="New chat"
-              title="New chat"
-            >
-              <IconPlus size={18} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setView("settings")}
-              aria-label="Settings"
-              title="Settings"
-            >
-              <IconSettings size={18} />
-            </Button>
-          </div>
-        </header>
-
-        {(error || authStatus?.setupHint) && (
-          <div className="px-4 pt-3">
-            {error ? (
-              <Card className="mb-2 border-destructive/40 bg-destructive/10">
-                <CardContent className="py-3 text-sm text-destructive">
-                  {error}
-                </CardContent>
-              </Card>
-            ) : null}
-            {authStatus?.setupHint ? (
-              <Card className="mb-2 border-accent/40 bg-accent/10">
-                <CardContent className="py-3 text-sm">
-                  {authStatus.setupHint}
-                </CardContent>
-              </Card>
-            ) : null}
-          </div>
-        )}
-
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {conversation.messages.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center px-6">
-              <h1 className="text-balance text-center text-2xl font-light tracking-tight text-foreground/80">
-                Design something
-              </h1>
-              <Suggestions
-                items={[
-                  {
-                    id: "deck",
-                    label: "Launch deck",
-                    value:
-                      "Help me plan a 7-slide launch deck for an OSS Claude Design alternative.",
-                  },
-                  {
-                    id: "ask",
-                    label: "Plan with me",
-                    value: "Ask me what you need to plan a deck.",
-                  },
-                  {
-                    id: "mvp",
-                    label: "MVP narrative",
-                    value: "What should the MVP narrative be for Studio?",
-                  },
-                ]}
-                onSelect={(item) =>
-                  handleSend({ content: item.value ?? item.label })
-                }
-                className="mt-4 justify-center"
-                itemClassName="h-6 px-2 text-xs"
-              />
-            </div>
-          ) : (
-            <Conversation
-              messages={conversation.messages}
-              status={conversation.status}
-            />
-          )}
-
-          <InputBar
-            className="studio-input"
-            status={conversation.status as ChatStatus}
-            onSend={handleSend}
-            onStop={handleStop}
-            placeholder="Message"
-            disabled={displayedModels.length === 0}
-            leftActions={
-              <>
-                <ModelPicker
-                  models={displayedModels}
-                  value={selectedModelId}
-                  onChange={handleModelChange}
-                />
-                <ChatHistoryMenu
-                  sessions={chatSessions}
-                  activeSessionId={conversation.id}
-                  onSelect={handleOpenChatSession}
-                  onRename={handleRenameChatSession}
-                  onDelete={handleDeleteChatSession}
-                  onNewChat={handleNewChat}
-                />
-              </>
-            }
-          />
-        </div>
-      </aside>
+        <ChatSidebar
+          conversation={conversation}
+          chatSessions={chatSessions}
+          authStatus={authStatus}
+          error={error}
+          displayedModels={displayedModels}
+          selectedModelId={selectedModelId}
+          onCollapse={() => setIsChatOpen(false)}
+          onRefresh={refresh}
+          onNewChat={handleNewChat}
+          onOpenSettings={() => setView("settings")}
+          onModelChange={handleModelChange}
+          onSend={handleSend}
+          onStop={handleStop}
+          onOpenChatSession={handleOpenChatSession}
+          onRenameChatSession={handleRenameChatSession}
+          onDeleteChatSession={handleDeleteChatSession}
+        />
       ) : null}
       <DeckWorkspace
         decks={decks}

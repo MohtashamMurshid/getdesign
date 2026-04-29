@@ -1,6 +1,7 @@
 import { memo, useState } from "react";
 import type { UIMessage } from "ai";
-import { cn } from "./utils/cn";
+import { isRecord } from "@/lib/type-guards";
+import { cn } from "@/lib/utils";
 import { FileAttachment } from "./input/file-attachment";
 import { ImageLightbox } from "./image-lightbox";
 
@@ -15,10 +16,6 @@ export type UserMessageProps = {
 };
 
 type MessagePart = UIMessage["parts"][number];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function isTextPart(part: MessagePart): part is { type: "text"; text: string } {
   return (
