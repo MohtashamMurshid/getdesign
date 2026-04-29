@@ -18,8 +18,10 @@ import {
 
 const DECK_WIDTH = 1920;
 const DECK_HEIGHT = 1080;
+const TEMP_INDEX_MARKER = "studio-generated-temporary-index";
 
 type StoredDeckManifest = Omit<StudioDeckProject, "previewUrl">;
+type DeckDimensions = { width: number; height: number };
 
 export class StudioDeckService {
   constructor(private readonly rootDir: string) {}
@@ -116,11 +118,21 @@ export class StudioDeckService {
   async readArtifactDeck(artifactId: string): Promise<StudioDeckProject | undefined> {
     const artifactPath = this.getArtifactPath(artifactId);
     const indexFile = join(artifactPath, "index.html");
-    let indexUpdatedAt: number;
+    const slides = await discoverSlides(artifactPath);
+    const hasSlideFiles = slides.some((slide) => slide.file.startsWith("slides/"));
+    if (!hasSlideFiles) return undefined;
+    const dimensions = await inferDeckDimensions(artifactPath, slides);
+    let indexUpdatedAt = 0;
     try {
       indexUpdatedAt = (await stat(indexFile)).mtimeMs;
+      const html = await readFile(indexFile, "utf8");
+      if (isStudioTemporaryIndex(html)) {
+        await writeFile(indexFile, renderDeckIndex(slides, dimensions), "utf8");
+        indexUpdatedAt = Date.now();
+      }
     } catch {
-      return undefined;
+      await writeFile(indexFile, renderDeckIndex(slides, dimensions), "utf8");
+      indexUpdatedAt = Date.now();
     }
 
     const manifest = await readArtifactManifest(artifactPath, artifactId);
@@ -284,6 +296,63 @@ function titleFromArtifactId(artifactId: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase()) || "Studio deck";
 }
 
+async function inferDeckDimensions(
+  artifactPath: string,
+  slides: StudioDeckSlide[],
+): Promise<DeckDimensions> {
+  const firstSlide = slides.find((slide) => slide.file.startsWith("slides/"));
+  if (!firstSlide) return { width: DECK_WIDTH, height: DECK_HEIGHT };
+
+  try {
+    const html = await readFile(join(artifactPath, firstSlide.file), "utf8");
+    return (
+      readCssDimensions(html, /\.slide\s*\{([\s\S]*?)\}/i) ??
+      readCssDimensions(html, /body\s*\{([\s\S]*?)\}/i) ??
+      readViewportDimensions(html) ??
+      { width: DECK_WIDTH, height: DECK_HEIGHT }
+    );
+  } catch {
+    return { width: DECK_WIDTH, height: DECK_HEIGHT };
+  }
+}
+
+function readCssDimensions(html: string, blockPattern: RegExp): DeckDimensions | undefined {
+  const block = html.match(blockPattern)?.[1];
+  if (!block) return undefined;
+  const width = readPixelValue(block, "width");
+  const height = readPixelValue(block, "height");
+  return width && height ? { width, height } : undefined;
+}
+
+function readViewportDimensions(html: string): DeckDimensions | undefined {
+  const content = html.match(/<meta[^>]+name=["']viewport["'][^>]+content=["']([^"']+)["']/i)?.[1];
+  if (!content) return undefined;
+  const width = readViewportValue(content, "width");
+  const height = readViewportValue(content, "height");
+  return width && height ? { width, height } : undefined;
+}
+
+function readPixelValue(css: string, property: string): number | undefined {
+  const match = css.match(new RegExp(`${property}\\s*:\\s*(\\d+(?:\\.\\d+)?)px`, "i"));
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function readViewportValue(content: string, property: string): number | undefined {
+  const match = content.match(new RegExp(`${property}\\s*=\\s*(\\d+(?:\\.\\d+)?)`, "i"));
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function isStudioTemporaryIndex(html: string): boolean {
+  return (
+    html.includes(TEMP_INDEX_MARKER) ||
+    (html.includes("window.DECK_MANIFEST") && html.includes("<title>Studio Deck</title>"))
+  );
+}
+
 async function exportDeckPdf(
   deck: StudioDeckProject,
   outputPath: string,
@@ -340,27 +409,33 @@ function buildSlides(contents: StudioDeckSlideContent[]): StudioDeckSlide[] {
   });
 }
 
-function renderDeckIndex(slides: StudioDeckSlide[]) {
+function renderDeckIndex(
+  slides: StudioDeckSlide[],
+  dimensions: DeckDimensions = { width: DECK_WIDTH, height: DECK_HEIGHT },
+) {
   const manifest = slides
     .map((slide) => `    { file: ${JSON.stringify(slide.file)}, label: ${JSON.stringify(slide.label)} }`)
     .join(",\n");
+  const deckWidth = dimensions.width;
+  const deckHeight = dimensions.height;
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Studio Deck</title>
+<meta name="${TEMP_INDEX_MARKER}" content="true">
 <script>
   window.DECK_MANIFEST = [
 ${manifest}
   ];
-  window.DECK_WIDTH = ${DECK_WIDTH};
-  window.DECK_HEIGHT = ${DECK_HEIGHT};
+  window.DECK_WIDTH = ${deckWidth};
+  window.DECK_HEIGHT = ${deckHeight};
 </script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #0a0a0a; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-  #stage { position: fixed; top: 0; left: 0; transform-origin: top left; width: ${DECK_WIDTH}px; height: ${DECK_HEIGHT}px; background: #fff; box-shadow: 0 10px 60px rgba(0,0,0,.4); }
+  #stage { position: fixed; top: 0; left: 0; transform-origin: top left; width: ${deckWidth}px; height: ${deckHeight}px; background: #fff; box-shadow: 0 10px 60px rgba(0,0,0,.4); }
   iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
   .counter { position: fixed; right: 20px; bottom: 20px; z-index: 10; border-radius: 999px; background: rgba(0,0,0,.65); color: #fff; padding: 6px 14px; font-size: 13px; opacity: .72; }
   .counter .label { color: rgba(255,255,255,.72); margin-left: 8px; }
@@ -368,11 +443,11 @@ ${manifest}
   .nav-zone.left { left: 0; }
   .nav-zone.right { right: 0; }
   @media print {
-    @page { size: 1920px 1080px; margin: 0; }
+    @page { size: ${deckWidth}px ${deckHeight}px; margin: 0; }
     html, body { background: #fff; overflow: visible; height: auto; }
     #stage, .counter, .nav-zone { display: none !important; }
     .print-stack { display: block !important; }
-    .print-stack iframe { width: 1920px; height: 1080px; page-break-after: always; display: block; }
+    .print-stack iframe { width: ${deckWidth}px; height: ${deckHeight}px; page-break-after: always; display: block; }
   }
 </style>
 </head>
