@@ -6,6 +6,11 @@
 type LogoEntry = { keywords: string[]; src: string; monochrome: boolean };
 
 const LOGO_BY_KEYWORD: LogoEntry[] = [
+  {
+    keywords: ["antigravity"],
+    src: "/antigravity.svg",
+    monochrome: false,
+  },
   { keywords: ["anthropic", "claude"], src: "/claude.svg", monochrome: false },
   { keywords: ["gemini", "google"], src: "/gemini.svg", monochrome: false },
   {

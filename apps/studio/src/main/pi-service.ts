@@ -181,6 +181,7 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:disconnect-provider", (_event, input: StudioDisconnectProviderInput) =>
     disconnectProvider(input),
   );
+  ipcMain.handle("studio:logout-all", () => logoutAll());
   ipcMain.handle("studio:submit-login-code", (_event, input: StudioSubmitLoginCodeInput) =>
     submitLoginCode(input),
   );
@@ -465,6 +466,36 @@ async function disconnectProvider(input: StudioDisconnectProviderInput): Promise
   runtime.authStorage.removeRuntimeApiKey(providerId);
   runtime.modelRegistry.refresh?.();
   await resyncSelectedModelAfterRegistryChange(runtime);
+  return getAuthStatus();
+}
+
+async function logoutAll(): Promise<StudioAuthStatus> {
+  const runtime = await getRuntime();
+  const providers = getOAuthProviders(runtime);
+  for (const provider of providers) {
+    try {
+      runtime.authStorage.logout(provider.id);
+    } catch {
+      // ignore per-provider failures so one bad provider doesn't block sign out
+    }
+    try {
+      runtime.authStorage.removeRuntimeApiKey(provider.id);
+    } catch {
+      // ignore
+    }
+  }
+  // Also clear any runtime keys for BYOK providers that aren't in the OAuth list
+  for (const extra of ["openai", "anthropic", "google", "groq", "openrouter", "xai", "deepseek", "mistral", "cerebras", "fireworks"]) {
+    try {
+      runtime.authStorage.removeRuntimeApiKey(extra);
+    } catch {
+      // ignore
+    }
+  }
+  await disposeRuntimeSession(runtime);
+  runtime.modelRegistry.refresh?.();
+  await resyncSelectedModelAfterRegistryChange(runtime);
+  loginState = { status: "idle" };
   return getAuthStatus();
 }
 

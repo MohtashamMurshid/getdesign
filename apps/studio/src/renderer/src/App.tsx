@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { ChatStatus } from "ai";
 import {
   IconPlus,
-  IconLayoutSidebarRightExpand,
+  IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarLeftExpand,
   IconRefresh,
   IconSettings,
 } from "@tabler/icons-react";
@@ -45,6 +46,8 @@ type View = "chat" | "settings";
 export default function App() {
   const [view, setView] = useState<View>("chat");
   const [authStatus, setAuthStatus] = useState<StudioAuthStatus | undefined>();
+  const [authLoaded, setAuthLoaded] = useState(false);
+  const [previewAuth, setPreviewAuth] = useState(false);
   const [conversation, setConversation] = useState<StudioConversationSnapshot>({
     status: "ready",
     messages: [],
@@ -52,7 +55,7 @@ export default function App() {
   const [chatSessions, setChatSessions] = useState<StudioChatSessionSummary[]>([]);
   const [decks, setDecks] = useState<StudioDeckProject[]>([]);
   const [userSelectedDeckId, setUserSelectedDeckId] = useState<string | undefined>();
-  const [isArtifactOpen, setIsArtifactOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(true);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [provider, setProvider] = useState("anthropic");
   const [apiKey, setApiKey] = useState("");
@@ -80,6 +83,7 @@ export default function App() {
     const unsubscribe = window.api.onStudioEvent((event) => {
       if (event.type === "auth") {
         setAuthStatus(event.payload);
+        setAuthLoaded(true);
         setSelectedModelId(
           (current) => current || event.payload.selectedModelId || "",
         );
@@ -177,11 +181,30 @@ export default function App() {
         window.api.listChatSessions(),
       ]);
       setAuthStatus(nextAuth);
+      setAuthLoaded(true);
       setConversation(nextConversation);
       setDecks(nextDecks);
       setChatSessions(nextSessions);
       setUserSelectedDeckId(undefined);
       setSelectedModelId((current) => current || nextAuth.selectedModelId || "");
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+    } finally {
+      setAuthLoaded(true);
+    }
+  }
+
+  async function handleLogoutAll() {
+    const ok = window.confirm(
+      "Sign out of all providers? This clears OAuth tokens and runtime API keys for every connected provider.",
+    );
+    if (!ok) return;
+    try {
+      setError(undefined);
+      const nextAuth = await window.api.logoutAll();
+      setAuthStatus(nextAuth);
+      setSelectedModelId("");
+      setView("chat");
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -332,7 +355,7 @@ export default function App() {
       setConversation(next);
       setDecks(nextDecks);
       setUserSelectedDeckId(undefined);
-      setIsArtifactOpen(true);
+      setIsChatOpen(true);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -374,7 +397,7 @@ export default function App() {
       setConversation(nextConversation);
       setDecks(nextDecks);
       setUserSelectedDeckId(undefined);
-      setIsArtifactOpen(true);
+      setIsChatOpen(true);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -403,9 +426,21 @@ export default function App() {
     }
   }
 
-  if (!isAuthed) {
+  if (!authLoaded) {
+    return (
+      <main className="flex h-full items-center justify-center bg-background text-foreground">
+        <div className="opacity-60">
+          <Logo size="md" variant="mark" />
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAuthed || previewAuth) {
     return (
       <AuthLanding
+        previewMode={previewAuth}
+        onExitPreview={() => setPreviewAuth(false)}
         error={error}
         oauthProviderCards={oauthProviderCards}
         authStatus={authStatus}
@@ -419,6 +454,8 @@ export default function App() {
         apiKey={apiKey}
         setApiKey={setApiKey}
         onRuntimeKey={handleRuntimeKey}
+        onAddCustomProvider={handleAddCustomProvider}
+        customProviderApiOptions={CUSTOM_PROVIDER_API_OPTIONS}
         onRefresh={refresh}
       />
     );
@@ -434,6 +471,11 @@ export default function App() {
         oauthProviderCards={oauthProviderCards}
         onStartLogin={handleStartLogin}
         onDisconnectProvider={handleDisconnectProvider}
+        onLogoutAll={handleLogoutAll}
+        onPreviewAuth={() => {
+          setPreviewAuth(true);
+          setView("chat");
+        }}
         onAddCustomProvider={handleAddCustomProvider}
         onAddCustomModel={handleAddCustomModel}
         onRemoveCustomModel={handleRemoveCustomModel}
@@ -453,23 +495,22 @@ export default function App() {
 
   return (
     <main className="flex h-full overflow-hidden bg-background text-foreground">
+      {isChatOpen ? (
       <aside className="flex min-h-0 w-[30%] min-w-[320px] max-w-[460px] flex-col border-r border-border bg-background">
         <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
           <div className="flex items-center gap-3">
             <Logo size="sm" />
           </div>
           <div className="flex items-center gap-1">
-            {!isArtifactOpen ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsArtifactOpen(true)}
-                aria-label="Open artifact"
-                title="Open artifact"
-              >
-                <IconLayoutSidebarRightExpand size={18} />
-              </Button>
-            ) : null}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsChatOpen(false)}
+              aria-label="Hide chat"
+              title="Hide chat"
+            >
+              <IconLayoutSidebarLeftCollapse size={18} />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -585,22 +626,18 @@ export default function App() {
           />
         </div>
       </aside>
-      {isArtifactOpen ? (
-        <DeckWorkspace
-          decks={decks}
-          selectedDeckId={selectedDeckId}
-          status={conversation.status}
-          onClose={() => setIsArtifactOpen(false)}
-          onSelectDeck={setUserSelectedDeckId}
-          onOpenDeck={handleOpenDeck}
-          onRevealPath={window.api.revealPath}
-          onExportDeck={handleExportDeck}
-        />
-      ) : (
-        <section className="flex min-w-0 flex-1 items-center justify-center bg-muted/20 text-sm text-muted-foreground">
-          Open an artifact to preview generated design files.
-        </section>
-      )}
+      ) : null}
+      <DeckWorkspace
+        decks={decks}
+        selectedDeckId={selectedDeckId}
+        status={conversation.status}
+        showChatToggle={!isChatOpen}
+        onShowChat={() => setIsChatOpen(true)}
+        onSelectDeck={setUserSelectedDeckId}
+        onOpenDeck={handleOpenDeck}
+        onRevealPath={window.api.revealPath}
+        onExportDeck={handleExportDeck}
+      />
     </main>
   );
 }

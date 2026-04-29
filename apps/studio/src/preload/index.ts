@@ -25,6 +25,7 @@ const api: StudioApi = {
     ipcRenderer.invoke("studio:start-login", input),
   disconnectProvider: (input: StudioDisconnectProviderInput) =>
     ipcRenderer.invoke("studio:disconnect-provider", input),
+  logoutAll: () => ipcRenderer.invoke("studio:logout-all"),
   submitLoginCode: (input: StudioSubmitLoginCodeInput) =>
     ipcRenderer.invoke("studio:submit-login-code", input),
   selectModel: (input: StudioSelectModelInput) =>

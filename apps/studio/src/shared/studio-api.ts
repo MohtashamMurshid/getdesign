@@ -209,6 +209,7 @@ export type StudioApi = {
   setRuntimeApiKey: (input: StudioSetRuntimeKeyInput) => Promise<StudioAuthStatus>;
   startLogin: (input: StudioStartLoginInput) => Promise<StudioAuthStatus>;
   disconnectProvider: (input: StudioDisconnectProviderInput) => Promise<StudioAuthStatus>;
+  logoutAll: () => Promise<StudioAuthStatus>;
   submitLoginCode: (input: StudioSubmitLoginCodeInput) => Promise<StudioAuthStatus>;
   selectModel: (input: StudioSelectModelInput) => Promise<StudioAuthStatus>;
   getConversation: () => Promise<StudioConversationSnapshot>;

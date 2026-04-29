@@ -5,7 +5,7 @@ import {
   IconFileExport,
   IconFileTypePdf,
   IconFileTypePpt,
-  IconLayoutSidebarRightCollapse,
+  IconLayoutSidebarLeftExpand,
   IconLayoutBoard,
   IconRefresh,
 } from "@tabler/icons-react";
@@ -26,7 +26,8 @@ type DeckWorkspaceProps = {
   decks: StudioDeckProject[];
   selectedDeckId?: string;
   status: "ready" | "submitted" | "streaming" | "error";
-  onClose: () => void;
+  showChatToggle?: boolean;
+  onShowChat?: () => void;
   onSelectDeck: (deckId: string) => void;
   onOpenDeck: (deckId: string) => Promise<void>;
   onRevealPath: (path: string) => Promise<void>;
@@ -40,7 +41,8 @@ export function DeckWorkspace({
   decks,
   selectedDeckId,
   status,
-  onClose,
+  showChatToggle = false,
+  onShowChat,
   onSelectDeck,
   onOpenDeck,
   onRevealPath,
@@ -85,6 +87,18 @@ export function DeckWorkspace({
     <aside className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
         <div className="flex min-w-0 items-center gap-2">
+          {showChatToggle && onShowChat ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onShowChat}
+              aria-label="Show chat"
+              title="Show chat"
+            >
+              <IconLayoutSidebarLeftExpand size={16} />
+            </Button>
+          ) : null}
           <span className="rounded border border-border bg-muted/40 px-2 py-1 text-xs font-medium">
             Design Files
           </span>
@@ -125,16 +139,6 @@ export function DeckWorkspace({
               Folder
             </Button>
           ) : null}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={onClose}
-            aria-label="Close artifact"
-            title="Close artifact"
-          >
-            <IconLayoutSidebarRightCollapse size={17} />
-          </Button>
         </div>
       </div>
 

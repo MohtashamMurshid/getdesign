@@ -188,6 +188,8 @@ type SettingsPageProps = {
   oauthProviderCards: OauthCard[];
   onStartLogin: (providerId: string) => void;
   onDisconnectProvider: (providerId: string) => void;
+  onLogoutAll: () => void;
+  onPreviewAuth: () => void;
   onAddCustomProvider: (input: StudioAddCustomProviderInput) => Promise<void>;
   onAddCustomModel: (input: StudioAddCustomModelInput) => Promise<void>;
   onRemoveCustomModel: (providerId: string, modelId: string) => Promise<void>;
@@ -211,6 +213,8 @@ export function SettingsPage({
   oauthProviderCards,
   onStartLogin,
   onDisconnectProvider,
+  onLogoutAll,
+  onPreviewAuth,
   onAddCustomProvider,
   onAddCustomModel,
   onRemoveCustomModel,
@@ -784,14 +788,29 @@ export function SettingsPage({
           <CardHeader>
             <CardTitle className="text-base">Session</CardTitle>
             <CardDescription>
-              Use Disconnect above per provider. To revoke access everywhere,
-              remove keys from your shell profile or Pi&apos;s auth file.
+              Sign out of every connected provider. This clears OAuth tokens
+              and runtime API keys from Pi&apos;s auth storage and returns you
+              to the welcome screen.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button variant="outline" size="sm" onClick={window.api.openPiAuthDocs}>
+          <CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={onLogoutAll}
+            >
               <IconLogout size={15} />
-              Pi auth &amp; providers reference
+              Sign out of everything
+            </Button>
+            {import.meta.env.DEV ? (
+              <Button variant="ghost" size="sm" onClick={onPreviewAuth}>
+                Preview login screen
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="sm" onClick={window.api.openPiAuthDocs}>
+              <IconExternalLink size={14} />
+              Pi auth reference
             </Button>
           </CardContent>
         </Card>

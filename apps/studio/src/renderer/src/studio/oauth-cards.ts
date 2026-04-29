@@ -9,6 +9,7 @@ export type OauthCard = {
 function descriptionForProviderId(providerId: string): string {
   if (providerId === "anthropic") return "Claude Pro or Max";
   if (providerId.includes("codex")) return "ChatGPT Plus or Pro";
+  if (providerId.includes("antigravity")) return "Google Antigravity";
   if (providerId.includes("gemini")) return "Google Gemini CLI";
   return "Pi subscription login";
 }

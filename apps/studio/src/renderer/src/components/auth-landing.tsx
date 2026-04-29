@@ -1,19 +1,11 @@
+import { useState } from "react";
 import {
   IconCheck,
   IconChevronRight,
-  IconExternalLink,
   IconKey,
-  IconRefresh,
 } from "@tabler/icons-react";
 
 import { Button } from "./ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import {
@@ -23,15 +15,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Separator } from "./ui/separator";
 import { Logo } from "./logo";
+import { getProviderLogo } from "../lib/provider-logo";
 
-import type { StudioAuthStatus } from "../../../shared/studio-api";
+import type {
+  StudioAddCustomProviderInput,
+  StudioAuthStatus,
+  StudioCustomProviderApi,
+} from "../../../shared/studio-api";
 import type { OauthCard } from "../studio/oauth-cards";
 
 type ProviderOption = { value: string; label: string };
 
 export function AuthLanding({
+  previewMode = false,
+  onExitPreview,
   error,
   oauthProviderCards,
   authStatus,
@@ -45,8 +43,11 @@ export function AuthLanding({
   apiKey,
   setApiKey,
   onRuntimeKey,
-  onRefresh,
+  onAddCustomProvider,
+  customProviderApiOptions,
 }: {
+  previewMode?: boolean;
+  onExitPreview?: () => void;
   error?: string;
   oauthProviderCards: OauthCard[];
   authStatus: StudioAuthStatus | undefined;
@@ -60,143 +61,199 @@ export function AuthLanding({
   apiKey: string;
   setApiKey: (value: string) => void;
   onRuntimeKey: () => void;
+  onAddCustomProvider: (input: StudioAddCustomProviderInput) => Promise<void>;
+  customProviderApiOptions: { value: StudioCustomProviderApi; label: string }[];
   onRefresh: () => void;
 }) {
+  const [showByok, setShowByok] = useState(false);
+  const [showCustom, setShowCustom] = useState(false);
+
   return (
-    <main className="min-h-full overflow-y-auto bg-background text-foreground">
-      <section className="mx-auto flex min-h-full w-full max-w-6xl flex-col px-6 py-8">
-        <header className="flex items-center justify-between">
-          <Logo size="lg" />
-          <Button variant="ghost" size="sm" onClick={onRefresh}>
-            <IconRefresh size={15} />
-            Refresh
-          </Button>
-        </header>
-
-        <div className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-foreground" />
-              Local-first design agent
-            </div>
-            <div className="space-y-4">
-              <h1 className="text-balance text-5xl font-semibold tracking-tight lg:text-6xl">
-                Sign in to your model layer.
-              </h1>
-              <p className="max-w-xl text-pretty text-lg leading-8 text-muted-foreground">
-                Studio uses Pi for provider auth, model discovery, and the
-                agent session. Login once, then pick the exact models you want
-                visible in the workspace.
-              </p>
-            </div>
-            {error ? (
-              <Card className="border-destructive/40 bg-destructive/10">
-                <CardContent className="py-3 text-sm text-destructive">
-                  {error}
-                </CardContent>
-              </Card>
-            ) : null}
-          </div>
-
-          <Card className="border-border/80 bg-card/80 shadow-2xl shadow-black/5">
-            <CardHeader>
-              <CardTitle>Connect with Pi</CardTitle>
-              <CardDescription>
-                Choose a provider login. Studio opens the auth page and keeps
-                tokens inside Pi auth storage.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3">
-                {oauthProviderCards.length > 0 ? (
-                  oauthProviderCards.map((oauthProvider) => (
-                    <button
-                      key={oauthProvider.id}
-                      type="button"
-                      onClick={() => onStartLogin(oauthProvider.id)}
-                      className="group flex items-center justify-between rounded-2xl border border-border bg-background/60 p-4 text-left transition-colors hover:bg-muted"
-                    >
-                      <span>
-                        <span className="block font-medium">
-                          {oauthProvider.name}
-                        </span>
-                        <span className="mt-1 block text-sm text-muted-foreground">
-                          {oauthProvider.description}
-                        </span>
-                      </span>
-                      <IconChevronRight
-                        className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                        size={18}
-                      />
-                    </button>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-                    No Pi OAuth providers were found. Refresh, or use a BYOK
-                    key below.
-                  </div>
-                )}
-              </div>
-
-              {authStatus?.login && authStatus.login.status !== "idle" ? (
-                <LoginStateCard
-                  authStatus={authStatus}
-                  manualCode={manualCode}
-                  setManualCode={setManualCode}
-                  onSubmitLoginCode={onSubmitLoginCode}
-                />
-              ) : null}
-
-              <Separator />
-
-              <div className="space-y-3">
-                <p className="text-sm font-medium">
-                  Or use BYOK for this session
-                </p>
-                <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
-                  <Select value={provider} onValueChange={setProvider}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {providers.map((p) => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="password"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder="Paste API key"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={onRuntimeKey}
-                  disabled={!apiKey.trim()}
-                >
-                  <IconKey size={16} />
-                  Continue with runtime key
-                </Button>
-              </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={window.api.openPiAuthDocs}
-              >
-                <IconExternalLink size={15} />
-                Open Pi auth docs
-              </Button>
-            </CardContent>
-          </Card>
+    <main className="relative flex min-h-full items-center justify-center overflow-y-auto bg-background px-6 py-12 text-foreground">
+      {previewMode && onExitPreview ? (
+        <div className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs shadow-sm backdrop-blur">
+          <span className="text-muted-foreground">Preview · still signed in</span>
+          <button
+            type="button"
+            onClick={onExitPreview}
+            className="font-medium text-foreground hover:underline"
+          >
+            Exit preview
+          </button>
         </div>
-      </section>
+      ) : null}
+      <div className="w-full max-w-sm">
+        <div className="mb-10 flex flex-col items-center gap-3 text-center">
+          <Logo size="lg" variant="mark" />
+          <div className="space-y-1.5">
+            <h1 className="text-2xl font-medium tracking-tight">
+              Welcome to <span className="text-muted-foreground">get</span>design
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Sign in to your model provider to continue.
+            </p>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {oauthProviderCards.length > 0 ? (
+            oauthProviderCards.map((oauthProvider) => {
+              const logo = getProviderLogo(oauthProvider.id, oauthProvider.name);
+              return (
+                <button
+                  key={oauthProvider.id}
+                  type="button"
+                  onClick={() => onStartLogin(oauthProvider.id)}
+                  className="group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/40"
+                >
+                  {logo ? (
+                    <img
+                      src={logo.src}
+                      alt=""
+                      aria-hidden
+                      width={18}
+                      height={18}
+                      className={`shrink-0 select-none object-contain ${logo.monochrome ? "dark:invert" : ""}`}
+                      draggable={false}
+                    />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] bg-foreground/8 text-[10px] font-medium uppercase text-foreground/55"
+                    >
+                      {oauthProvider.name.slice(0, 1)}
+                    </span>
+                  )}
+                  <span className="flex-1 text-sm font-medium">
+                    Continue with {oauthProvider.name}
+                  </span>
+                  <IconChevronRight
+                    size={16}
+                    className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                  />
+                </button>
+              );
+            })
+          ) : (
+            <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+              No providers detected.
+            </div>
+          )}
+        </div>
+
+        {authStatus?.login && authStatus.login.status !== "idle" ? (
+          <div className="mt-4">
+            <LoginStateCard
+              authStatus={authStatus}
+              manualCode={manualCode}
+              setManualCode={setManualCode}
+              onSubmitLoginCode={onSubmitLoginCode}
+            />
+          </div>
+        ) : null}
+
+        <div className="my-6 flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            or
+          </span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        {showByok ? (
+          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+            <div className="grid gap-2 sm:grid-cols-[140px_1fr]">
+              <Select value={provider} onValueChange={setProvider}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {providers.map((p) => {
+                    const logo = getProviderLogo(p.value, p.label);
+                    return (
+                      <SelectItem key={p.value} value={p.value}>
+                        <span className="flex items-center gap-2">
+                          {logo ? (
+                            <img
+                              src={logo.src}
+                              alt=""
+                              aria-hidden
+                              width={14}
+                              height={14}
+                              className={`shrink-0 select-none object-contain ${logo.monochrome ? "dark:invert" : ""}`}
+                              draggable={false}
+                            />
+                          ) : null}
+                          {p.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <Input
+                type="password"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+                placeholder="Paste API key"
+              />
+            </div>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={onRuntimeKey}
+              disabled={!apiKey.trim()}
+              size="sm"
+            >
+              <IconKey size={14} />
+              Continue with API key
+            </Button>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setShowByok(false)}
+            >
+              Hide API key option
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowByok(true)}
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+          >
+            Use your own API key
+          </button>
+        )}
+
+        <div className="mt-2">
+          {showCustom ? (
+            <CustomProviderForm
+              apiOptions={customProviderApiOptions}
+              onSubmit={onAddCustomProvider}
+              onCancel={() => setShowCustom(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCustom(true)}
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-left text-sm text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground"
+            >
+              Add a custom provider (Ollama, LM Studio, vLLM…)
+            </button>
+          )}
+        </div>
+
+        <p className="mt-8 text-center text-[11px] text-muted-foreground">
+          Local-first design agent. Tokens stay on your machine.
+        </p>
+      </div>
     </main>
   );
 }
@@ -215,64 +272,162 @@ function LoginStateCard({
   if (!authStatus.login || authStatus.login.status === "idle") return null;
 
   return (
-    <Card className="bg-muted/30">
-      <CardHeader>
-        <CardTitle className="text-sm">
-          {authStatus.login.providerName ?? authStatus.login.providerId} login:{" "}
-          {authStatus.login.status}
-        </CardTitle>
+    <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4 text-sm">
+      <div>
+        <p className="font-medium">
+          {authStatus.login.providerName ?? authStatus.login.providerId}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Status: {authStatus.login.status}
+        </p>
         {authStatus.login.instructions ? (
-          <CardDescription>{authStatus.login.instructions}</CardDescription>
-        ) : null}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {authStatus.login.authUrl ? (
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={() => window.open(authStatus.login?.authUrl, "_blank")}
-          >
-            Reopen login page
-          </Button>
-        ) : null}
-        {authStatus.login.progress?.length ? (
-          <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-            {authStatus.login.progress.slice(-4).map((item, index) => (
-              <li key={`${item}-${index}`}>{item}</li>
-            ))}
-          </ul>
-        ) : null}
-        {authStatus.login.needsManualCode ? (
-          <div className="space-y-2">
-            <Label htmlFor="manual-code">
-              {authStatus.login.promptMessage ?? "Manual login code"}
-            </Label>
-            <Input
-              id="manual-code"
-              value={manualCode}
-              onChange={(event) => setManualCode(event.target.value)}
-              placeholder="Paste redirect URL or code"
-            />
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={onSubmitLoginCode}
-              disabled={!manualCode.trim()}
-            >
-              Submit login code
-            </Button>
-          </div>
-        ) : null}
-        {authStatus.login.status === "completed" ? (
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <IconCheck size={14} />
-            Login completed. Loading models...
+          <p className="mt-1 text-xs text-muted-foreground">
+            {authStatus.login.instructions}
           </p>
         ) : null}
-        {authStatus.login.error ? (
-          <p className="text-xs text-destructive">{authStatus.login.error}</p>
-        ) : null}
-      </CardContent>
-    </Card>
+      </div>
+      {authStatus.login.authUrl ? (
+        <Button
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          onClick={() => window.open(authStatus.login?.authUrl, "_blank")}
+        >
+          Reopen login page
+        </Button>
+      ) : null}
+      {authStatus.login.needsManualCode ? (
+        <div className="space-y-2">
+          <Label htmlFor="manual-code" className="text-xs">
+            {authStatus.login.promptMessage ?? "Manual login code"}
+          </Label>
+          <Input
+            id="manual-code"
+            value={manualCode}
+            onChange={(event) => setManualCode(event.target.value)}
+            placeholder="Paste redirect URL or code"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={onSubmitLoginCode}
+            disabled={!manualCode.trim()}
+          >
+            Submit code
+          </Button>
+        </div>
+      ) : null}
+      {authStatus.login.status === "completed" ? (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <IconCheck size={13} />
+          Login completed. Loading models...
+        </p>
+      ) : null}
+      {authStatus.login.error ? (
+        <p className="text-xs text-destructive">{authStatus.login.error}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function CustomProviderForm({
+  apiOptions,
+  onSubmit,
+  onCancel,
+}: {
+  apiOptions: { value: StudioCustomProviderApi; label: string }[];
+  onSubmit: (input: StudioAddCustomProviderInput) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [providerId, setProviderId] = useState("");
+  const [baseUrl, setBaseUrl] = useState("http://localhost:11434/v1");
+  const [api, setApi] = useState<StudioCustomProviderApi>("openai-completions");
+  const [apiKey, setApiKey] = useState("ollama");
+  const [modelId, setModelId] = useState("");
+  const [modelName, setModelName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const canSubmit =
+    providerId.trim() && baseUrl.trim() && apiKey.trim() && modelId.trim() && !busy;
+
+  async function handleSubmit() {
+    if (!canSubmit) return;
+    setBusy(true);
+    try {
+      await onSubmit({
+        providerId: providerId.trim(),
+        baseUrl: baseUrl.trim(),
+        api,
+        apiKey: apiKey.trim(),
+        modelId: modelId.trim(),
+        modelName: modelName.trim() || undefined,
+      });
+    } catch {
+      // error surfaces in parent
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div className="grid gap-2">
+        <Input
+          value={providerId}
+          onChange={(event) => setProviderId(event.target.value)}
+          placeholder="Provider id (e.g. ollama)"
+          autoComplete="off"
+        />
+        <Input
+          value={baseUrl}
+          onChange={(event) => setBaseUrl(event.target.value)}
+          placeholder="Base URL"
+        />
+        <Select value={api} onValueChange={(v) => setApi(v as StudioCustomProviderApi)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {apiOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="password"
+          value={apiKey}
+          onChange={(event) => setApiKey(event.target.value)}
+          placeholder="API key"
+        />
+        <Input
+          value={modelId}
+          onChange={(event) => setModelId(event.target.value)}
+          placeholder="Model id (e.g. llama3.1:8b)"
+        />
+        <Input
+          value={modelName}
+          onChange={(event) => setModelName(event.target.value)}
+          placeholder="Display name (optional)"
+        />
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        className="w-full"
+        disabled={!canSubmit}
+        onClick={() => void handleSubmit()}
+      >
+        {busy ? "Adding..." : "Add provider"}
+      </Button>
+      <button
+        type="button"
+        className="text-xs text-muted-foreground hover:text-foreground"
+        onClick={onCancel}
+      >
+        Hide custom provider
+      </button>
+    </div>
   );
 }
