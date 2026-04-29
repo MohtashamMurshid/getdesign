@@ -19,7 +19,9 @@ import type {
   StudioMessagePart,
   StudioModelInfo,
   StudioOAuthProviderInfo,
+  StudioDeleteChatSessionInput,
   StudioRemoveCustomModelInput,
+  StudioRenameChatSessionInput,
   StudioSelectModelInput,
   StudioSendPromptInput,
   StudioStartLoginInput,
@@ -162,6 +164,7 @@ let chatSessions: StoredChatSession[] = [];
 
 type StoredChatSession = StudioChatSessionSummary & {
   messages: StudioMessage[];
+  manualTitle?: boolean;
 };
 
 export function registerStudioIpc(window: BrowserWindow): void {
@@ -187,6 +190,12 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:list-chat-sessions", () => listChatSessions());
   ipcMain.handle("studio:open-chat-session", (_event, sessionId: string) =>
     openChatSession(sessionId),
+  );
+  ipcMain.handle("studio:rename-chat-session", (_event, input: StudioRenameChatSessionInput) =>
+    renameChatSession(input),
+  );
+  ipcMain.handle("studio:delete-chat-session", (_event, input: StudioDeleteChatSessionInput) =>
+    deleteChatSession(input),
   );
   ipcMain.handle("studio:send-prompt", (_event, input: StudioSendPromptInput) =>
     sendPrompt(input),
@@ -512,13 +521,14 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
 
   session
     .prompt(content)
-    .then(() => {
+    .then(async () => {
       finishAssistantMessage("done");
       status = "ready";
       emitConversation();
-      void saveCurrentChatSession();
-      void emitSessions();
+      await saveCurrentChatSession();
+      await emitSessions();
       void emitDecks();
+      void maybeGenerateSessionTitle(currentSessionId);
     })
     .catch((error: unknown) => {
       finishAssistantMessage("error");
@@ -548,11 +558,6 @@ async function stopGeneration(): Promise<StudioConversationSnapshot> {
 
 async function getConversation(): Promise<StudioConversationSnapshot> {
   await ensureChatSessionsLoaded();
-  if (messages.length === 0 && chatSessions[0]) {
-    currentSessionId = chatSessions[0].id;
-    currentArtifactId = chatSessions[0].artifactId;
-    messages = chatSessions[0].messages;
-  }
   return getConversationSnapshot();
 }
 
@@ -592,6 +597,46 @@ async function openChatSession(sessionId: string): Promise<StudioConversationSna
   status = "ready";
   lastError = undefined;
   emitConversation();
+  await emitSessions();
+  await emitDecks();
+  return getConversationSnapshot();
+}
+
+async function renameChatSession(
+  input: StudioRenameChatSessionInput,
+): Promise<StudioChatSessionSummary[]> {
+  await ensureChatSessionsLoaded();
+  const title = input.title.trim().slice(0, 64);
+  if (!title) throw new Error("Chat title is required.");
+  const target = chatSessions.find((session) => session.id === input.sessionId);
+  if (!target) throw new Error("Chat session not found.");
+  target.title = title;
+  target.manualTitle = true;
+  target.updatedAt = Date.now();
+  await persistChatSessions();
+  await emitSessions();
+  return chatSessions.map(({ messages: _messages, ...summary }) => summary);
+}
+
+async function deleteChatSession(
+  input: StudioDeleteChatSessionInput,
+): Promise<StudioConversationSnapshot> {
+  await ensureChatSessionsLoaded();
+  chatSessions = chatSessions.filter((session) => session.id !== input.sessionId);
+  await persistChatSessions();
+
+  if (input.sessionId === currentSessionId) {
+    const runtime = await getRuntime();
+    await disposeRuntimeSession(runtime);
+    messages = [];
+    status = "ready";
+    lastError = undefined;
+    currentSessionId = createId("session");
+    currentArtifactId = createId("artifact");
+    await getDeckService().ensureArtifactWorkspace(currentArtifactId);
+    emitConversation();
+  }
+
   await emitSessions();
   await emitDecks();
   return getConversationSnapshot();
@@ -1094,16 +1139,21 @@ async function saveCurrentChatSession(): Promise<void> {
   const existing = chatSessions.find((session) => session.id === currentSessionId);
   const session: StoredChatSession = {
     id: currentSessionId,
-    title: getSessionTitle(messages),
+    title: existing?.manualTitle ? existing.title : getSessionTitle(messages),
     artifactId: currentArtifactId,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
     messages,
+    manualTitle: existing?.manualTitle,
   };
   chatSessions = [
     session,
     ...chatSessions.filter((candidate) => candidate.id !== currentSessionId),
   ].sort((a, b) => b.updatedAt - a.updatedAt);
+  await persistChatSessions();
+}
+
+async function persistChatSessions(): Promise<void> {
   await mkdir(getPiAgentDir(), { recursive: true });
   await writeFile(getChatSessionsPath(), JSON.stringify(chatSessions, null, 2), "utf8");
 }
@@ -1112,10 +1162,112 @@ function getChatSessionsPath(): string {
   return join(getPiAgentDir(), "chat-sessions.json");
 }
 
+async function maybeGenerateSessionTitle(sessionId: string): Promise<void> {
+  const session = chatSessions.find((candidate) => candidate.id === sessionId);
+  if (!session || session.manualTitle) return;
+
+  const userText = session.messages
+    .find((message) => message.role === "user")
+    ?.content.trim();
+  const assistantText = session.messages
+    .filter((message) => message.role === "assistant")
+    .map((message) => message.content)
+    .join("\n")
+    .trim();
+  if (!userText || !assistantText) return;
+
+  const runtime = await getRuntime();
+  if (!runtime.selectedModel) return;
+
+  try {
+    const { completeSimple } = await import("@mariozechner/pi-ai");
+    const result = await completeSimple(runtime.selectedModel as never, {
+      systemPrompt:
+        "You name chat conversations. Reply with a concise 3-6 word title in Title Case. No quotes, no punctuation, no trailing period. Capture the core task or topic.",
+      messages: [
+        {
+          role: "user",
+          content: `User message:\n${truncate(userText, 600)}\n\nAssistant reply:\n${truncate(
+            assistantText,
+            600,
+          )}\n\nReturn only the title.`,
+          timestamp: Date.now(),
+        },
+      ],
+    });
+
+    const title = extractTitleFromAssistantMessage(result);
+    if (!title) return;
+
+    const stored = chatSessions.find((candidate) => candidate.id === sessionId);
+    if (!stored || stored.manualTitle) return;
+    stored.title = title;
+    await persistChatSessions();
+    await emitSessions();
+  } catch {
+    // Title generation is best-effort; keep the heuristic title on failure.
+  }
+}
+
+function extractTitleFromAssistantMessage(message: unknown): string | undefined {
+  const record = asRecord(message);
+  const content = record?.["content"];
+  if (!Array.isArray(content)) return undefined;
+  const text = content
+    .map((part) => {
+      const partRecord = asRecord(part);
+      return partRecord?.["type"] === "text" && typeof partRecord["text"] === "string"
+        ? (partRecord["text"] as string)
+        : "";
+    })
+    .join(" ")
+    .trim();
+  if (!text) return undefined;
+  const cleaned = text
+    .split("\n")[0]!
+    .replace(/^["'`*_\s]+|["'`*_\s.]+$/g, "")
+    .trim();
+  if (!cleaned) return undefined;
+  return cleaned.length > 64 ? `${cleaned.slice(0, 61).trimEnd()}…` : cleaned;
+}
+
+function truncate(value: string, max: number): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max).trimEnd()}…`;
+}
+
 function getSessionTitle(sessionMessages: StudioMessage[]): string {
-  const firstUserMessage = sessionMessages.find((message) => message.role === "user");
-  const title = firstUserMessage?.content.trim().replace(/\s+/g, " ");
-  return title ? title.slice(0, 64) : "Untitled chat";
+  const firstUser = sessionMessages.find((message) => message.role === "user");
+  const raw = firstUser?.content.trim().replace(/\s+/g, " ");
+  if (!raw) return "Untitled chat";
+
+  // Strip common conversational fillers so the title focuses on the topic.
+  const stripped = raw
+    .replace(
+      /^(please|hey|hi|hello|ok|okay|so|um|now|alright)[, ]+/i,
+      "",
+    )
+    .replace(
+      /^(can|could|would|will)\s+(you|we)\s+(please\s+)?/i,
+      "",
+    )
+    .replace(/^(i\s+)?(want|need|would like|'?d like|wanna)\s+(to\s+)?/i, "")
+    .replace(/^(let'?s|let us|help me|help us)\s+/i, "")
+    .replace(/^(make|build|create|design|draft|write|generate)\s+(me\s+|us\s+)?/i, "Make ");
+
+  // Use the first sentence/clause for a concise label.
+  const firstClause = stripped.split(/[.!?\n]/)[0]?.trim() ?? stripped;
+  const compact = firstClause.split(/[,;:—–-]/)[0]?.trim() || firstClause;
+  const capitalized = compact.charAt(0).toUpperCase() + compact.slice(1);
+
+  if (capitalized.length <= 48) return capitalized || "Untitled chat";
+  const words = capitalized.split(" ");
+  let title = "";
+  for (const word of words) {
+    if ((title + (title ? " " : "") + word).length > 45) break;
+    title = title ? `${title} ${word}` : word;
+  }
+  return `${title}…`;
 }
 
 function isStoredChatSession(value: unknown): value is StoredChatSession {

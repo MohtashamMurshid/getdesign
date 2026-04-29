@@ -12,6 +12,7 @@ import { Suggestions } from "./components/agent-elements/input/suggestions";
 import { ModelPicker } from "./components/agent-elements/input/model-picker";
 import { ModeSelector } from "./components/agent-elements/input/mode-selector";
 import { AuthLanding } from "./components/auth-landing";
+import { ChatHistoryMenu } from "./components/chat-history-menu";
 import { DeckWorkspace } from "./components/deck-workspace";
 import { SettingsPage } from "./components/settings-page";
 
@@ -50,7 +51,7 @@ export default function App() {
   });
   const [chatSessions, setChatSessions] = useState<StudioChatSessionSummary[]>([]);
   const [decks, setDecks] = useState<StudioDeckProject[]>([]);
-  const [selectedDeckId, setSelectedDeckId] = useState<string | undefined>();
+  const [userSelectedDeckId, setUserSelectedDeckId] = useState<string | undefined>();
   const [isArtifactOpen, setIsArtifactOpen] = useState(true);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [provider, setProvider] = useState("anthropic");
@@ -89,10 +90,10 @@ export default function App() {
       }
       if (event.type === "decks") {
         setDecks(event.payload);
-        setSelectedDeckId((current) =>
-          event.payload.some((deck) => deck.id === current)
+        setUserSelectedDeckId((current) =>
+          current && event.payload.some((deck) => deck.id === current)
             ? current
-            : event.payload[0]?.id,
+            : undefined,
         );
       }
       if (event.type === "sessions") {
@@ -130,6 +131,16 @@ export default function App() {
   }, [models, visibleModelIds]);
 
   const isAuthed = Boolean(authStatus?.hasAvailableModels);
+
+  const selectedDeckId = useMemo(() => {
+    if (
+      userSelectedDeckId &&
+      decks.some((deck) => deck.id === userSelectedDeckId)
+    ) {
+      return userSelectedDeckId;
+    }
+    return decks.find((deck) => deck.id === conversation.currentArtifactId)?.id;
+  }, [decks, conversation.currentArtifactId, userSelectedDeckId]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -169,10 +180,7 @@ export default function App() {
       setConversation(nextConversation);
       setDecks(nextDecks);
       setChatSessions(nextSessions);
-      setSelectedDeckId(
-        nextDecks.find((deck) => deck.id === nextConversation.currentArtifactId)
-          ?.id,
-      );
+      setUserSelectedDeckId(undefined);
       setSelectedModelId((current) => current || nextAuth.selectedModelId || "");
     } catch (nextError) {
       setError(toErrorMessage(nextError));
@@ -323,11 +331,35 @@ export default function App() {
       const nextDecks = await window.api.listDecks();
       setConversation(next);
       setDecks(nextDecks);
-      setSelectedDeckId(
-        nextDecks.find((deck) => deck.id === next.currentArtifactId)?.id ??
-          nextDecks[0]?.id,
-      );
+      setUserSelectedDeckId(undefined);
       setIsArtifactOpen(true);
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+    }
+  }
+
+  async function handleRenameChatSession(sessionId: string, title: string) {
+    try {
+      setError(undefined);
+      const next = await window.api.renameChatSession({ sessionId, title });
+      setChatSessions(next);
+    } catch (nextError) {
+      setError(toErrorMessage(nextError));
+    }
+  }
+
+  async function handleDeleteChatSession(sessionId: string) {
+    try {
+      setError(undefined);
+      const next = await window.api.deleteChatSession({ sessionId });
+      setConversation(next);
+      const [nextSessions, nextDecks] = await Promise.all([
+        window.api.listChatSessions(),
+        window.api.listDecks(),
+      ]);
+      setChatSessions(nextSessions);
+      setDecks(nextDecks);
+      setUserSelectedDeckId(undefined);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -341,10 +373,7 @@ export default function App() {
       const nextDecks = await window.api.listDecks();
       setConversation(nextConversation);
       setDecks(nextDecks);
-      setSelectedDeckId(
-        nextDecks.find((deck) => deck.id === nextConversation.currentArtifactId)
-          ?.id ?? nextDecks[0]?.id,
-      );
+      setUserSelectedDeckId(undefined);
       setIsArtifactOpen(true);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
@@ -367,7 +396,7 @@ export default function App() {
       const deck = await window.api.createMockArtifact();
       const nextDecks = await window.api.listDecks();
       setDecks(nextDecks.length > 0 ? nextDecks : [deck]);
-      setSelectedDeckId(deck.id);
+      setUserSelectedDeckId(deck.id);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
       throw nextError;
@@ -442,20 +471,6 @@ export default function App() {
           <Logo size="sm" />
         </div>
         <div className="flex items-center gap-1">
-          {chatSessions.length > 0 ? (
-            <select
-              value={conversation.id ?? ""}
-              onChange={(event) => handleOpenChatSession(event.target.value)}
-              className="mr-1 h-9 max-w-56 rounded-md border border-border bg-background px-3 text-xs text-foreground outline-none focus:border-ring"
-              aria-label="Open previous chat"
-            >
-              {chatSessions.map((session) => (
-                <option key={session.id} value={session.id}>
-                  {session.title}
-                </option>
-              ))}
-            </select>
-          ) : null}
           {!isArtifactOpen ? (
             <Button
               variant="ghost"
@@ -556,6 +571,14 @@ export default function App() {
             disabled={displayedModels.length === 0}
             leftActions={
               <>
+                <ChatHistoryMenu
+                  sessions={chatSessions}
+                  activeSessionId={conversation.id}
+                  onSelect={handleOpenChatSession}
+                  onRename={handleRenameChatSession}
+                  onDelete={handleDeleteChatSession}
+                  onNewChat={handleNewChat}
+                />
                 <ModelPicker
                   models={displayedModels}
                   value={selectedModelId}
@@ -578,7 +601,7 @@ export default function App() {
             selectedDeckId={selectedDeckId}
             status={conversation.status}
             onClose={() => setIsArtifactOpen(false)}
-            onSelectDeck={setSelectedDeckId}
+            onSelectDeck={setUserSelectedDeckId}
             onOpenDeck={handleOpenDeck}
             onExportDeck={handleExportDeck}
             onCreateMockArtifact={handleCreateMockArtifact}

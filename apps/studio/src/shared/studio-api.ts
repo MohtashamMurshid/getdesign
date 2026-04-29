@@ -113,6 +113,15 @@ export type StudioChatSessionSummary = {
   updatedAt: number;
 };
 
+export type StudioRenameChatSessionInput = {
+  sessionId: string;
+  title: string;
+};
+
+export type StudioDeleteChatSessionInput = {
+  sessionId: string;
+};
+
 export type StudioSendPromptInput = {
   content: string;
   modelId?: string;
@@ -205,6 +214,12 @@ export type StudioApi = {
   getConversation: () => Promise<StudioConversationSnapshot>;
   listChatSessions: () => Promise<StudioChatSessionSummary[]>;
   openChatSession: (sessionId: string) => Promise<StudioConversationSnapshot>;
+  renameChatSession: (
+    input: StudioRenameChatSessionInput,
+  ) => Promise<StudioChatSessionSummary[]>;
+  deleteChatSession: (
+    input: StudioDeleteChatSessionInput,
+  ) => Promise<StudioConversationSnapshot>;
   sendPrompt: (input: StudioSendPromptInput) => Promise<StudioConversationSnapshot>;
   stop: () => Promise<StudioConversationSnapshot>;
   openPiAuthDocs: () => Promise<void>;

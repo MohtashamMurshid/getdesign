@@ -4,9 +4,11 @@ import type {
   StudioAddCustomProviderInput,
   StudioApi,
   StudioCreateDeckInput,
+  StudioDeleteChatSessionInput,
   StudioEvent,
   StudioExportDeckInput,
   StudioRemoveCustomModelInput,
+  StudioRenameChatSessionInput,
   StudioSelectModelInput,
   StudioSendPromptInput,
   StudioStartLoginInput,
@@ -31,6 +33,10 @@ const api: StudioApi = {
   listChatSessions: () => ipcRenderer.invoke("studio:list-chat-sessions"),
   openChatSession: (sessionId: string) =>
     ipcRenderer.invoke("studio:open-chat-session", sessionId),
+  renameChatSession: (input: StudioRenameChatSessionInput) =>
+    ipcRenderer.invoke("studio:rename-chat-session", input),
+  deleteChatSession: (input: StudioDeleteChatSessionInput) =>
+    ipcRenderer.invoke("studio:delete-chat-session", input),
   sendPrompt: (input: StudioSendPromptInput) =>
     ipcRenderer.invoke("studio:send-prompt", input),
   stop: () => ipcRenderer.invoke("studio:stop"),
