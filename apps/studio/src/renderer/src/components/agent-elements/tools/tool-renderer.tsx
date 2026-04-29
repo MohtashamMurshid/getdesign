@@ -100,6 +100,7 @@ export const ToolRenderer = memo(function ToolRenderer({
     const { isPending, isError } = getToolStatus(part, chatStatus);
     return (
       <GenericTool
+        icon={meta.icon}
         title={meta.title(part)}
         subtitle={meta.subtitle?.(part)}
         isPending={isPending}

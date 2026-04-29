@@ -370,9 +370,9 @@ export function SettingsPage({
           <CardHeader>
             <CardTitle className="text-base">Connected providers</CardTitle>
             <CardDescription>
-              Pi stores subscription OAuth and API keys in{" "}
+              Studio stores Pi subscription OAuth and API keys in{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                ~/.pi/agent/auth.json
+                {authStatus?.authFile ?? "Studio auth.json"}
               </code>
               . Expand a provider to choose which of its models appear in the
               picker. Disconnect clears that provider the same way Pi&apos;s{" "}

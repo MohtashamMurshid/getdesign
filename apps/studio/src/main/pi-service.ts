@@ -54,9 +54,11 @@ type PiSessionEvent = {
   message?: unknown;
   assistantMessageEvent?: {
     type: string;
+    contentIndex?: number;
     delta?: string;
     text?: string;
     content?: string;
+    thinking?: string;
     toolCall?: unknown;
     partial?: unknown;
   };
@@ -68,6 +70,32 @@ type PiSessionEvent = {
   result?: unknown;
   isError?: boolean;
 };
+
+/**
+ * Tracks the array indices of streaming parts on the in-flight assistant
+ * message. Pi emits `contentIndex` on every text/thinking delta, which lets us
+ * keep parts in chronological order even across multiple LLM turns within a
+ * single assistant message (text → tool → text → tool → …). Without this we
+ * fall back to the "last part is text? append : push" heuristic, which loses
+ * ordering once a tool call lands between two text segments.
+ */
+type AssistantStreamState = {
+  textIndices: Map<string, number>;
+  thinkingIndices: Map<string, number>;
+  toolIndices: Map<string, number>;
+  turn: number;
+};
+
+function createAssistantStreamState(): AssistantStreamState {
+  return {
+    textIndices: new Map(),
+    thinkingIndices: new Map(),
+    toolIndices: new Map(),
+    turn: 0,
+  };
+}
+
+let assistantStream: AssistantStreamState = createAssistantStreamState();
 
 type PiRuntime = {
   authStorage: {
@@ -88,11 +116,12 @@ type PiRuntime = {
   modelRegistry: {
     getAvailable: () => unknown[] | Promise<unknown[]>;
     find?: (provider: string, id: string) => unknown;
-    refresh?: () => void;
+    refresh?: () => void | Promise<void>;
     getError?: () => string | undefined;
   };
   selectedModel?: unknown;
   selectedModelId?: string;
+  modelRegistryRefreshed?: boolean;
   session?: PiSession;
   unsubscribe?: () => void;
 };
@@ -240,20 +269,38 @@ async function createRuntime(): Promise<PiRuntime> {
   ]);
 
   const authStorage = AuthStorage.create(join(getPiAgentDir(), "auth.json"));
-  const modelRegistry = ModelRegistry.create(authStorage, getModelsJsonPath());
+  const modelRegistry = modelRegistryAsRuntime(
+    ModelRegistry.create(authStorage, getModelsJsonPath()),
+  );
+  const runtime: PiRuntime = {
+    authStorage,
+    modelRegistry,
+  };
+  await refreshModelRegistry(runtime);
   const availableModels = await Promise.resolve(modelRegistry.getAvailable());
   const selectedModel = availableModels[0] ?? getModel("anthropic", "claude-sonnet-4-6");
 
   return {
-    authStorage,
-    modelRegistry: modelRegistry as unknown as PiRuntime["modelRegistry"],
+    ...runtime,
     selectedModel,
     selectedModelId: selectedModel ? getModelKey(selectedModel) : undefined,
   };
 }
 
+function modelRegistryAsRuntime(modelRegistry: unknown): PiRuntime["modelRegistry"] {
+  return modelRegistry as PiRuntime["modelRegistry"];
+}
+
+async function refreshModelRegistry(runtime: PiRuntime): Promise<void> {
+  await Promise.resolve(runtime.modelRegistry.refresh?.());
+  runtime.modelRegistryRefreshed = true;
+}
+
 async function getAuthStatus(): Promise<StudioAuthStatus> {
   const runtime = await getRuntime();
+  if (!runtime.modelRegistryRefreshed) {
+    await refreshModelRegistry(runtime);
+  }
   const availableModels = (await Promise.resolve(runtime.modelRegistry.getAvailable())).map(
     toModelInfo,
   );
@@ -357,7 +404,7 @@ async function startLogin(input: StudioStartLoginInput): Promise<StudioAuthStatu
       },
     })
     .then(async () => {
-      runtime.modelRegistry.refresh?.();
+      await refreshModelRegistry(runtime);
       const nextAuth = await getAuthStatus();
       loginState = {
         status: "completed",
@@ -422,7 +469,7 @@ async function addCustomProvider(input: StudioAddCustomProviderInput): Promise<S
   writeModelsJson(path, next);
 
   const runtime = await getRuntime();
-  runtime.modelRegistry.refresh?.();
+  await refreshModelRegistry(runtime);
   return getAuthStatus();
 }
 
@@ -436,7 +483,7 @@ async function addCustomModel(input: StudioAddCustomModelInput): Promise<StudioA
   writeModelsJson(path, next);
 
   const runtime = await getRuntime();
-  runtime.modelRegistry.refresh?.();
+  await refreshModelRegistry(runtime);
   return getAuthStatus();
 }
 
@@ -450,7 +497,7 @@ async function removeCustomModel(input: StudioRemoveCustomModelInput): Promise<S
   writeModelsJson(path, next);
 
   const runtime = await getRuntime();
-  runtime.modelRegistry.refresh?.();
+  await refreshModelRegistry(runtime);
   await resyncSelectedModelAfterRegistryChange(runtime);
   return getAuthStatus();
 }
@@ -464,7 +511,7 @@ async function disconnectProvider(input: StudioDisconnectProviderInput): Promise
   const runtime = await getRuntime();
   runtime.authStorage.logout(providerId);
   runtime.authStorage.removeRuntimeApiKey(providerId);
-  runtime.modelRegistry.refresh?.();
+  await refreshModelRegistry(runtime);
   await resyncSelectedModelAfterRegistryChange(runtime);
   return getAuthStatus();
 }
@@ -493,7 +540,7 @@ async function logoutAll(): Promise<StudioAuthStatus> {
     }
   }
   await disposeRuntimeSession(runtime);
-  runtime.modelRegistry.refresh?.();
+  await refreshModelRegistry(runtime);
   await resyncSelectedModelAfterRegistryChange(runtime);
   loginState = { status: "idle" };
   return getAuthStatus();
@@ -542,6 +589,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
     status: "streaming",
   };
   messages = [...messages, userMessage, assistantMessage];
+  assistantStream = createAssistantStreamState();
   await saveCurrentChatSession();
   status = "submitted";
   lastError = undefined;
@@ -566,7 +614,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
       finishAssistantMessage("error");
       status = "error";
       lastError = error instanceof Error ? error.message : String(error);
-      appendAssistantText(`\n\n${lastError}`);
+      appendStreamingText(undefined, `\n\n${lastError}`);
       emitConversation();
       void saveCurrentChatSession();
       void emitSessions();
@@ -758,36 +806,44 @@ async function disposeRuntimeSession(runtime: PiRuntime): Promise<void> {
   runtime.session.dispose();
   runtime.session = undefined;
   runtime.unsubscribe = undefined;
+  assistantStream = createAssistantStreamState();
 }
 
 function handlePiEvent(event: PiSessionEvent): void {
+  if (event.type === "message_start") {
+    // A new LLM turn begins inside this assistant message. Bump the turn so
+    // contentIndex pointers from the previous turn don't collide with the
+    // ones the next turn will emit (both turns start counting from 0 again).
+    assistantStream.turn += 1;
+    return;
+  }
+
   if (event.type === "tool_execution_start") {
-    upsertAssistantToolPart(event.toolCallId, event.toolName, event.args, undefined, false);
+    updateToolPart(event.toolCallId, event.toolName, {
+      input: event.args,
+      state: "input-available",
+    });
     emitConversation();
     return;
   }
 
   if (event.type === "tool_execution_update") {
-    upsertAssistantToolPart(
-      event.toolCallId,
-      event.toolName,
-      event.args,
-      event.partialResult,
-      false,
-      "input-available",
-    );
+    updateToolPart(event.toolCallId, event.toolName, {
+      input: event.args,
+      output: event.partialResult,
+      result: event.partialResult,
+      state: "input-available",
+    });
     emitConversation();
     return;
   }
 
   if (event.type === "tool_execution_end") {
-    upsertAssistantToolPart(
-      event.toolCallId,
-      event.toolName,
-      undefined,
-      event.result,
-      Boolean(event.isError),
-    );
+    updateToolPart(event.toolCallId, event.toolName, {
+      output: event.result,
+      result: event.result,
+      state: event.isError ? "output-error" : "output-available",
+    });
     emitConversation();
     if (!event.isError && isArtifactFileTool(event.toolName)) {
       void emitDecks();
@@ -796,7 +852,10 @@ function handlePiEvent(event: PiSessionEvent): void {
   }
 
   if (event.type === "message_end" && event.message) {
-    syncAssistantMessageFromPi(event.message);
+    // Streaming events maintain authoritative ordering and content. We only
+    // backfill anything that didn't make it through the stream — primarily
+    // legacy thinking blocks for providers that don't emit thinking_delta.
+    backfillFromMessage(event.message);
     emitConversation();
     return;
   }
@@ -806,19 +865,53 @@ function handlePiEvent(event: PiSessionEvent): void {
   const assistantEvent = event.assistantMessageEvent;
   if (!assistantEvent) return;
 
-  if (assistantEvent.type === "text_delta" && assistantEvent.delta) {
-    appendAssistantText(assistantEvent.delta);
-    emitConversation();
-  }
-
-  if (assistantEvent.type === "text_end" && typeof assistantEvent.content === "string") {
-    finalizeStreamingTextPart(assistantEvent.content);
-    emitConversation();
-  }
-
-  if (assistantEvent.type === "toolcall_end" && assistantEvent.toolCall) {
-    upsertAssistantToolCall(assistantEvent.toolCall);
-    emitConversation();
+  switch (assistantEvent.type) {
+    case "text_start":
+      ensureTextPart(assistantEvent.contentIndex, "");
+      break;
+    case "text_delta":
+      if (typeof assistantEvent.delta === "string" && assistantEvent.delta) {
+        appendStreamingText(assistantEvent.contentIndex, assistantEvent.delta);
+        emitConversation();
+      }
+      break;
+    case "text_end":
+      if (typeof assistantEvent.content === "string") {
+        finalizeStreamingText(assistantEvent.contentIndex, assistantEvent.content);
+        emitConversation();
+      }
+      break;
+    case "thinking_start":
+      ensureThinkingPart(assistantEvent.contentIndex, "");
+      emitConversation();
+      break;
+    case "thinking_delta":
+      if (typeof assistantEvent.delta === "string" && assistantEvent.delta) {
+        appendStreamingThinking(assistantEvent.contentIndex, assistantEvent.delta);
+        emitConversation();
+      }
+      break;
+    case "thinking_end":
+      if (
+        typeof assistantEvent.content === "string" ||
+        typeof assistantEvent.thinking === "string"
+      ) {
+        finalizeStreamingThinking(
+          assistantEvent.contentIndex,
+          (assistantEvent.content ?? assistantEvent.thinking)!,
+        );
+        emitConversation();
+      } else {
+        finalizeStreamingThinking(assistantEvent.contentIndex);
+        emitConversation();
+      }
+      break;
+    case "toolcall_end":
+      if (assistantEvent.toolCall) {
+        upsertAssistantToolCall(assistantEvent.toolCall);
+        emitConversation();
+      }
+      break;
   }
 }
 
@@ -833,140 +926,236 @@ function getConversationSnapshot(): StudioConversationSnapshot {
   };
 }
 
-function appendAssistantText(delta: string): void {
+/* ----------------------------------------------------------------------- */
+/* Assistant message mutation helpers                                       */
+/* ----------------------------------------------------------------------- */
+
+function mutateAssistantParts(
+  mutator: (parts: StudioMessagePart[]) => StudioMessagePart[],
+): void {
   messages = messages.map((message, index) => {
     if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    const parts = appendDeltaToLastTextPart(message.parts, delta);
-    const content = computeContentFromParts(parts);
-    return { ...message, content, parts };
+    const nextParts = mutator(message.parts ?? []);
+    if (nextParts === message.parts) return message;
+    return {
+      ...message,
+      parts: nextParts,
+      content: computeContentFromParts(nextParts),
+    };
   });
 }
 
-/** On text_end, replace the trailing in-flight text part with the final text. */
-function finalizeStreamingTextPart(finalText: string): void {
-  messages = messages.map((message, index) => {
-    if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    const parts = replaceLastTextPart(message.parts, finalText);
-    const content = computeContentFromParts(parts);
-    return { ...message, content, parts };
+function streamKey(contentIndex: number | undefined): string {
+  // Each LLM turn within an assistant message gets its own contentIndex
+  // namespace, so combine turn + contentIndex. `contentIndex` may be
+  // undefined for providers that don't emit it; in that case we fall back to
+  // `null` and the helpers below use append-style fallbacks.
+  return `${assistantStream.turn}:${contentIndex ?? "null"}`;
+}
+
+function ensureTextPart(contentIndex: number | undefined, initialText: string): void {
+  const key = streamKey(contentIndex);
+  if (assistantStream.textIndices.has(key)) return;
+  mutateAssistantParts((parts) => {
+    const next = [...parts, { type: "text" as const, text: initialText }];
+    assistantStream.textIndices.set(key, next.length - 1);
+    return next;
   });
 }
 
-/** On message_end, rebuild parts from Pi's authoritative content array. */
-function syncAssistantMessageFromPi(piMessage: unknown): void {
-  const record = asRecord(piMessage);
-  if (!record || record["role"] !== "assistant" || !Array.isArray(record["content"])) return;
-
-  const piParts = record["content"].flatMap(toStudioPart);
-  if (piParts.length === 0) return;
-
-  messages = messages.map((message, index) => {
-    if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    const parts = mergePiPartsWithExisting(piParts, message.parts);
-    const content = computeContentFromParts(parts);
-    return { ...message, content, parts };
+function appendStreamingText(contentIndex: number | undefined, delta: string): void {
+  if (!delta) return;
+  const key = streamKey(contentIndex);
+  mutateAssistantParts((parts) => {
+    let index = assistantStream.textIndices.get(key);
+    if (index === undefined || !parts[index] || parts[index]!.type !== "text") {
+      const next = [...parts, { type: "text" as const, text: delta }];
+      assistantStream.textIndices.set(key, next.length - 1);
+      return next;
+    }
+    const target = parts[index] as StudioMessagePart;
+    const updated: StudioMessagePart = { ...target, text: `${target.text ?? ""}${delta}` };
+    return parts.map((part, i) => (i === index ? updated : part));
   });
 }
 
-function toStudioPart(content: unknown): StudioMessagePart[] {
-  const record = asRecord(content);
-  if (!record) return [];
-  if (record["type"] === "text" && typeof record["text"] === "string") {
-    return [{ type: "text", text: record["text"] }];
-  }
-  if (record["type"] === "thinking" && typeof record["thinking"] === "string") {
-    return [
-      {
-        type: "tool-Thinking",
-        toolCallId: `thinking-${hashString(record["thinking"])}`,
-        state: "output-available",
-        input: {},
-        output: record["thinking"],
-      },
-    ];
-  }
-  if (record["type"] === "toolCall") {
-    const part = toolCallToPart(record);
-    return part ? [part] : [];
-  }
-  return [];
+function finalizeStreamingText(contentIndex: number | undefined, finalText: string): void {
+  const key = streamKey(contentIndex);
+  mutateAssistantParts((parts) => {
+    const index = assistantStream.textIndices.get(key);
+    if (index === undefined || !parts[index] || parts[index]!.type !== "text") {
+      const next = [...parts, { type: "text" as const, text: finalText }];
+      assistantStream.textIndices.set(key, next.length - 1);
+      return next;
+    }
+    return parts.map((part, i) =>
+      i === index ? ({ ...part, text: finalText } as StudioMessagePart) : part,
+    );
+  });
+}
+
+function ensureThinkingPart(contentIndex: number | undefined, initialText: string): void {
+  const key = streamKey(contentIndex);
+  if (assistantStream.thinkingIndices.has(key)) return;
+  mutateAssistantParts((parts) => {
+    const part: StudioMessagePart = {
+      type: "tool-Thinking",
+      toolCallId: `thinking-${assistantStream.turn}-${contentIndex ?? "x"}-${createIdSuffix()}`,
+      state: "input-streaming",
+      input: { thought: initialText },
+      output: initialText,
+    };
+    const next = [...parts, part];
+    assistantStream.thinkingIndices.set(key, next.length - 1);
+    return next;
+  });
+}
+
+function appendStreamingThinking(contentIndex: number | undefined, delta: string): void {
+  if (!delta) return;
+  const key = streamKey(contentIndex);
+  ensureThinkingPart(contentIndex, "");
+  mutateAssistantParts((parts) => {
+    const index = assistantStream.thinkingIndices.get(key);
+    if (index === undefined || !parts[index]) return parts;
+    const target = parts[index]!;
+    const prevText = typeof target.output === "string" ? target.output : "";
+    const nextText = `${prevText}${delta}`;
+    const updated: StudioMessagePart = {
+      ...target,
+      state: "input-streaming",
+      input: { ...(target.input as Record<string, unknown> | undefined), thought: nextText },
+      output: nextText,
+    };
+    return parts.map((part, i) => (i === index ? updated : part));
+  });
+}
+
+function finalizeStreamingThinking(
+  contentIndex: number | undefined,
+  finalText?: string,
+): void {
+  const key = streamKey(contentIndex);
+  mutateAssistantParts((parts) => {
+    const index = assistantStream.thinkingIndices.get(key);
+    if (index === undefined || !parts[index]) return parts;
+    const target = parts[index]!;
+    const text =
+      typeof finalText === "string"
+        ? finalText
+        : typeof target.output === "string"
+          ? target.output
+          : "";
+    const updated: StudioMessagePart = {
+      ...target,
+      state: "output-available",
+      input: { ...(target.input as Record<string, unknown> | undefined), thought: text },
+      output: text,
+      result: text,
+    };
+    return parts.map((part, i) => (i === index ? updated : part));
+  });
 }
 
 function upsertAssistantToolCall(toolCall: unknown): void {
   const record = asRecord(toolCall);
-  const part = record ? toolCallToPart(record) : undefined;
-  if (!part) return;
-  upsertAssistantPart(part);
-}
-
-function upsertAssistantToolPart(
-  toolCallId: unknown,
-  toolName: unknown,
-  args: unknown,
-  output: unknown,
-  isError: boolean,
-  pendingState: NonNullable<StudioMessagePart["state"]> = "input-available",
-): void {
-  if (typeof toolCallId !== "string" || typeof toolName !== "string") return;
-  upsertAssistantPart({
-    type: `tool-${toAgentElementsToolName(toolName)}`,
-    toolCallId,
-    state: output === undefined ? pendingState : isError ? "output-error" : "output-available",
-    input: args,
-    output,
-    result: output,
-  });
-}
-
-function upsertAssistantPart(part: StudioMessagePart): void {
-  messages = messages.map((message, index) => {
-    if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    return { ...message, parts: upsertPart(message.parts, part) };
-  });
-}
-
-function toolCallToPart(toolCall: Record<string, unknown>): StudioMessagePart | undefined {
-  const id = toolCall["id"];
-  const name = toolCall["name"];
-  if (typeof id !== "string" || typeof name !== "string") return undefined;
-  return {
+  if (!record) return;
+  const id = record["id"];
+  const name = record["name"];
+  if (typeof id !== "string" || typeof name !== "string") return;
+  const part: StudioMessagePart = {
     type: `tool-${toAgentElementsToolName(name)}`,
     toolCallId: id,
     state: "input-available",
-    input: toolCall["arguments"] ?? {},
+    input: record["arguments"] ?? {},
   };
+  insertOrUpdateToolPart(part);
+}
+
+function updateToolPart(
+  toolCallId: unknown,
+  toolName: unknown,
+  patch: Partial<StudioMessagePart>,
+): void {
+  if (typeof toolCallId !== "string" || typeof toolName !== "string") return;
+  const part: StudioMessagePart = {
+    type: `tool-${toAgentElementsToolName(toolName)}`,
+    toolCallId,
+    ...patch,
+  };
+  insertOrUpdateToolPart(part);
+}
+
+function insertOrUpdateToolPart(part: StudioMessagePart): void {
+  if (!part.toolCallId) return;
+  const toolCallId = part.toolCallId;
+  mutateAssistantParts((parts) => {
+    const existingIndex =
+      assistantStream.toolIndices.get(toolCallId) ??
+      parts.findIndex((candidate) => candidate.toolCallId === toolCallId);
+    if (existingIndex !== undefined && existingIndex >= 0 && parts[existingIndex]) {
+      const target = parts[existingIndex]!;
+      const merged: StudioMessagePart = {
+        ...target,
+        ...part,
+        input: part.input ?? target.input,
+        output: part.output ?? target.output,
+        result: part.result ?? target.result,
+        state: part.state ?? target.state,
+      };
+      assistantStream.toolIndices.set(toolCallId, existingIndex);
+      return parts.map((candidate, i) => (i === existingIndex ? merged : candidate));
+    }
+    const next = [...parts, part];
+    assistantStream.toolIndices.set(toolCallId, next.length - 1);
+    return next;
+  });
 }
 
 /**
- * Append a streamed text delta. If the last part is a text part it is grown
- * in place, otherwise a new text part is pushed. This preserves chronological
- * ordering so the UI can render text → tool → text → tool sequences.
+ * Backfill anything Pi reported in its authoritative content array that the
+ * streaming events didn't already capture. With proper text/thinking/tool
+ * streaming this is largely a no-op, but it keeps us robust against
+ * providers that omit thinking deltas.
  */
-function appendDeltaToLastTextPart(
-  parts: StudioMessagePart[] | undefined,
-  delta: string,
-): StudioMessagePart[] {
-  const list = parts ?? [];
-  const last = list[list.length - 1];
-  if (last && last.type === "text") {
-    return [
-      ...list.slice(0, -1),
-      { ...last, text: `${last.text ?? ""}${delta}` },
-    ];
+function backfillFromMessage(piMessage: unknown): void {
+  const record = asRecord(piMessage);
+  if (!record || record["role"] !== "assistant" || !Array.isArray(record["content"])) return;
+  for (const block of record["content"]) {
+    const item = asRecord(block);
+    if (!item) continue;
+    if (item["type"] === "thinking" && typeof item["thinking"] === "string") {
+      const text = item["thinking"];
+      const alreadyHave = messages[messages.length - 1]?.parts?.some(
+        (p) =>
+          p.type === "tool-Thinking" &&
+          typeof p.output === "string" &&
+          p.output.trim() === text.trim(),
+      );
+      if (alreadyHave) continue;
+      mutateAssistantParts((parts) => [
+        ...parts,
+        {
+          type: "tool-Thinking",
+          toolCallId: `thinking-backfill-${assistantStream.turn}-${createIdSuffix()}`,
+          state: "output-available",
+          input: { thought: text },
+          output: text,
+          result: text,
+        } as StudioMessagePart,
+      ]);
+      continue;
+    }
+    if (item["type"] === "toolCall") {
+      const id = item["id"];
+      if (typeof id !== "string") continue;
+      const haveTool = messages[messages.length - 1]?.parts?.some(
+        (p) => p.toolCallId === id,
+      );
+      if (haveTool) continue;
+      upsertAssistantToolCall(item);
+    }
   }
-  return [...list, { type: "text", text: delta }];
-}
-
-function replaceLastTextPart(
-  parts: StudioMessagePart[] | undefined,
-  text: string,
-): StudioMessagePart[] {
-  const list = parts ?? [];
-  const last = list[list.length - 1];
-  if (last && last.type === "text") {
-    return [...list.slice(0, -1), { ...last, text }];
-  }
-  return [...list, { type: "text", text }];
 }
 
 function computeContentFromParts(parts: StudioMessagePart[]): string {
@@ -976,55 +1165,8 @@ function computeContentFromParts(parts: StudioMessagePart[]): string {
     .join("");
 }
 
-function upsertPart(parts: StudioMessagePart[] | undefined, part: StudioMessagePart): StudioMessagePart[] {
-  if (!part.toolCallId) return [...(parts ?? []), part];
-  const existing = parts ?? [];
-  const index = existing.findIndex((candidate) => candidate.toolCallId === part.toolCallId);
-  if (index === -1) return [...existing, part];
-  return existing.map((candidate, candidateIndex) =>
-    candidateIndex === index
-      ? {
-          ...candidate,
-          ...part,
-          input: part.input ?? candidate.input,
-          output: part.output ?? candidate.output,
-          result: part.result ?? candidate.result,
-        }
-      : candidate,
-  );
-}
-
-/**
- * Reconcile Pi's authoritative parts (text + toolCall, in order) with the
- * existing list, preserving any tool execution state (output/result) that
- * arrived through the tool_execution_* events.
- */
-function mergePiPartsWithExisting(
-  piParts: StudioMessagePart[],
-  existingParts: StudioMessagePart[] | undefined,
-): StudioMessagePart[] {
-  const existing = existingParts ?? [];
-  const merged = piParts.map((piPart) => {
-    if (!piPart.toolCallId) return piPart;
-    const match = existing.find((candidate) => candidate.toolCallId === piPart.toolCallId);
-    if (!match) return piPart;
-    return {
-      ...piPart,
-      state: match.state ?? piPart.state,
-      input: piPart.input ?? match.input,
-      output: match.output ?? piPart.output,
-      result: match.result ?? piPart.result,
-    };
-  });
-  const mergedIds = new Set(
-    merged
-      .map((part) => part.toolCallId)
-      .filter((toolCallId): toolCallId is string => typeof toolCallId === "string"),
-  );
-  const missingToolParts = existing.filter(
-    (part) => part.toolCallId && part.type.startsWith("tool-") && !mergedIds.has(part.toolCallId),
-  );
-  return [...merged, ...missingToolParts];
+function createIdSuffix(): string {
+  return Math.random().toString(36).slice(2, 8);
 }
 
 function toAgentElementsToolName(toolName: string): string {
@@ -1048,14 +1190,6 @@ function isArtifactFileTool(toolName: unknown): boolean {
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
-}
-
-function hashString(value: string): string {
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    hash = (hash * 31 + value.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash).toString(36);
 }
 
 function finishAssistantMessage(nextStatus: NonNullable<StudioMessage["status"]>): void {

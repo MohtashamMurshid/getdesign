@@ -40,6 +40,7 @@ export const GenericTool = memo(function GenericTool({
   title,
   subtitle,
   isPending,
+  isError,
 }: GenericToolProps) {
   const Icon = icon;
 
@@ -47,12 +48,13 @@ export const GenericTool = memo(function GenericTool({
     <ToolRowBase
       icon={
         Icon ? (
-          <Icon className="w-full h-full shrink-0 text-muted-foreground" />
+          <Icon className="w-full h-full shrink-0" />
         ) : undefined
       }
       shimmerLabel={title}
       completeLabel={title}
       isAnimating={isPending}
+      isError={isError}
       detail={subtitle}
     />
   );

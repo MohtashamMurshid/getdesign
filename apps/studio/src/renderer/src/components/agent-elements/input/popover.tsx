@@ -37,6 +37,7 @@ export function Popover({
       onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined}
     >
       <BasePopover.Trigger
+        nativeButton={false}
         render={(props) => (
           <span {...props} className="inline-flex">
             {trigger}

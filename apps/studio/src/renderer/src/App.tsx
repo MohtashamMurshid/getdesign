@@ -564,20 +564,20 @@ export default function App() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {conversation.messages.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center px-6">
-              <h1 className="text-balance text-center text-3xl font-light tracking-tight text-foreground/90">
-                What should we design today?
+              <h1 className="text-balance text-center text-2xl font-light tracking-tight text-foreground/80">
+                Design something
               </h1>
               <Suggestions
                 items={[
                   {
                     id: "deck",
-                    label: "Plan a launch deck",
+                    label: "Launch deck",
                     value:
                       "Help me plan a 7-slide launch deck for an OSS Claude Design alternative.",
                   },
                   {
                     id: "ask",
-                    label: "Ask me first",
+                    label: "Plan with me",
                     value: "Ask me what you need to plan a deck.",
                   },
                   {
@@ -589,7 +589,8 @@ export default function App() {
                 onSelect={(item) =>
                   handleSend({ content: item.value ?? item.label })
                 }
-                className="mt-6 justify-center"
+                className="mt-4 justify-center"
+                itemClassName="h-6 px-2 text-xs"
               />
             </div>
           ) : (
@@ -604,7 +605,7 @@ export default function App() {
             status={conversation.status as ChatStatus}
             onSend={handleSend}
             onStop={handleStop}
-            placeholder="Send a message..."
+            placeholder="Message"
             disabled={displayedModels.length === 0}
             leftActions={
               <>
