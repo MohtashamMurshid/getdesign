@@ -138,14 +138,15 @@ const PI_AUTH_DOCS_URL = "https://pi.dev/docs/latest/providers";
 const PI_MODELS_DOCS_URL = "https://pi.dev/docs/latest/models";
 const STUDIO_SYSTEM_PROMPT = [
   "You are Studio, an open-source Claude Design-style design partner.",
-  "For slide and PPT work, follow Huashu-style HTML-first deck making.",
+  "For slide and PPT work, follow Studio's HTML-first deck workflow.",
   "Always treat the browser-ready HTML deck as the source artifact; PDF and PPTX are exports.",
   "For decks, create files in the current artifact workspace using Pi file tools. Never paste full deck HTML in chat.",
   "Write the browser preview to index.html. For multi-slide decks, create slides/*.html and an index.html manifest/iframe stage.",
   "Use shared/tokens.css for reusable design tokens and assets/ for local assets.",
   "Before creating a deck, ask which export path matters: HTML only, HTML plus PDF, or editable PPTX.",
   "For decks with five or more slides, create or propose two showcase slides first to lock the visual grammar before producing the full deck.",
-  "Editable PPTX requires a pptx-safe authoring mode from the first slide: fixed wide layout, text in p/heading tags, real img tags, no gradients, no web components, and no complex SVG.",
+  "Editable PPTX requires pptx-safe authoring from the first slide: fixed 16:9 layout, text only in p/heading/list tags, real img tags, backgrounds/borders on wrapper elements only, no gradients, no web components, and no complex SVG.",
+  "If the user asks for editable PowerPoint, prioritize clean layout primitives that can become native PPT text boxes, shapes, and images.",
   "When you finish, summarize the files you created or edited and tell the user the preview is visible in the right panel.",
 ].join("\n");
 
@@ -217,6 +218,7 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:create-deck", (_event, input?: StudioCreateDeckInput) => createDeck(input));
   ipcMain.handle("studio:get-deck", (_event, deckId: string) => getDeck(deckId));
   ipcMain.handle("studio:open-deck", (_event, deckId: string) => openDeck(deckId));
+  ipcMain.handle("studio:reveal-path", (_event, path: string) => revealPath(path));
   ipcMain.handle("studio:export-deck", (_event, input: StudioExportDeckInput) =>
     exportDeck(input),
   );
@@ -660,6 +662,10 @@ async function openDeck(deckId: string): Promise<void> {
   await getDeckService().openDeck(deckId);
 }
 
+async function revealPath(path: string): Promise<void> {
+  shell.showItemInFolder(path);
+}
+
 async function exportDeck(input: StudioExportDeckInput): Promise<StudioExportDeckResult> {
   return getDeckService().exportDeck(input, mainWindow);
 }
@@ -967,7 +973,7 @@ function mergePiPartsWithExisting(
   existingParts: StudioMessagePart[] | undefined,
 ): StudioMessagePart[] {
   const existing = existingParts ?? [];
-  return piParts.map((piPart) => {
+  const merged = piParts.map((piPart) => {
     if (!piPart.toolCallId) return piPart;
     const match = existing.find((candidate) => candidate.toolCallId === piPart.toolCallId);
     if (!match) return piPart;
@@ -979,6 +985,15 @@ function mergePiPartsWithExisting(
       result: match.result ?? piPart.result,
     };
   });
+  const mergedIds = new Set(
+    merged
+      .map((part) => part.toolCallId)
+      .filter((toolCallId): toolCallId is string => typeof toolCallId === "string"),
+  );
+  const missingToolParts = existing.filter(
+    (part) => part.toolCallId && part.type.startsWith("tool-") && !mergedIds.has(part.toolCallId),
+  );
+  return [...merged, ...missingToolParts];
 }
 
 function toAgentElementsToolName(toolName: string): string {

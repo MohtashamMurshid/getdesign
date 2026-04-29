@@ -163,6 +163,7 @@ function PiToolRow({ part }: { part: StudioMessagePart }) {
   const { isPending, isError } = getToolStatus(part);
   const toolName = getToolName(part);
   const Icon = getToolIcon(toolName);
+  const title = getToolTitle(part, toolName, isPending);
   const subtitle = getToolSubtitle(part);
 
   return (
@@ -175,7 +176,7 @@ function PiToolRow({ part }: { part: StudioMessagePart }) {
     >
       <Icon size={15} className="shrink-0" />
       <span className="font-medium text-foreground">
-        {isPending ? `Running ${toolName}` : toolName}
+        {title}
       </span>
       {subtitle ? <span className="min-w-0 truncate">{subtitle}</span> : null}
       {isPending ? (
@@ -292,6 +293,20 @@ function getToolIcon(toolName: string) {
   if (toolName === "Read" || toolName === "Edit" || toolName === "Write") return IconFile;
   if (toolName === "Grep" || toolName === "Glob") return IconSearch;
   return IconTool;
+}
+
+function getToolTitle(part: StudioMessagePart, toolName: string, isPending: boolean): string {
+  const verb = isPending ? "Running" : "Ran";
+  if (toolName === "Write") return isPending ? "Writing file" : "Wrote file";
+  if (toolName === "Edit") return isPending ? "Editing file" : "Edited file";
+  if (toolName === "Read") return isPending ? "Reading file" : "Read file";
+  if (toolName === "Bash") return isPending ? "Running command" : "Ran command";
+  if (toolName === "Grep" || toolName === "Glob") {
+    return isPending ? "Searching files" : "Searched files";
+  }
+  if (toolName === "Thinking") return "Thinking";
+  if (part.state === "output-error") return `${toolName} failed`;
+  return `${verb} ${toolName}`;
 }
 
 function getToolSubtitle(part: StudioMessagePart): string {

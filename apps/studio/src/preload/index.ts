@@ -54,6 +54,7 @@ const api: StudioApi = {
     ipcRenderer.invoke("studio:create-deck", input),
   getDeck: (deckId: string) => ipcRenderer.invoke("studio:get-deck", deckId),
   openDeck: (deckId: string) => ipcRenderer.invoke("studio:open-deck", deckId),
+  revealPath: (path: string) => ipcRenderer.invoke("studio:reveal-path", path),
   exportDeck: (input: StudioExportDeckInput) =>
     ipcRenderer.invoke("studio:export-deck", input),
   onStudioEvent: (listener: (event: StudioEvent) => void) => {

@@ -593,6 +593,7 @@ export default function App() {
           onClose={() => setIsArtifactOpen(false)}
           onSelectDeck={setUserSelectedDeckId}
           onOpenDeck={handleOpenDeck}
+          onRevealPath={window.api.revealPath}
           onExportDeck={handleExportDeck}
         />
       ) : (

@@ -1,6 +1,6 @@
-import { app, BrowserWindow, net, protocol, shell } from "electron";
+import { app, BrowserWindow, protocol, shell } from "electron";
+import { readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { initAutoUpdater } from "./updater";
 import { registerStudioIpc } from "./pi-service";
 
@@ -64,7 +64,7 @@ app.on("window-all-closed", () => {
 });
 
 function registerArtifactProtocol(): void {
-  protocol.handle(ARTIFACT_PROTOCOL, (request) => {
+  protocol.handle(ARTIFACT_PROTOCOL, async (request) => {
     const url = new URL(request.url);
     if (url.hostname !== "artifacts") {
       return new Response("Unknown Studio preview host.", { status: 404 });
@@ -84,7 +84,16 @@ function registerArtifactProtocol(): void {
       return new Response("Invalid preview path.", { status: 400 });
     }
 
-    return net.fetch(pathToFileURL(requestedPath).toString());
+    try {
+      const data = await readFile(requestedPath);
+      return new Response(data, {
+        headers: {
+          "content-type": contentTypeForPath(requestedPath),
+        },
+      });
+    } catch {
+      return new Response("Artifact file not found.", { status: 404 });
+    }
   });
 }
 
@@ -95,4 +104,20 @@ function safePathSegment(value: string): string {
 function isPathInside(root: string, target: string): boolean {
   const rel = relative(root, target);
   return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+function contentTypeForPath(path: string): string {
+  const lower = path.toLowerCase();
+  if (lower.endsWith(".html")) return "text/html; charset=utf-8";
+  if (lower.endsWith(".css")) return "text/css; charset=utf-8";
+  if (lower.endsWith(".js")) return "text/javascript; charset=utf-8";
+  if (lower.endsWith(".json")) return "application/json; charset=utf-8";
+  if (lower.endsWith(".svg")) return "image/svg+xml";
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".woff2")) return "font/woff2";
+  if (lower.endsWith(".woff")) return "font/woff";
+  return "application/octet-stream";
 }

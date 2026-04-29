@@ -231,6 +231,7 @@ export type StudioApi = {
   createDeck: (input?: StudioCreateDeckInput) => Promise<StudioDeckProject>;
   getDeck: (deckId: string) => Promise<StudioDeckProject>;
   openDeck: (deckId: string) => Promise<void>;
+  revealPath: (path: string) => Promise<void>;
   exportDeck: (input: StudioExportDeckInput) => Promise<StudioExportDeckResult>;
   onStudioEvent: (listener: (event: StudioEvent) => void) => () => void;
 };

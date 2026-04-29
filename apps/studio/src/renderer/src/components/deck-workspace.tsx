@@ -29,6 +29,7 @@ type DeckWorkspaceProps = {
   onClose: () => void;
   onSelectDeck: (deckId: string) => void;
   onOpenDeck: (deckId: string) => Promise<void>;
+  onRevealPath: (path: string) => Promise<void>;
   onExportDeck: (
     deckId: string,
     format: StudioDeckExportFormat,
@@ -42,9 +43,13 @@ export function DeckWorkspace({
   onClose,
   onSelectDeck,
   onOpenDeck,
+  onRevealPath,
   onExportDeck,
 }: DeckWorkspaceProps) {
   const [exportMessage, setExportMessage] = useState<string | undefined>();
+  const [exportPath, setExportPath] = useState<string | undefined>();
+  const [exportError, setExportError] = useState<string | undefined>();
+  const [exportingFormat, setExportingFormat] = useState<StudioDeckExportFormat | undefined>();
   const [previewKey, setPreviewKey] = useState(0);
   const [previewError, setPreviewError] = useState<string | undefined>();
 
@@ -61,8 +66,19 @@ export function DeckWorkspace({
 
   async function handleExport(format: StudioDeckExportFormat) {
     if (!selectedDeck) return;
-    const result = await onExportDeck(selectedDeck.id, format);
-    setExportMessage(`${result.message} ${result.path}`);
+    setExportingFormat(format);
+    setExportError(undefined);
+    setExportMessage(undefined);
+    setExportPath(undefined);
+    try {
+      const result = await onExportDeck(selectedDeck.id, format);
+      setExportMessage(result.message);
+      setExportPath(result.path);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Export failed.");
+    } finally {
+      setExportingFormat(undefined);
+    }
   }
 
   return (
@@ -133,6 +149,10 @@ export function DeckWorkspace({
                 <p className="text-xs font-light text-muted-foreground">
                   {selectedDeck.slides.length} slides · {selectedDeck.mode}
                 </p>
+                <p className="mt-1 max-w-xl text-xs font-light text-muted-foreground">
+                  HTML is the source deck. PDF preserves the visual snapshot.
+                  Editable PPTX requires `pptx-safe` HTML.
+                </p>
               </div>
             </div>
 
@@ -166,24 +186,60 @@ export function DeckWorkspace({
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-2">
-              <Button variant="secondary" onClick={() => handleExport("html")}>
+              <Button
+                variant="secondary"
+                disabled={Boolean(exportingFormat)}
+                onClick={() => handleExport("html")}
+              >
                 <IconFileExport size={15} />
-                HTML
+                {exportingFormat === "html" ? "Opening..." : "HTML"}
               </Button>
-              <Button variant="secondary" onClick={() => handleExport("pdf")}>
+              <Button
+                variant="secondary"
+                disabled={Boolean(exportingFormat)}
+                onClick={() => handleExport("pdf")}
+              >
                 <IconFileTypePdf size={15} />
-                PDF
+                {exportingFormat === "pdf" ? "Exporting..." : "PDF"}
               </Button>
-              <Button variant="secondary" onClick={() => handleExport("pptx")}>
+              <Button
+                variant="secondary"
+                disabled={Boolean(exportingFormat) || selectedDeck.mode !== "pptx-safe"}
+                title={
+                  selectedDeck.mode === "pptx-safe"
+                    ? "Export editable PPTX"
+                    : "Editable PPTX requires pptx-safe authoring"
+                }
+                onClick={() => handleExport("pptx")}
+              >
                 <IconFileTypePpt size={15} />
-                PPTX
+                {exportingFormat === "pptx" ? "Exporting..." : "PPTX"}
               </Button>
             </div>
 
             {exportMessage ? (
               <Card className="mt-3 border-border/70">
-                <CardContent className="py-2 text-xs text-muted-foreground">
-                  {exportMessage}
+                <CardContent className="flex items-center justify-between gap-3 py-2 text-xs text-muted-foreground">
+                  <span className="min-w-0 truncate" title={exportPath}>
+                    {exportMessage}
+                  </span>
+                  {exportPath ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 shrink-0 text-xs"
+                      onClick={() => onRevealPath(exportPath)}
+                    >
+                      Reveal
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : null}
+            {exportError ? (
+              <Card className="mt-3 border-destructive/40 bg-destructive/10">
+                <CardContent className="whitespace-pre-wrap py-2 text-xs text-destructive">
+                  {exportError}
                 </CardContent>
               </Card>
             ) : null}
