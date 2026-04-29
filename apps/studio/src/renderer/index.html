@@ -1,10 +1,20 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-src studio-artifact:; img-src 'self' studio-artifact: data: blob:; font-src 'self' studio-artifact: data:" />
     <title>Studio</title>
+    <script>
+      (function () {
+        var key = "studio-theme";
+        var stored = null;
+        try { stored = localStorage.getItem(key); } catch (e) {}
+        var root = document.documentElement;
+        if (stored === "light") root.classList.remove("dark");
+        else root.classList.add("dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

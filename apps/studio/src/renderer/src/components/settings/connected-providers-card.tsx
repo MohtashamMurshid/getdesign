@@ -6,7 +6,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 
-import { stripProviderPrefix } from "@/lib/format-model-label";
+import { formatModelPickerLabel } from "@/lib/format-model-label";
 
 import { AddCustomModelInline } from "./add-custom-model-inline";
 import { SettingsProviderLogo } from "./settings-provider-logo";
@@ -60,10 +60,12 @@ export function ConnectedProvidersCard({
   onRemoveCustomModel,
 }: ConnectedProvidersCardProps) {
   return (
-    <Card>
+    <Card className="border border-border/80 bg-card shadow-sm">
       <CardHeader>
-        <CardTitle className="text-base">Connected providers</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-base font-normal tracking-tight">
+          Connected providers
+        </CardTitle>
+        <CardDescription className="font-light leading-relaxed">
           Studio stores Pi subscription OAuth and API keys in{" "}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">
             {authStatus?.authFile ?? "Studio auth.json"}
@@ -165,11 +167,13 @@ export function ConnectedProvidersCard({
                           <label className="flex cursor-pointer items-center justify-between gap-4 py-2.5 transition-colors hover:bg-muted/30">
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-normal">
-                                {stripProviderPrefix(model.name, model.provider)}
+                                {formatModelPickerLabel(
+                                  model.name,
+                                  model.provider,
+                                )}
                               </span>
                               <span className="block truncate text-xs font-light text-muted-foreground">
                                 {model.id}
-                                {model.version ? ` · ${model.version}` : ""}
                               </span>
                             </span>
                             <input

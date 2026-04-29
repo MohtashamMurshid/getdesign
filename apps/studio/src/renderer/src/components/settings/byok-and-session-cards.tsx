@@ -35,10 +35,12 @@ export function ByokCard({
   onRuntimeKey: () => void;
 }) {
   return (
-    <Card>
+    <Card className="border border-border/80 bg-card shadow-sm">
       <CardHeader>
-        <CardTitle className="text-base">Bring your own key</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-base font-normal tracking-tight">
+          Bring your own key
+        </CardTitle>
+        <CardDescription className="font-light leading-relaxed">
           Use a runtime API key for this session. Not persisted to disk.
         </CardDescription>
       </CardHeader>
@@ -85,10 +87,12 @@ export function SessionCard({
   onPreviewAuth: () => void;
 }) {
   return (
-    <Card>
+    <Card className="border border-border/80 bg-card shadow-sm">
       <CardHeader>
-        <CardTitle className="text-base">Session</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-base font-normal tracking-tight">
+          Session
+        </CardTitle>
+        <CardDescription className="font-light leading-relaxed">
           Sign out of every connected provider. This clears OAuth tokens
           and runtime API keys from Pi&apos;s auth storage and returns you
           to the welcome screen.

@@ -1,9 +1,10 @@
 import type { ChatStatus } from "ai";
 import {
   IconLayoutSidebarLeftCollapse,
+  IconMoon,
   IconPlus,
-  IconRefresh,
   IconSettings,
+  IconSun,
 } from "@tabler/icons-react";
 
 import { InputBar } from "@/components/agent-elements/input-bar";
@@ -17,6 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import type { StudioAuthStatus } from "../../../../shared/studio-api";
 import type { StudioAppState } from "@/hooks/use-studio-app-state";
+import { useTheme } from "@/hooks/use-theme";
 
 type ChatSidebarProps = Pick<
   StudioAppState,
@@ -28,7 +30,6 @@ type ChatSidebarProps = Pick<
   | "selectedModelId"
 > & {
   onCollapse: () => void;
-  onRefresh: () => void;
   onNewChat: () => void;
   onOpenSettings: () => void;
   onModelChange: (modelId: string) => void;
@@ -47,7 +48,6 @@ export function ChatSidebar({
   displayedModels,
   selectedModelId,
   onCollapse,
-  onRefresh,
   onNewChat,
   onOpenSettings,
   onModelChange,
@@ -57,8 +57,9 @@ export function ChatSidebar({
   onRenameChatSession,
   onDeleteChatSession,
 }: ChatSidebarProps) {
+  const { theme, toggle } = useTheme();
   return (
-    <aside className="flex min-h-0 w-[30%] min-w-[320px] max-w-[460px] flex-col border-r border-border bg-background">
+    <aside className="flex min-h-0 w-[30%] min-w-[320px] max-w-[460px] flex-col rounded-xl border border-border bg-background shadow-sm">
       <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
         <div className="flex items-center gap-3">
           <Logo size="sm" />
@@ -67,20 +68,19 @@ export function ChatSidebar({
           <Button
             variant="ghost"
             size="icon"
-            onClick={onCollapse}
-            aria-label="Hide chat"
-            title="Hide chat"
+            onClick={toggle}
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            title={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
-            <IconLayoutSidebarLeftCollapse size={18} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onRefresh}
-            aria-label="Refresh"
-            title="Refresh"
-          >
-            <IconRefresh size={17} />
+            {theme === "dark" ? (
+              <IconSun size={18} aria-hidden />
+            ) : (
+              <IconMoon size={18} aria-hidden />
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -100,6 +100,15 @@ export function ChatSidebar({
             title="Settings"
           >
             <IconSettings size={18} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCollapse}
+            aria-label="Hide chat"
+            title="Hide chat"
+          >
+            <IconLayoutSidebarLeftCollapse size={18} />
           </Button>
         </div>
       </header>

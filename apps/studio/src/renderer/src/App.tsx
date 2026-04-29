@@ -119,7 +119,7 @@ export default function App() {
   }
 
   return (
-    <main className="flex h-full overflow-hidden bg-background text-foreground">
+    <main className="flex h-full gap-2 overflow-hidden bg-canvas p-2 text-foreground">
       {isChatOpen ? (
         <ChatSidebar
           conversation={conversation}
@@ -129,7 +129,6 @@ export default function App() {
           displayedModels={displayedModels}
           selectedModelId={selectedModelId}
           onCollapse={() => setIsChatOpen(false)}
-          onRefresh={refresh}
           onNewChat={handleNewChat}
           onOpenSettings={() => setView("settings")}
           onModelChange={handleModelChange}

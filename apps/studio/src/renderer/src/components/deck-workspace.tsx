@@ -84,7 +84,7 @@ export function DeckWorkspace({
   }
 
   return (
-    <aside className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+    <aside className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-sm">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
         <div className="flex min-w-0 items-center gap-2">
           {showChatToggle && onShowChat ? (

@@ -67,40 +67,44 @@ export function SettingsPage({
   }
 
   return (
-    <main className="min-h-full overflow-y-auto bg-background text-foreground">
-      <SettingsHeader onBack={onBack} onRefresh={onRefresh} />
+    <main className="flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-canvas p-2 text-foreground">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <SettingsHeader onBack={onBack} onRefresh={onRefresh} />
 
-      <div className="mx-auto w-full max-w-3xl space-y-8 px-6 py-8">
-        <SettingsStatusAlerts error={error} authStatus={authStatus} />
+        <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+          <div className="space-y-6">
+            <SettingsStatusAlerts error={error} authStatus={authStatus} />
 
-        <ConnectedProvidersCard
-          authStatus={authStatus}
-          oauthProviderCards={oauthProviderCards}
-          customProvidersGrouped={customProvidersGrouped}
-          modelsByProviderId={modelsByProviderId}
-          visibleModelIds={visibleModelIds}
-          onToggleModel={toggleModel}
-          onStartLogin={onStartLogin}
-          onDisconnectProvider={onDisconnectProvider}
-          onAddCustomModel={onAddCustomModel}
-          onRemoveCustomModel={onRemoveCustomModel}
-        />
+            <ConnectedProvidersCard
+              authStatus={authStatus}
+              oauthProviderCards={oauthProviderCards}
+              customProvidersGrouped={customProvidersGrouped}
+              modelsByProviderId={modelsByProviderId}
+              visibleModelIds={visibleModelIds}
+              onToggleModel={toggleModel}
+              onStartLogin={onStartLogin}
+              onDisconnectProvider={onDisconnectProvider}
+              onAddCustomModel={onAddCustomModel}
+              onRemoveCustomModel={onRemoveCustomModel}
+            />
 
-        <CustomModelsCard
-          customProviderApiOptions={customProviderApiOptions}
-          onAddCustomProvider={onAddCustomProvider}
-        />
+            <CustomModelsCard
+              customProviderApiOptions={customProviderApiOptions}
+              onAddCustomProvider={onAddCustomProvider}
+            />
 
-        <ByokCard
-          provider={provider}
-          setProvider={setProvider}
-          providers={providers}
-          apiKey={apiKey}
-          setApiKey={setApiKey}
-          onRuntimeKey={onRuntimeKey}
-        />
+            <ByokCard
+              provider={provider}
+              setProvider={setProvider}
+              providers={providers}
+              apiKey={apiKey}
+              setApiKey={setApiKey}
+              onRuntimeKey={onRuntimeKey}
+            />
 
-        <SessionCard onLogoutAll={onLogoutAll} onPreviewAuth={onPreviewAuth} />
+            <SessionCard onLogoutAll={onLogoutAll} onPreviewAuth={onPreviewAuth} />
+          </div>
+        </div>
       </div>
     </main>
   );

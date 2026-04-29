@@ -63,10 +63,12 @@ export function CustomModelsCard({
   }
 
   return (
-    <Card>
+    <Card className="border border-border/80 bg-card shadow-sm">
       <CardHeader>
-        <CardTitle className="text-base">Custom models</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-base font-normal tracking-tight">
+          Custom models
+        </CardTitle>
+        <CardDescription className="font-light leading-relaxed">
           Add local or proxy providers (Ollama, LM Studio, vLLM, etc.) to
           your Pi{" "}
           <code className="rounded bg-muted px-1 py-0.5 text-xs">
@@ -86,7 +88,7 @@ export function CustomModelsCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-3">
-          <p className="flex items-center gap-2 text-sm font-normal">
+          <p className="flex items-center gap-2 text-sm font-normal text-foreground/90">
             <IconCpu
               size={14}
               strokeWidth={1.6}

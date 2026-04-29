@@ -118,9 +118,6 @@ export function useStudioAppState() {
       authStatus?.availableModels.map((model) => ({
         id: model.id,
         name: model.label,
-        version: model.contextWindow
-          ? `${Math.round(model.contextWindow / 1000)}k`
-          : undefined,
         provider: model.provider,
         providerLabel: formatProviderDisplayName(
           model.provider,

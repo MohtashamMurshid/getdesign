@@ -3,7 +3,7 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { IconCheck, IconChevronDown, IconCpu } from "@tabler/icons-react";
 import type { ModelOption } from "../types";
-import { stripProviderPrefix } from "@/lib/format-model-label";
+import { formatModelPickerLabel } from "@/lib/format-model-label";
 import { formatProviderDisplayName } from "@/lib/format-provider-label";
 import { getProviderLogo } from "@/lib/provider-logo";
 import { cn } from "@/lib/utils";
@@ -148,19 +148,14 @@ export const ModelPicker = memo(function ModelPicker({
           ) : null}
           <span
             className="min-w-0 truncate font-normal"
-            title={activeModel?.name}
+            title={activeModel ? formatModelPickerLabel(activeModel.name, activeModel.provider) : undefined}
           >
             {activeModel
               ? truncateName(
-                  stripProviderPrefix(activeModel.name, activeModel.provider),
+                  formatModelPickerLabel(activeModel.name, activeModel.provider),
                 )
               : placeholder}
           </span>
-          {activeModel?.version ? (
-            <span className="shrink-0 font-light text-foreground/25">
-              {activeModel.version}
-            </span>
-          ) : null}
           <IconChevronDown className="size-3 shrink-0 text-foreground/40" />
         </button>
       }
@@ -194,10 +189,7 @@ export const ModelPicker = memo(function ModelPicker({
                     size={13}
                   />
                   <span className="min-w-0 flex-1 truncate">
-                    {stripProviderPrefix(model.name, model.provider)}
-                    {model.version ? (
-                      <span className="font-light text-foreground/40"> {model.version}</span>
-                    ) : null}
+                    {formatModelPickerLabel(model.name, model.provider)}
                   </span>
                   {isActive ? (
                     <IconCheck className="size-3.5 shrink-0 text-foreground/60" />
@@ -240,18 +232,20 @@ export const ModelBadge = memo(function ModelBadge({
           size={13}
         />
       ) : null}
-      <span className="font-normal" title={activeModel?.name}>
+      <span
+        className="font-normal"
+        title={
+          activeModel
+            ? formatModelPickerLabel(activeModel.name, activeModel.provider)
+            : undefined
+        }
+      >
         {activeModel
           ? truncateName(
-              stripProviderPrefix(activeModel.name, activeModel.provider),
+              formatModelPickerLabel(activeModel.name, activeModel.provider),
             )
           : placeholder}
       </span>
-      {activeModel?.version && (
-        <span className="ml-0.5 font-light text-foreground/25">
-          {activeModel.version}
-        </span>
-      )}
     </div>
   );
 });

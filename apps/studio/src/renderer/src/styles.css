@@ -8,6 +8,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --canvas: oklch(0.97 0 0);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --border: oklch(0.922 0 0);
@@ -86,6 +87,7 @@ body,
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-canvas: var(--canvas);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -96,7 +98,8 @@ body,
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
+  --canvas: oklch(0.11 0 0);
+  --background: oklch(0.165 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -173,8 +176,8 @@ body,
   --sidebar-border: oklch(0.95 0 0);
 }
 .dark {
-  --border: oklch(1 0 0 / 7%);
-  --sidebar-border: oklch(1 0 0 / 7%);
+  --border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 0 0 / 10%);
 }
 
 @keyframes studio-shimmer {
