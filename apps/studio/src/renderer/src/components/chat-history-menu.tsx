@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   IconCheck,
   IconHistory,
@@ -35,13 +35,6 @@ export function ChatHistoryMenu({
   const [editingId, setEditingId] = useState<string | undefined>();
   const [editingTitle, setEditingTitle] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const activeTitle = useMemo(
-    () =>
-      sessions.find((session) => session.id === activeSessionId)?.title ??
-      "New chat",
-    [sessions, activeSessionId],
-  );
 
   useEffect(() => {
     if (!open) return;
@@ -93,13 +86,13 @@ export function ChatHistoryMenu({
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className="h-8 max-w-[180px] justify-start gap-2 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
         onClick={() => setOpen((value) => !value)}
         title="Chat history"
+        aria-label="Chat history"
       >
         <IconHistory size={15} strokeWidth={1.6} />
-        <span className="truncate">{activeTitle}</span>
       </Button>
 
       {open ? (

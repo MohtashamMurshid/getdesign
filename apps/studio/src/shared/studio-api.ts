@@ -228,7 +228,6 @@ export type StudioApi = {
   addCustomModel: (input: StudioAddCustomModelInput) => Promise<StudioAuthStatus>;
   removeCustomModel: (input: StudioRemoveCustomModelInput) => Promise<StudioAuthStatus>;
   listDecks: () => Promise<StudioDeckProject[]>;
-  createMockArtifact: () => Promise<StudioDeckProject>;
   createDeck: (input?: StudioCreateDeckInput) => Promise<StudioDeckProject>;
   getDeck: (deckId: string) => Promise<StudioDeckProject>;
   openDeck: (deckId: string) => Promise<void>;

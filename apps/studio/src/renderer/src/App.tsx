@@ -3,6 +3,7 @@ import type { ChatStatus } from "ai";
 import {
   IconPlus,
   IconLayoutSidebarRightExpand,
+  IconRefresh,
   IconSettings,
 } from "@tabler/icons-react";
 
@@ -10,7 +11,6 @@ import { InputBar } from "./components/agent-elements/input-bar";
 import { Conversation } from "./components/conversation";
 import { Suggestions } from "./components/agent-elements/input/suggestions";
 import { ModelPicker } from "./components/agent-elements/input/model-picker";
-import { ModeSelector } from "./components/agent-elements/input/mode-selector";
 import { AuthLanding } from "./components/auth-landing";
 import { ChatHistoryMenu } from "./components/chat-history-menu";
 import { DeckWorkspace } from "./components/deck-workspace";
@@ -390,19 +390,6 @@ export default function App() {
     }
   }
 
-  async function handleCreateMockArtifact() {
-    try {
-      setError(undefined);
-      const deck = await window.api.createMockArtifact();
-      const nextDecks = await window.api.listDecks();
-      setDecks(nextDecks.length > 0 ? nextDecks : [deck]);
-      setUserSelectedDeckId(deck.id);
-    } catch (nextError) {
-      setError(toErrorMessage(nextError));
-      throw nextError;
-    }
-  }
-
   async function handleExportDeck(
     deckId: string,
     format: StudioDeckExportFormat,
@@ -465,66 +452,75 @@ export default function App() {
   }
 
   return (
-    <main className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-      <header className="flex items-center justify-between gap-3 bg-background/80 px-4 py-2 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <Logo size="sm" />
-        </div>
-        <div className="flex items-center gap-1">
-          {!isArtifactOpen ? (
+    <main className="flex h-full overflow-hidden bg-background text-foreground">
+      <aside className="flex min-h-0 w-[30%] min-w-[320px] max-w-[460px] flex-col border-r border-border bg-background">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
+          <div className="flex items-center gap-3">
+            <Logo size="sm" />
+          </div>
+          <div className="flex items-center gap-1">
+            {!isArtifactOpen ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsArtifactOpen(true)}
+                aria-label="Open artifact"
+                title="Open artifact"
+              >
+                <IconLayoutSidebarRightExpand size={18} />
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setIsArtifactOpen(true)}
-              aria-label="Open artifact"
-              title="Open artifact"
+              onClick={refresh}
+              aria-label="Refresh"
+              title="Refresh"
             >
-              <IconLayoutSidebarRightExpand size={18} />
+              <IconRefresh size={17} />
             </Button>
-          ) : null}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleNewChat}
-            disabled={conversation.messages.length === 0}
-            aria-label="New chat"
-            title="New chat"
-          >
-            <IconPlus size={18} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setView("settings")}
-            aria-label="Settings"
-            title="Settings"
-          >
-            <IconSettings size={18} />
-          </Button>
-        </div>
-      </header>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNewChat}
+              disabled={conversation.messages.length === 0}
+              aria-label="New chat"
+              title="New chat"
+            >
+              <IconPlus size={18} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setView("settings")}
+              aria-label="Settings"
+              title="Settings"
+            >
+              <IconSettings size={18} />
+            </Button>
+          </div>
+        </header>
 
-      {(error || authStatus?.setupHint) && (
-        <div className="mx-auto w-full max-w-3xl px-4 pt-3">
-          {error ? (
-            <Card className="mb-2 border-destructive/40 bg-destructive/10">
-              <CardContent className="py-3 text-sm text-destructive">
-                {error}
-              </CardContent>
-            </Card>
-          ) : null}
-          {authStatus?.setupHint ? (
-            <Card className="mb-2 border-accent/40 bg-accent/10">
-              <CardContent className="py-3 text-sm">
-                {authStatus.setupHint}
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
-      )}
+        {(error || authStatus?.setupHint) && (
+          <div className="px-4 pt-3">
+            {error ? (
+              <Card className="mb-2 border-destructive/40 bg-destructive/10">
+                <CardContent className="py-3 text-sm text-destructive">
+                  {error}
+                </CardContent>
+              </Card>
+            ) : null}
+            {authStatus?.setupHint ? (
+              <Card className="mb-2 border-accent/40 bg-accent/10">
+                <CardContent className="py-3 text-sm">
+                  {authStatus.setupHint}
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
+        )}
 
-      <section className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {conversation.messages.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center px-6">
               <h1 className="text-balance text-center text-3xl font-light tracking-tight text-foreground/90">
@@ -571,6 +567,11 @@ export default function App() {
             disabled={displayedModels.length === 0}
             leftActions={
               <>
+                <ModelPicker
+                  models={displayedModels}
+                  value={selectedModelId}
+                  onChange={handleModelChange}
+                />
                 <ChatHistoryMenu
                   sessions={chatSessions}
                   activeSessionId={conversation.id}
@@ -579,35 +580,26 @@ export default function App() {
                   onDelete={handleDeleteChatSession}
                   onNewChat={handleNewChat}
                 />
-                <ModelPicker
-                  models={displayedModels}
-                  value={selectedModelId}
-                  onChange={handleModelChange}
-                />
-                <ModeSelector
-                  modes={[
-                    { id: "chat", label: "Chat" },
-                    { id: "deck-plan", label: "Deck plan" },
-                  ]}
-                  value="chat"
-                />
               </>
             }
           />
         </div>
-        {isArtifactOpen ? (
-          <DeckWorkspace
-            decks={decks}
-            selectedDeckId={selectedDeckId}
-            status={conversation.status}
-            onClose={() => setIsArtifactOpen(false)}
-            onSelectDeck={setUserSelectedDeckId}
-            onOpenDeck={handleOpenDeck}
-            onExportDeck={handleExportDeck}
-            onCreateMockArtifact={handleCreateMockArtifact}
-          />
-        ) : null}
-      </section>
+      </aside>
+      {isArtifactOpen ? (
+        <DeckWorkspace
+          decks={decks}
+          selectedDeckId={selectedDeckId}
+          status={conversation.status}
+          onClose={() => setIsArtifactOpen(false)}
+          onSelectDeck={setUserSelectedDeckId}
+          onOpenDeck={handleOpenDeck}
+          onExportDeck={handleExportDeck}
+        />
+      ) : (
+        <section className="flex min-w-0 flex-1 items-center justify-center bg-muted/20 text-sm text-muted-foreground">
+          Open an artifact to preview generated design files.
+        </section>
+      )}
     </main>
   );
 }

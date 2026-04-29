@@ -102,32 +102,6 @@ export class StudioDeckService {
     return withPreviewUrl(manifest);
   }
 
-  async createMockArtifact(artifactId: string): Promise<StudioDeckProject> {
-    const artifactPath = await this.ensureArtifactWorkspace(artifactId);
-    const now = Date.now();
-    const manifest: StoredDeckManifest = {
-      id: artifactId,
-      title: "Mock Preview Artifact",
-      mode: "freeform",
-      path: artifactPath,
-      indexFile: join(artifactPath, "index.html"),
-      createdAt: now,
-      updatedAt: now,
-      slides: [
-        {
-          id: "mock-html",
-          file: "index.html",
-          label: "Mock HTML",
-          title: "Mock Preview Artifact",
-        },
-      ],
-    };
-
-    await writeFile(manifest.indexFile, renderMockArtifactHtml(), "utf8");
-    await writeManifest(artifactPath, manifest);
-    return withPreviewUrl(manifest);
-  }
-
   async readDeck(deckId: string): Promise<StudioDeckProject> {
     const deckPath = join(this.rootDir, safeDeckId(deckId));
     const raw = await readFile(join(deckPath, "deck.json"), "utf8");
@@ -457,57 +431,6 @@ ${manifest}
   show(current);
 })();
 </script>
-</body>
-</html>
-`;
-}
-
-function renderMockArtifactHtml() {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Studio Mock Preview</title>
-<style>
-  * { box-sizing: border-box; }
-  html, body { margin: 0; min-height: 100%; }
-  body {
-    display: grid;
-    place-items: center;
-    min-height: 100vh;
-    background:
-      radial-gradient(circle at 20% 10%, rgba(132, 204, 22, 0.28), transparent 32%),
-      radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.24), transparent 30%),
-      #09090b;
-    color: white;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  }
-  main {
-    width: min(780px, calc(100vw - 48px));
-    border: 1px solid rgba(255,255,255,.16);
-    border-radius: 28px;
-    padding: 42px;
-    background: rgba(255,255,255,.08);
-    box-shadow: 0 28px 90px rgba(0,0,0,.42);
-    backdrop-filter: blur(18px);
-  }
-  p { margin: 0; color: rgba(255,255,255,.72); font-size: 18px; line-height: 1.6; }
-  .eyebrow { margin-bottom: 16px; color: #bef264; font-size: 13px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
-  h1 { margin: 0 0 18px; font-size: clamp(48px, 8vw, 92px); line-height: .92; letter-spacing: -.06em; }
-  .badge { display: inline-flex; margin-top: 28px; border-radius: 999px; background: rgba(255,255,255,.12); padding: 10px 14px; color: white; font-size: 14px; }
-</style>
-</head>
-<body>
-  <main>
-    <p class="eyebrow">Studio preview protocol test</p>
-    <h1>Mock HTML artifact loaded.</h1>
-    <p>
-      This file was written into the current Studio artifact workspace and is served through
-      <code>studio-artifact://</code>, the same preview path used for Pi-generated HTML.
-    </p>
-    <div class="badge">If you can read this, iframe preview works.</div>
-  </main>
 </body>
 </html>
 `;

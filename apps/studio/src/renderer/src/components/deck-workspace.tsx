@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import {
+  IconChevronRight,
   IconExternalLink,
   IconFileExport,
   IconFileTypePdf,
   IconFileTypePpt,
   IconLayoutSidebarRightCollapse,
   IconLayoutBoard,
-  IconPlayerPlay,
   IconRefresh,
 } from "@tabler/icons-react";
 
@@ -33,7 +33,6 @@ type DeckWorkspaceProps = {
     deckId: string,
     format: StudioDeckExportFormat,
   ) => Promise<StudioExportDeckResult>;
-  onCreateMockArtifact: () => Promise<void>;
 };
 
 export function DeckWorkspace({
@@ -44,7 +43,6 @@ export function DeckWorkspace({
   onSelectDeck,
   onOpenDeck,
   onExportDeck,
-  onCreateMockArtifact,
 }: DeckWorkspaceProps) {
   const [exportMessage, setExportMessage] = useState<string | undefined>();
   const [previewKey, setPreviewKey] = useState(0);
@@ -54,6 +52,9 @@ export function DeckWorkspace({
     () => decks.find((deck) => deck.id === selectedDeckId),
     [decks, selectedDeckId],
   );
+  const selectedDeckFolderName = selectedDeck
+    ? selectedDeck.path.split("/").filter(Boolean).slice(-1)[0]
+    : undefined;
   const previewSrc = selectedDeck
     ? `${selectedDeck.previewUrl}?v=${selectedDeck.updatedAt}-${previewKey}`
     : undefined;
@@ -65,18 +66,53 @@ export function DeckWorkspace({
   }
 
   return (
-    <aside className="flex min-h-0 w-[42%] min-w-[420px] flex-col border-l border-border bg-background">
-      <div className="px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-medium">Preview</h2>
-            <p className="text-xs font-light text-muted-foreground">
-              Agent-generated HTML decks appear here.
-            </p>
-          </div>
+    <aside className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="rounded border border-border bg-muted/40 px-2 py-1 text-xs font-medium">
+            Design Files
+          </span>
           <Button
             variant="ghost"
             size="icon"
+            className="h-7 w-7"
+            onClick={() => {
+              setPreviewError(undefined);
+              setPreviewKey((key) => key + 1);
+            }}
+            aria-label="Reload artifact"
+            title="Reload artifact"
+          >
+            <IconRefresh size={14} />
+          </Button>
+          <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <span className="truncate">project</span>
+            {selectedDeck ? (
+              <>
+                <IconChevronRight size={13} />
+                <span className="truncate" title={selectedDeck.path}>
+                  {selectedDeckFolderName}
+                </span>
+              </>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {selectedDeck ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => onOpenDeck(selectedDeck.id)}
+            >
+              <IconExternalLink size={14} />
+              Folder
+            </Button>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
             onClick={onClose}
             aria-label="Close artifact"
             title="Close artifact"
@@ -97,35 +133,6 @@ export function DeckWorkspace({
                 <p className="text-xs font-light text-muted-foreground">
                   {selectedDeck.slides.length} slides · {selectedDeck.mode}
                 </p>
-              </div>
-              <div className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onCreateMockArtifact}
-                >
-                  <IconPlayerPlay size={15} />
-                  Mock
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenDeck(selectedDeck.id)}
-                >
-                  <IconExternalLink size={15} />
-                  Folder
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setPreviewError(undefined);
-                    setPreviewKey((key) => key + 1);
-                  }}
-                >
-                  <IconRefresh size={15} />
-                  Reload
-                </Button>
               </div>
             </div>
 
@@ -214,14 +221,6 @@ export function DeckWorkspace({
                 Ask the agent to create a deck. The generated HTML artifact will
                 preview here.
               </p>
-              <Button
-                variant="secondary"
-                className="mt-4"
-                onClick={onCreateMockArtifact}
-              >
-                <IconPlayerPlay size={15} />
-                Load Mock HTML
-              </Button>
             </div>
           </div>
         )}
