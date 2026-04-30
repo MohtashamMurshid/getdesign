@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
 
 import { JsonLd } from "./_components/json-ld";
+import { ThemeProvider } from "./_components/theme-provider";
 import {
   SITE_DOMAIN,
   SITE_GETDESIGN_URL,
@@ -133,10 +134,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geist.variable} ${jetbrains.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        {children}
+      <body className="flex min-h-full flex-col">
+        <ThemeProvider>{children}</ThemeProvider>
         <JsonLd data={jsonLd} />
       </body>
     </html>

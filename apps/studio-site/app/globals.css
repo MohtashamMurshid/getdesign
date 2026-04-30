@@ -14,20 +14,19 @@
   --accent-foreground: #fafaf8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0b;
-    --surface: #141417;
-    --surface-muted: #1a1a1e;
-    --foreground: #ededee;
-    --muted: rgba(237, 237, 238, 0.6);
-    --subtle: rgba(237, 237, 238, 0.38);
-    --faint: rgba(237, 237, 238, 0.1);
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.16);
-    --accent: #ededee;
-    --accent-foreground: #0a0a0b;
-  }
+html.dark {
+  color-scheme: dark;
+  --background: #0a0a0b;
+  --surface: #141417;
+  --surface-muted: #1a1a1e;
+  --foreground: #ededee;
+  --muted: rgba(237, 237, 238, 0.6);
+  --subtle: rgba(237, 237, 238, 0.38);
+  --faint: rgba(237, 237, 238, 0.1);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --accent: #ededee;
+  --accent-foreground: #0a0a0b;
 }
 
 @theme inline {
@@ -49,6 +48,7 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 88px;
+  color-scheme: light;
 }
 
 html,
@@ -202,11 +202,9 @@ samp,
     0 8px 18px -8px rgba(10, 10, 11, 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  .hero-shadow {
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.04),
-      0 30px 80px -20px rgba(0, 0, 0, 0.7),
-      0 8px 18px -8px rgba(0, 0, 0, 0.5);
-  }
+html.dark .hero-shadow {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04),
+    0 30px 80px -20px rgba(0, 0, 0, 0.7),
+    0 8px 18px -8px rgba(0, 0, 0, 0.5);
 }

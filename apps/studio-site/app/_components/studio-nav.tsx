@@ -6,6 +6,7 @@ import {
 import { formatCount } from "../_lib/releases";
 import { DownloadButtonComingSoon } from "./download-button-coming-soon";
 import { GitHubIcon, StarIcon } from "./icons";
+import { ThemeToggle } from "./theme-toggle";
 import { StudioWordmark } from "./studio-mark";
 
 const NAV_IN_PAGE: { href: string; label: string }[] = [
@@ -43,6 +44,7 @@ export function StudioNav({ stars }: StudioNavProps) {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 pr-1">
+          <ThemeToggle />
           <a
             href={SITE_GITHUB_URL}
             target="_blank"
