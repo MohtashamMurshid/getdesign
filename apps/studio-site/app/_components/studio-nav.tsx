@@ -1,9 +1,7 @@
 import Link from "next/link";
 
 import {
-  SITE_GETDESIGN_URL,
   SITE_GITHUB_URL,
-  SITE_RELEASES_URL,
 } from "../_lib/site";
 import { formatCount } from "../_lib/releases";
 import { DownloadButtonComingSoon } from "./download-button-coming-soon";
@@ -15,12 +13,6 @@ const NAV_IN_PAGE: { href: string; label: string }[] = [
   { href: "#providers", label: "Providers" },
   { href: "#features", label: "Features" },
   { href: "#workflow", label: "Workflow" },
-  { href: "#get-started", label: "Get started" },
-];
-
-const NAV_EXTERNAL: { href: string; label: string }[] = [
-  { href: SITE_GETDESIGN_URL, label: "getdesign" },
-  { href: SITE_RELEASES_URL, label: "Releases" },
 ];
 
 type StudioNavProps = {
@@ -43,17 +35,6 @@ export function StudioNav({ stars }: StudioNavProps) {
             <a
               key={item.href}
               href={item.href}
-              className="nav-link shrink-0 rounded-md px-2 py-2 text-[0.8125rem] font-medium lg:px-2.5 lg:text-[0.875rem]"
-            >
-              {item.label}
-            </a>
-          ))}
-          {NAV_EXTERNAL.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              target="_blank"
-              rel="noreferrer"
               className="nav-link shrink-0 rounded-md px-2 py-2 text-[0.8125rem] font-medium lg:px-2.5 lg:text-[0.875rem]"
             >
               {item.label}
