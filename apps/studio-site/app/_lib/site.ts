@@ -3,7 +3,10 @@ export const SITE_SHORT_NAME = "Studio";
 export const SITE_PARENT = "getdesign";
 export const SITE_TAGLINE =
   "the open-source, HTML-first AI design partner";
-export const SITE_DOMAIN = "https://studio.getdesign.app";
+
+/** Production hostname (Vercel custom domain). */
+export const SITE_HOST = "studio.getdesign.app";
+export const SITE_DOMAIN = `https://${SITE_HOST}`;
 export const SITE_GETDESIGN_URL = "https://www.getdesign.app";
 export const SITE_GITHUB_URL =
   "https://github.com/MohtashamMurshid/getdesign";
