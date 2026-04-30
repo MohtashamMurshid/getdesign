@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 40" fill="none">
+  <rect x="-8" y="-8" width="76" height="56" rx="10" fill="#0a0a0b"/>
+  <path d="M11 5 L4 5 L4 35 L11 35" stroke="#f5f4f0" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M49 5 L56 5 L56 35 L49 35" stroke="#f5f4f0" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter"/>
+  <text x="30" y="28" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" font-weight="600" letter-spacing="-1" fill="#f5f4f0">md</text>
+</svg>
