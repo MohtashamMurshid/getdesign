@@ -54,6 +54,14 @@ export default function App() {
     handleOpenChatSession,
     handleOpenDeck,
     handleExportDeck,
+    cursorAuth,
+    cursorApiKeyDraft,
+    setCursorApiKeyDraft,
+    cursorBusy,
+    cursorError,
+    handleCursorLogin,
+    handleCursorLogout,
+    handleOpenCursorDashboard,
     constants,
   } = studio;
 
@@ -82,6 +90,14 @@ export default function App() {
         onAddCustomProvider={handleAddCustomProvider}
         customProviderApiOptions={constants.customProviderApiOptions}
         onRefresh={refresh}
+        cursorAuth={cursorAuth}
+        cursorApiKeyDraft={cursorApiKeyDraft}
+        setCursorApiKeyDraft={setCursorApiKeyDraft}
+        cursorBusy={cursorBusy}
+        cursorError={cursorError}
+        onCursorLogin={handleCursorLogin}
+        onCursorLogout={handleCursorLogout}
+        onOpenCursorDashboard={handleOpenCursorDashboard}
       />
     );
   }
@@ -114,6 +130,14 @@ export default function App() {
         onBack={() => setView("chat")}
         onRefresh={refresh}
         error={error}
+        cursorAuth={cursorAuth}
+        cursorApiKeyDraft={cursorApiKeyDraft}
+        setCursorApiKeyDraft={setCursorApiKeyDraft}
+        cursorBusy={cursorBusy}
+        cursorError={cursorError}
+        onCursorLogin={handleCursorLogin}
+        onCursorLogout={handleCursorLogout}
+        onOpenCursorDashboard={handleOpenCursorDashboard}
       />
     );
   }

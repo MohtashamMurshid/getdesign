@@ -12,6 +12,7 @@ import type {
   StudioAuthStatus,
   StudioChatSessionSummary,
   StudioConversationSnapshot,
+  StudioCursorAuthStatus,
   StudioDeckExportFormat,
   StudioDeckProject,
 } from "../../../shared/studio-api";
@@ -40,6 +41,13 @@ export function useStudioAppState() {
   const [apiKey, setApiKey] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [error, setError] = useState<string | undefined>();
+  const [cursorAuth, setCursorAuth] = useState<StudioCursorAuthStatus>({
+    signedIn: false,
+    status: "idle",
+  });
+  const [cursorApiKeyDraft, setCursorApiKeyDraft] = useState("");
+  const [cursorBusy, setCursorBusy] = useState(false);
+  const [cursorError, setCursorError] = useState<string | undefined>();
   const [visibleModelIds, setVisibleModelIds] = useState<string[]>(() => {
     const raw = localStorage.getItem("studio.visibleModelIds");
     if (!raw) return [];
@@ -61,9 +69,10 @@ export function useStudioAppState() {
   const refresh = useCallback(async () => {
     try {
       setError(undefined);
-      const [nextAuth, nextConversation] = await Promise.all([
+      const [nextAuth, nextConversation, nextCursorAuth] = await Promise.all([
         window.api.getAuthStatus(),
         window.api.getConversation(),
+        window.api.getCursorAuth(),
       ]);
       const [nextDecks, nextSessions] = await Promise.all([
         window.api.listDecks(),
@@ -76,6 +85,7 @@ export function useStudioAppState() {
       setChatSessions(nextSessions);
       setUserSelectedDeckId(undefined);
       setSelectedModelId((current) => current || nextAuth.selectedModelId || "");
+      setCursorAuth(nextCursorAuth);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     } finally {
@@ -106,6 +116,12 @@ export function useStudioAppState() {
       }
       if (event.type === "sessions") {
         setChatSessions(event.payload);
+      }
+      if (event.type === "cursor-auth") {
+        setCursorAuth(event.payload);
+        if (event.payload.status === "ready") {
+          setCursorError(undefined);
+        }
       }
     });
 
@@ -425,6 +441,47 @@ export function useStudioAppState() {
     [],
   );
 
+  const handleCursorLogin = useCallback(async () => {
+    const trimmed = cursorApiKeyDraft.trim();
+    if (!trimmed) return;
+    setCursorBusy(true);
+    setCursorError(undefined);
+    try {
+      const next = await window.api.cursorLogin({ apiKey: trimmed });
+      setCursorAuth(next);
+      setCursorApiKeyDraft("");
+    } catch (nextError) {
+      setCursorError(toErrorMessage(nextError));
+    } finally {
+      setCursorBusy(false);
+    }
+  }, [cursorApiKeyDraft]);
+
+  const handleCursorLogout = useCallback(async () => {
+    const ok = window.confirm(
+      "Sign out of Cursor? Your stored API key will be removed from this device.",
+    );
+    if (!ok) return;
+    setCursorBusy(true);
+    setCursorError(undefined);
+    try {
+      const next = await window.api.cursorLogout();
+      setCursorAuth(next);
+    } catch (nextError) {
+      setCursorError(toErrorMessage(nextError));
+    } finally {
+      setCursorBusy(false);
+    }
+  }, []);
+
+  const handleOpenCursorDashboard = useCallback(async () => {
+    try {
+      await window.api.openCursorDashboard();
+    } catch (nextError) {
+      setCursorError(toErrorMessage(nextError));
+    }
+  }, []);
+
   return {
     view,
     setView,
@@ -472,6 +529,14 @@ export function useStudioAppState() {
     handleOpenChatSession,
     handleOpenDeck,
     handleExportDeck,
+    cursorAuth,
+    cursorApiKeyDraft,
+    setCursorApiKeyDraft,
+    cursorBusy,
+    cursorError,
+    handleCursorLogin,
+    handleCursorLogout,
+    handleOpenCursorDashboard,
     constants: {
       byokProviderOptions: BYOK_PROVIDER_OPTIONS,
       customProviderApiOptions: CUSTOM_PROVIDER_API_OPTIONS,

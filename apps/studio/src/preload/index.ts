@@ -4,6 +4,7 @@ import type {
   StudioAddCustomProviderInput,
   StudioApi,
   StudioCreateDeckInput,
+  StudioCursorLoginInput,
   StudioDeleteChatSessionInput,
   StudioEvent,
   StudioExportDeckInput,
@@ -58,6 +59,11 @@ const api: StudioApi = {
   revealPath: (path: string) => ipcRenderer.invoke("studio:reveal-path", path),
   exportDeck: (input: StudioExportDeckInput) =>
     ipcRenderer.invoke("studio:export-deck", input),
+  getCursorAuth: () => ipcRenderer.invoke("studio:cursor-get-auth"),
+  cursorLogin: (input: StudioCursorLoginInput) =>
+    ipcRenderer.invoke("studio:cursor-login", input),
+  cursorLogout: () => ipcRenderer.invoke("studio:cursor-logout"),
+  openCursorDashboard: () => ipcRenderer.invoke("studio:cursor-open-dashboard"),
   onStudioEvent: (listener: (event: StudioEvent) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, payload: StudioEvent) => {
       listener(payload);

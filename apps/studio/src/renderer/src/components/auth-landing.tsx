@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   IconCheck,
   IconChevronRight,
+  IconExternalLink,
   IconKey,
 } from "@tabler/icons-react";
 
@@ -21,6 +22,7 @@ import { getProviderLogo } from "../lib/provider-logo";
 import type {
   StudioAddCustomProviderInput,
   StudioAuthStatus,
+  StudioCursorAuthStatus,
   StudioCustomProviderApi,
 } from "../../../shared/studio-api";
 import type { OauthCard } from "../studio/oauth-cards";
@@ -45,6 +47,14 @@ export function AuthLanding({
   onRuntimeKey,
   onAddCustomProvider,
   customProviderApiOptions,
+  cursorAuth,
+  cursorApiKeyDraft,
+  setCursorApiKeyDraft,
+  cursorBusy,
+  cursorError,
+  onCursorLogin,
+  onCursorLogout,
+  onOpenCursorDashboard,
 }: {
   previewMode?: boolean;
   onExitPreview?: () => void;
@@ -64,9 +74,18 @@ export function AuthLanding({
   onAddCustomProvider: (input: StudioAddCustomProviderInput) => Promise<void>;
   customProviderApiOptions: { value: StudioCustomProviderApi; label: string }[];
   onRefresh: () => void;
+  cursorAuth: StudioCursorAuthStatus;
+  cursorApiKeyDraft: string;
+  setCursorApiKeyDraft: (value: string) => void;
+  cursorBusy: boolean;
+  cursorError?: string;
+  onCursorLogin: () => void;
+  onCursorLogout: () => void;
+  onOpenCursorDashboard: () => void;
 }) {
   const [showByok, setShowByok] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
+  const [showCursor, setShowCursor] = useState(false);
 
   return (
     <main className="relative flex min-h-full items-center justify-center overflow-y-auto bg-background px-6 py-12 text-foreground">
@@ -100,6 +119,27 @@ export function AuthLanding({
             {error}
           </div>
         ) : null}
+
+        <CursorLoginCard
+          cursorAuth={cursorAuth}
+          apiKeyDraft={cursorApiKeyDraft}
+          setApiKeyDraft={setCursorApiKeyDraft}
+          busy={cursorBusy}
+          error={cursorError}
+          expanded={showCursor}
+          setExpanded={setShowCursor}
+          onLogin={onCursorLogin}
+          onLogout={onCursorLogout}
+          onOpenDashboard={onOpenCursorDashboard}
+        />
+
+        <div className="my-6 flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            or
+          </span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
 
         <div className="space-y-2">
           {oauthProviderCards.length > 0 ? (
@@ -327,6 +367,148 @@ function LoginStateCard({
       {authStatus.login.error ? (
         <p className="text-xs text-destructive">{authStatus.login.error}</p>
       ) : null}
+    </div>
+  );
+}
+
+function CursorLoginCard({
+  cursorAuth,
+  apiKeyDraft,
+  setApiKeyDraft,
+  busy,
+  error,
+  expanded,
+  setExpanded,
+  onLogin,
+  onLogout,
+  onOpenDashboard,
+}: {
+  cursorAuth: StudioCursorAuthStatus;
+  apiKeyDraft: string;
+  setApiKeyDraft: (value: string) => void;
+  busy: boolean;
+  error?: string;
+  expanded: boolean;
+  setExpanded: (value: boolean) => void;
+  onLogin: () => void;
+  onLogout: () => void;
+  onOpenDashboard: () => void;
+}) {
+  const account = cursorAuth.account;
+  const displayName =
+    account?.userFirstName || account?.userLastName
+      ? [account?.userFirstName, account?.userLastName]
+          .filter(Boolean)
+          .join(" ")
+      : account?.userEmail;
+
+  if (cursorAuth.signedIn) {
+    return (
+      <div className="rounded-xl border border-border bg-card px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              aria-hidden
+              className="inline-flex size-[28px] shrink-0 items-center justify-center rounded-md bg-foreground text-[12px] font-semibold uppercase text-background"
+            >
+              C
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">
+                Signed in to Cursor
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {displayName ?? cursorAuth.apiKeyHint ?? "Personal API key"}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onLogout}
+            disabled={busy}
+          >
+            Sign out
+          </Button>
+        </div>
+        {error ? (
+          <p className="mt-2 text-xs text-destructive">{error}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/40"
+      >
+        <span
+          aria-hidden
+          className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] bg-foreground text-[10px] font-semibold uppercase text-background"
+        >
+          C
+        </span>
+        <span className="flex-1 text-sm font-medium">Continue with Cursor</span>
+        <IconChevronRight
+          size={16}
+          className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
+        />
+      </button>
+    );
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Sign in with Cursor</p>
+        <p className="text-xs text-muted-foreground">
+          Paste a personal API key from cursor.com to authorize Studio's Cursor
+          SDK runs on this device.
+        </p>
+      </div>
+      <Input
+        type="password"
+        value={apiKeyDraft}
+        onChange={(event) => setApiKeyDraft(event.target.value)}
+        placeholder="cursor_..."
+        autoComplete="off"
+        spellCheck={false}
+        disabled={busy}
+      />
+      {error ? (
+        <p className="text-xs text-destructive">{error}</p>
+      ) : null}
+      <Button
+        type="button"
+        className="w-full"
+        size="sm"
+        onClick={onLogin}
+        disabled={!apiKeyDraft.trim() || busy}
+      >
+        <IconKey size={14} />
+        {busy ? "Verifying..." : "Sign in with Cursor"}
+      </Button>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          className="text-xs text-muted-foreground hover:text-foreground"
+          onClick={() => setExpanded(false)}
+        >
+          Hide
+        </button>
+        <button
+          type="button"
+          onClick={onOpenDashboard}
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <IconExternalLink size={12} />
+          Get an API key
+        </button>
+      </div>
     </div>
   );
 }

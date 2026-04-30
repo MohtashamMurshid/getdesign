@@ -2,6 +2,7 @@ import type {
   StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
   StudioAuthStatus,
+  StudioCursorAuthStatus,
   StudioCustomProviderApi,
 } from "../../../../shared/studio-api";
 import type { OauthCard } from "../../studio/oauth-cards";
@@ -46,4 +47,12 @@ export type SettingsPageProps = {
   onBack: () => void;
   onRefresh: () => void;
   error?: string;
+  cursorAuth: StudioCursorAuthStatus;
+  cursorApiKeyDraft: string;
+  setCursorApiKeyDraft: (value: string) => void;
+  cursorBusy: boolean;
+  cursorError?: string;
+  onCursorLogin: () => void;
+  onCursorLogout: () => void;
+  onOpenCursorDashboard: () => void;
 };

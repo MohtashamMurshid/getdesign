@@ -4,6 +4,7 @@ import type { StudioCustomModelRow } from "../../../shared/studio-api";
 
 import { ByokCard, SessionCard } from "./settings/byok-and-session-cards";
 import { ConnectedProvidersCard } from "./settings/connected-providers-card";
+import { CursorAccountCard } from "./settings/cursor-account-card";
 import { CustomModelsCard } from "./settings/custom-models-card";
 import { SettingsHeader } from "./settings/settings-header";
 import { SettingsStatusAlerts } from "./settings/settings-status-alerts";
@@ -35,6 +36,14 @@ export function SettingsPage({
   onBack,
   onRefresh,
   error,
+  cursorAuth,
+  cursorApiKeyDraft,
+  setCursorApiKeyDraft,
+  cursorBusy,
+  cursorError,
+  onCursorLogin,
+  onCursorLogout,
+  onOpenCursorDashboard,
 }: SettingsPageProps) {
   const modelsByProviderId = useMemo(
     () => buildModelsByProviderId(models),
@@ -74,6 +83,17 @@ export function SettingsPage({
         <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6 sm:px-6">
           <div className="space-y-6">
             <SettingsStatusAlerts error={error} authStatus={authStatus} />
+
+            <CursorAccountCard
+              cursorAuth={cursorAuth}
+              apiKeyDraft={cursorApiKeyDraft}
+              setApiKeyDraft={setCursorApiKeyDraft}
+              busy={cursorBusy}
+              error={cursorError}
+              onLogin={onCursorLogin}
+              onLogout={onCursorLogout}
+              onOpenDashboard={onOpenCursorDashboard}
+            />
 
             <ConnectedProvidersCard
               authStatus={authStatus}

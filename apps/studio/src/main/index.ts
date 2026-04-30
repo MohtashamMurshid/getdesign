@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { initAutoUpdater } from "./updater";
 import { registerStudioIpc } from "./pi-service";
+import { registerCursorIpc } from "./cursor-service";
 
 const isDev = !app.isPackaged;
 const ARTIFACT_PROTOCOL = "studio-artifact";
@@ -35,6 +36,7 @@ function createWindow(): void {
 
   mainWindow.on("ready-to-show", () => mainWindow.show());
   registerStudioIpc(mainWindow);
+  registerCursorIpc(mainWindow);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
