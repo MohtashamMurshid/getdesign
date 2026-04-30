@@ -84,7 +84,7 @@ export function StudioScreenshot() {
   return (
     <section id="studio" className="relative w-full scroll-mt-20 pb-24">
       <div className="mx-auto w-full max-w-[1200px] px-5">
-        <div className="fade-in-up delay-5 hero-shadow overflow-hidden rounded-[18px] border border-black/10 bg-[#fafaf7] text-[#0a0a0b]">
+        <div className="fade-in-up delay-5 hero-shadow overflow-hidden rounded-[18px] border border-border bg-background text-foreground">
           <WindowChrome />
           <div className="grid grid-cols-1 md:grid-cols-[340px_1fr]">
             <ChatSidebar chat={chat} />
@@ -298,11 +298,11 @@ function computeDeckStream(ms: number, full: boolean): DeckStreams {
 
 function WindowChrome() {
   return (
-    <div className="flex items-center gap-2 border-b border-black/8 bg-[#ecebe6] px-4 py-2.5">
+    <div className="flex items-center gap-2 border-b border-border bg-surface-muted px-4 py-2.5">
       <span className="size-3 rounded-full bg-[#ff5f57]" />
       <span className="size-3 rounded-full bg-[#febc2e]" />
       <span className="size-3 rounded-full bg-[#28c840]" />
-      <div className="ml-3 flex items-center gap-2 text-[0.75rem] text-black/45">
+      <div className="ml-3 flex items-center gap-2 text-[0.75rem] text-subtle">
         <StudioMark size={14} />
         <span className="font-mono">getdesign Studio</span>
       </div>
@@ -312,16 +312,16 @@ function WindowChrome() {
 
 function ChatSidebar({ chat }: { chat: ChatStreams }) {
   return (
-    <aside className="flex min-h-[420px] flex-col gap-4 border-b border-black/8 bg-[#f4f3ee] p-4 md:min-h-[520px] md:border-b-0 md:border-r">
+    <aside className="flex min-h-[420px] flex-col gap-4 border-b border-border bg-surface-muted p-4 md:min-h-[520px] md:border-b-0 md:border-r">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <StudioMark size={16} />
           <span className="text-[0.78rem] font-medium tracking-tight">
-            <span className="text-black/55">get</span>
-            <span className="text-black">design</span>
+            <span className="text-muted">get</span>
+            <span className="text-foreground">design</span>
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-black/40">
+        <div className="flex items-center gap-1.5 text-subtle">
           <ChromeBtn>☀</ChromeBtn>
           <ChromeBtn>+</ChromeBtn>
           <ChromeBtn>⚙</ChromeBtn>
@@ -329,15 +329,15 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
         </div>
       </div>
 
-      <div className="self-end max-w-[88%] rounded-2xl rounded-tr-md border border-black/8 bg-white px-3 py-2 text-[0.78rem] leading-snug text-black/85">
+      <div className="self-end max-w-[88%] rounded-2xl rounded-tr-md border border-border bg-surface px-3 py-2 text-[0.78rem] leading-snug text-foreground/85">
         {chat.userMsg}
         {chat.userMsg.length < USER_MESSAGE.length && (
-          <span className="ml-px inline-block h-3 w-px animate-pulse bg-black/50 align-middle" />
+          <span className="ml-px inline-block h-3 w-px animate-pulse bg-foreground/50 align-middle" />
         )}
       </div>
 
       {chat.showThoughtLabel && (
-        <div className="fade-in-up text-[0.7rem] text-black/35">
+        <div className="fade-in-up text-[0.7rem] text-subtle">
           &gt; Thought
         </div>
       )}
@@ -349,7 +349,7 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
             status="ran"
             body={
               <span>
-                <span className="text-black/55">query:</span>{" "}
+                <span className="text-muted">query:</span>{" "}
                 {chat.searchQueryTyped}
                 {chat.searchQueryTyped.length < SEARCH_QUERY.length && (
                   <span className="ml-px inline-block h-2.5 w-px animate-pulse bg-emerald-600/70 align-middle" />
@@ -361,10 +361,10 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
       )}
 
       {chat.thoughtPara.length > 0 && (
-        <p className="text-[0.74rem] leading-relaxed text-black/55">
+        <p className="text-[0.74rem] leading-relaxed text-muted">
           {chat.thoughtPara}
           {chat.thoughtPara.length < THOUGHT_PARA.length && (
-            <span className="ml-px inline-block h-3 w-px animate-pulse bg-black/40 align-middle" />
+            <span className="ml-px inline-block h-3 w-px animate-pulse bg-foreground/40 align-middle" />
           )}
         </p>
       )}
@@ -376,11 +376,11 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
             status="ran"
             body={
               <span>
-                <span className="text-black/55">path:</span>{" "}
-                <span className="font-mono text-black/80">
+                <span className="text-muted">path:</span>{" "}
+                <span className="font-mono text-foreground/80">
                   slides/01-hero.html
                 </span>
-                <span className="text-black/35"> · 2.1 kB</span>
+                <span className="text-subtle"> · 2.1 kB</span>
               </span>
             }
           />
@@ -388,20 +388,12 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
       )}
 
       {(chat.outlineL1 || chat.outlineL2 || chat.outlineL3) && (
-        <div className="space-y-1.5 text-[0.78rem] leading-snug text-black/85">
+        <div className="space-y-1.5 text-[0.78rem] leading-snug text-foreground/85">
           {chat.outlineL1 ? (
-            <p className="font-semibold text-black">{chat.outlineL1}</p>
+            <p className="font-semibold text-foreground">{chat.outlineL1}</p>
           ) : null}
-          {chat.outlineL2 ? (
-            <p className="text-black/65">
-              <span className="text-black">{chat.outlineL2}</span>
-            </p>
-          ) : null}
-          {chat.outlineL3 ? (
-            <p className="text-black/65">
-              <span className="text-black">{chat.outlineL3}</span>
-            </p>
-          ) : null}
+          {chat.outlineL2 ? <p className="text-foreground">{chat.outlineL2}</p> : null}
+          {chat.outlineL3 ? <p className="text-foreground">{chat.outlineL3}</p> : null}
         </div>
       )}
 
@@ -412,8 +404,8 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
             status={chat.renderStreaming ? "streaming" : "ran"}
             body={
               <span>
-                <span className="text-black/55">deck:</span>{" "}
-                <span className="font-mono text-black/80">
+                <span className="text-muted">deck:</span>{" "}
+                <span className="font-mono text-foreground/80">
                   northwind-hero.html
                 </span>
                 {chat.renderStreaming && (
@@ -428,16 +420,16 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
         </div>
       )}
 
-      <div className="mt-auto rounded-xl border border-black/8 bg-white p-3">
-        <div className="text-[0.78rem] text-black/30">Message</div>
+      <div className="mt-auto rounded-xl border border-border bg-surface p-3">
+        <div className="text-[0.78rem] text-subtle">Message</div>
         <div className="mt-2 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 rounded-md border border-black/10 bg-[#f4f3ee] px-2 py-1 text-[0.7rem] text-black/65">
+          <div className="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface-muted px-2 py-1 text-[0.7rem] text-muted">
             <SiClaude size={12} className="shrink-0 text-[#D97757]" />
             Claude Haiku 4.5
           </div>
           <button
             type="button"
-            className="grid size-7 place-items-center rounded-full bg-black text-white"
+            className="grid size-7 place-items-center rounded-full bg-accent text-accent-foreground"
             aria-label="Send"
           >
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -453,25 +445,25 @@ function ChatSidebar({ chat }: { chat: ChatStreams }) {
 
 function DeckWorkspace({ deck }: { deck: DeckStreams }) {
   return (
-    <div className="flex flex-col bg-[#fafaf7]">
+    <div className="flex flex-col bg-background">
       <div
-        className={`flex items-center justify-between border-b border-black/8 px-5 py-3 transition-opacity duration-500 ${
+        className={`flex items-center justify-between border-b border-border px-5 py-3 transition-opacity duration-500 ${
           deck.deckArmed ? "opacity-100" : "opacity-50"
         }`}
       >
         <div className="flex items-center gap-3">
-          <div className="rounded-md border border-black/10 bg-white px-2.5 py-1 text-[0.74rem] font-medium text-black">
+          <div className="rounded-md border border-border-strong bg-surface px-2.5 py-1 text-[0.74rem] font-medium text-foreground">
             Design Files
           </div>
-          <div className="flex items-center gap-1.5 text-[0.74rem] text-black/45">
-            <span className="font-medium text-black/70">Northwind rebrand</span>
-            <span className="text-black/25">/</span>
-            <span className="font-mono">launch-deck</span>
+          <div className="flex items-center gap-1.5 text-[0.74rem] text-subtle">
+            <span className="font-medium text-foreground/70">Northwind rebrand</span>
+            <span className="text-subtle">/</span>
+            <span className="font-mono text-foreground">launch-deck</span>
           </div>
         </div>
         <button
           type="button"
-          className="flex items-center gap-1.5 rounded-md border border-black/10 bg-white px-2.5 py-1 text-[0.74rem] text-black/65"
+          className="flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-[0.74rem] text-muted"
         >
           <FolderIcon /> Folder
         </button>
@@ -482,10 +474,10 @@ function DeckWorkspace({ deck }: { deck: DeckStreams }) {
           deck.showSlideMeta ? "opacity-100" : "opacity-40"
         }`}
       >
-        <div className="text-[0.78rem] font-medium text-black">
+        <div className="text-[0.78rem] font-medium text-foreground">
           Northwind rebrand &middot; launch deck
         </div>
-        <div className="text-[0.7rem] text-black/35">2 slides · freeform</div>
+        <div className="text-[0.7rem] text-subtle">2 slides · freeform</div>
       </div>
 
       <div className="flex-1 px-5 pb-6">
@@ -496,14 +488,14 @@ function DeckWorkspace({ deck }: { deck: DeckStreams }) {
             deck.showSlideFooter ? "opacity-100" : "opacity-30"
           }`}
         >
-          <div className="flex items-center gap-3 rounded-full border border-black/10 bg-white px-3 py-1.5 text-[0.74rem] text-black/65">
-            <span className="flex items-center gap-1 text-black/45">
+          <div className="flex items-center gap-3 rounded-full border border-border-strong bg-surface px-3 py-1.5 text-[0.74rem] text-muted">
+            <span className="flex items-center gap-1 text-subtle">
               <ChevLeft /> Prev
             </span>
-            <span className="text-black">
-              1 <span className="text-black/30">/</span> 2
+            <span className="text-foreground">
+              1 <span className="text-subtle">/</span> 2
             </span>
-            <span className="flex items-center gap-1 text-black">
+            <span className="flex items-center gap-1 text-foreground">
               Next <ChevRight />
             </span>
           </div>
@@ -521,7 +513,7 @@ function SlidePreview({ deck }: { deck: DeckStreams }) {
 
   return (
     <div
-      className={`relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-black/10 bg-gradient-to-br from-white via-[#faf9f6] to-[#f2f0eb] text-[#0a0a0b] shadow-inner transition-[filter,transform,opacity] duration-700 ease-out ${
+      className={`relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-border-strong bg-linear-to-br from-surface via-background to-surface-muted text-foreground shadow-inner transition-[filter,transform,opacity] duration-700 ease-out ${
         deck.deckArmed
           ? "translate-y-0 opacity-100 blur-0"
           : "translate-y-1 opacity-60 blur-[1.5px]"
@@ -531,7 +523,7 @@ function SlidePreview({ deck }: { deck: DeckStreams }) {
         className="absolute inset-0 opacity-[0.07]"
         style={{
           backgroundImage:
-            "linear-gradient(to right, #0a0a0b 1px, transparent 1px), linear-gradient(to bottom, #0a0a0b 1px, transparent 1px)",
+            "linear-gradient(to right, var(--foreground) 1px, transparent 1px), linear-gradient(to bottom, var(--foreground) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
@@ -542,46 +534,46 @@ function SlidePreview({ deck }: { deck: DeckStreams }) {
             deck.showSlideMeta ? "opacity-100" : "opacity-0"
           }`}
         >
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-2.5 py-0.5 text-[0.62rem] tracking-wide text-black/55">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border-strong bg-surface px-2.5 py-0.5 text-[0.62rem] tracking-wide text-muted">
             Northwind
           </div>
-          <span className="font-mono text-[0.65rem] text-black/35">Q2 2026</span>
+          <span className="font-mono text-[0.65rem] text-subtle">Q2 2026</span>
         </div>
 
         <div className="max-w-[90%] md:max-w-[75%]">
-          <h2 className="font-medium leading-[1.02] tracking-[-0.035em] text-black text-[clamp(26px,3.8vw,46px)]">
+          <h2 className="font-medium leading-[1.02] tracking-[-0.035em] text-foreground text-[clamp(26px,3.8vw,46px)]">
             {deck.slideTitle}
             {showCaretTitle && (
-              <span className="ml-0.5 inline-block h-[0.85em] w-px animate-pulse bg-black/55 align-[-0.15em]" />
+              <span className="ml-0.5 inline-block h-[0.85em] w-px animate-pulse bg-foreground/55 align-[-0.15em]" />
             )}
           </h2>
-          <p className="mt-4 max-w-[46ch] text-[clamp(12px,1.05vw,15px)] leading-[1.55] text-black/55">
+          <p className="mt-4 max-w-[46ch] text-[clamp(12px,1.05vw,15px)] leading-[1.55] text-muted">
             {deck.slideBody}
             {showCaretBody && (
-              <span className="ml-px inline-block h-[0.85em] w-px animate-pulse bg-black/40 align-[-0.15em]" />
+              <span className="ml-px inline-block h-[0.85em] w-px animate-pulse bg-foreground/40 align-[-0.15em]" />
             )}
           </p>
         </div>
 
         <div
-          className={`flex flex-wrap items-end justify-between gap-4 border-t border-black/10 pt-5 transition-all duration-500 ${
+          className={`flex flex-wrap items-end justify-between gap-4 border-t border-border-strong pt-5 transition-all duration-500 ${
             deck.showSlideFooter
               ? "translate-y-0 opacity-100"
               : "translate-y-2 opacity-0"
           }`}
         >
-          <div className="flex flex-wrap gap-2 text-[0.68rem] text-black/45">
-            <span className="rounded-md border border-black/10 bg-white px-2 py-0.5 text-black/75">
+          <div className="flex flex-wrap gap-2 text-[0.68rem] text-subtle">
+            <span className="rounded-md border border-border-strong bg-surface px-2 py-0.5 text-foreground/75">
               Brand
             </span>
-            <span className="rounded-md border border-black/8 bg-black/[0.02] px-2 py-0.5 text-black/65">
+            <span className="rounded-md border border-border bg-[color-mix(in_oklab,var(--foreground)_4%,var(--surface))] px-2 py-0.5 text-muted">
               Product marketing
             </span>
-            <span className="rounded-md border border-black/8 bg-black/[0.02] px-2 py-0.5 text-black/65">
+            <span className="rounded-md border border-border bg-[color-mix(in_oklab,var(--foreground)_4%,var(--surface))] px-2 py-0.5 text-muted">
               Sales enablement
             </span>
           </div>
-          <span className="font-mono text-[0.68rem] text-black/35">
+          <span className="font-mono text-[0.68rem] text-subtle">
             Slide 01 of 02
           </span>
         </div>
@@ -598,20 +590,20 @@ type ToolCallProps = {
 
 function ToolCall({ name, status, body }: ToolCallProps) {
   return (
-    <div className="rounded-lg border border-black/8 bg-white px-2.5 py-1.5">
+    <div className="rounded-lg border border-border bg-surface px-2.5 py-1.5">
       <div className="flex items-center gap-2 text-[0.68rem]">
-        <span className="font-mono text-black/85">{name}()</span>
+        <span className="font-mono text-foreground/85">{name}()</span>
         <span
           className={`rounded-full px-1.5 py-px text-[0.6rem] ${
             status === "ran"
-              ? "bg-black/[0.06] text-black/55"
-              : "bg-emerald-500/15 text-emerald-700"
+              ? "bg-faint text-muted"
+              : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
           }`}
         >
           {status === "ran" ? "ran" : "streaming"}
         </span>
       </div>
-      <div className="mt-1 truncate text-[0.7rem] text-black/55">{body}</div>
+      <div className="mt-1 truncate text-[0.7rem] text-muted">{body}</div>
     </div>
   );
 }
@@ -620,7 +612,7 @@ function ChromeBtn({ children }: { children: React.ReactNode }) {
   return (
     <button
       type="button"
-      className="grid size-6 place-items-center rounded-md text-[0.7rem] text-black/35 hover:bg-black/5 hover:text-black/70"
+      className="grid size-6 place-items-center rounded-md text-[0.7rem] text-subtle hover:bg-faint hover:text-muted"
     >
       {children}
     </button>
