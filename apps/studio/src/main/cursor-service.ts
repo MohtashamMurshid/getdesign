@@ -76,7 +76,7 @@ async function cursorLogin(
     });
     return cursorState;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = describeCursorError(error);
     setState({
       ...cursorState,
       signedIn: cursorState.signedIn,
@@ -85,6 +85,35 @@ async function cursorLogin(
     });
     throw new Error(message);
   }
+}
+
+function describeCursorError(error: unknown): string {
+  if (!error) return "Unknown Cursor error.";
+  const record = error as Record<string, unknown>;
+  const name = typeof record["name"] === "string" ? (record["name"] as string) : undefined;
+  const status =
+    typeof record["status"] === "number" ? (record["status"] as number) : undefined;
+  const code = typeof record["code"] === "string" ? (record["code"] as string) : undefined;
+  const baseMessage =
+    error instanceof Error && error.message && error.message !== "Error"
+      ? error.message
+      : undefined;
+
+  if (name === "AuthenticationError" || status === 401) {
+    return (
+      "Cursor rejected this API key. Double-check it on cursor.com/dashboard/integrations and try again."
+    );
+  }
+  if (name === "RateLimitError" || status === 429) {
+    return "Cursor is rate-limiting requests right now. Wait a moment and retry.";
+  }
+  if (name === "NetworkError") {
+    return "Could not reach Cursor. Check your connection and retry.";
+  }
+  if (baseMessage) return baseMessage;
+  if (name && code) return `${name}: ${code}`;
+  if (name) return name;
+  return "Cursor login failed.";
 }
 
 async function cursorLogout(): Promise<StudioCursorAuthStatus> {
@@ -97,8 +126,23 @@ async function cursorLogout(): Promise<StudioCursorAuthStatus> {
 
 async function fetchCursorAccount(apiKey: string): Promise<StudioCursorAccount> {
   // Lazy-load so failures importing the SDK don't break studio startup.
-  const { Cursor } = (await import("@cursor/sdk")) as typeof import("@cursor/sdk");
-  const me = await Cursor.me({ apiKey });
+  let sdk: typeof import("@cursor/sdk");
+  try {
+    sdk = (await import("@cursor/sdk")) as typeof import("@cursor/sdk");
+  } catch (importError) {
+    const message =
+      importError instanceof Error ? importError.message : String(importError);
+    if (/bindings|node_sqlite3|MODULE_NOT_FOUND/i.test(message)) {
+      throw new Error(
+        "Cursor SDK native dependencies are not built for this Electron runtime. " +
+          "Run `bun install` (or `npm rebuild`) inside apps/studio to compile the " +
+          "SDK's native bindings, then restart Studio.",
+      );
+    }
+    throw new Error(`Could not load @cursor/sdk: ${message}`);
+  }
+
+  const me = await sdk.Cursor.me({ apiKey });
   return {
     apiKeyName: me.apiKeyName,
     userEmail: me.userEmail,

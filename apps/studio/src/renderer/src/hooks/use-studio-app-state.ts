@@ -121,6 +121,8 @@ export function useStudioAppState() {
         setCursorAuth(event.payload);
         if (event.payload.status === "ready") {
           setCursorError(undefined);
+        } else if (event.payload.status === "error") {
+          setCursorError(event.payload.error);
         }
       }
     });
