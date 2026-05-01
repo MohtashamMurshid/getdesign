@@ -26,9 +26,9 @@ export function DownloadButtonComingSoon({
         target="_blank"
         rel="noreferrer"
         className={`btn btn-primary ${sm ? "btn-sm" : ""} gap-1.5 pr-3`}
-        aria-label="Download for macOS — coming soon"
+        aria-label="Download — coming soon"
       >
-        Download for macOS
+        Download
         <DownloadIcon />
       </a>
       <span

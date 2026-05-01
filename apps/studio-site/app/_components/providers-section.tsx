@@ -1,8 +1,4 @@
-import {
-  SiClaude,
-  SiCursor,
-  SiGooglegemini,
-} from "@icons-pack/react-simple-icons";
+import { SiClaude } from "@icons-pack/react-simple-icons";
 
 import { OpenAIIcon } from "./icons";
 
@@ -14,48 +10,61 @@ type Provider = {
   comingSoon?: boolean;
 };
 
+/** Matches Anthropic Claude mark (`apps/studio/public/claude.svg`). */
+const CLAUDE_BRAND = "#D97757";
+/** ChatGPT / Codex association (`simple-icons` OpenAI green). */
+const OPENAI_CHAT_BRAND = "#10A37F";
+
 const PROVIDERS: Provider[] = [
   {
     name: "Claude",
     badge: "Pro / Max",
     description:
       "Opus, Sonnet, and Haiku — sign in with your existing Claude Pro or Max plan.",
-    icon: <SiClaude size={18} />,
+    icon: <SiClaude color={CLAUDE_BRAND} size={18} />,
   },
   {
     name: "Codex",
     badge: "ChatGPT Plus / Pro",
     description:
       "GPT-5.x, Codex, and o-series — whatever your ChatGPT subscription unlocks.",
-    icon: <OpenAIIcon className="size-[18px]" />,
+    icon: (
+      <span style={{ color: OPENAI_CHAT_BRAND }}>
+        <OpenAIIcon className="size-[18px]" />
+      </span>
+    ),
   },
   {
     name: "Gemini",
     badge: "Google AI Pro",
     description:
       "Gemini 3.x Pro and Flash, on your Google AI Pro or Ultra subscription.",
-    icon: <SiGooglegemini size={18} />,
+    icon: <BrandSvgImg src="/providers/gemini.svg" />,
   },
   {
     name: "Antigravity",
     badge: "Google",
     description:
       "Sign in with Google Antigravity to use the agent inside Studio.",
-    icon: <AntigravityIcon />,
+    icon: <BrandSvgImg src="/providers/antigravity.svg" />,
   },
   {
     name: "Custom (BYOK)",
     badge: "Anthropic / OpenAI / OpenRouter",
     description:
       "Bring your own API key. Ollama, LM Studio, vLLM, and any OpenAI-compatible endpoint.",
-    icon: <KeyIcon />,
+    icon: (
+      <span className="text-amber-600 dark:text-amber-400">
+        <KeyIcon />
+      </span>
+    ),
   },
   {
     name: "Cursor",
     badge: "Coming soon",
     description:
       "Bring your Cursor subscription into Studio for design and decks.",
-    icon: <SiCursor size={18} />,
+    icon: <BrandSvgImg src="/providers/cursor.svg" invertOnDark />,
     comingSoon: true,
   },
 ];
@@ -66,18 +75,18 @@ export function ProvidersSection() {
       id="providers"
       className="section-rule w-full scroll-mt-20 py-20 md:py-28"
     >
-      <div className="mx-auto w-full max-w-[1200px] px-5">
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center px-5 text-center">
         <p className="eyebrow">Providers</p>
-        <h2 className="display-section mt-4 max-w-[18ch] text-foreground">
+        <h2 className="display-section mt-4 max-w-[18ch] text-balance text-foreground">
           Use what you already pay for.
         </h2>
-        <p className="mt-4 max-w-[58ch] text-[0.95rem] leading-relaxed text-muted">
+        <p className="mt-4 max-w-[58ch] text-balance text-[0.95rem] leading-relaxed text-muted">
           The same kind of polished visual work&mdash;designed and prototyped
           with AI&mdash;but with no walled garden. Plug in Claude, Codex,
           Gemini, or your own key.
         </p>
 
-        <div className="mt-12 grid grid-cols-1 gap-x-10 gap-y-0 md:grid-cols-2">
+        <div className="mt-12 grid w-full grid-cols-1 gap-x-10 gap-y-0 md:grid-cols-2 md:text-left">
           {PROVIDERS.map((p, i) => (
             <ProviderRow key={p.name} provider={p} index={i} />
           ))}
@@ -102,7 +111,7 @@ function ProviderRow({
     >
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-8 place-items-center rounded-lg border border-border bg-surface text-foreground">
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-border bg-surface">
             {provider.icon}
           </span>
           <span className="text-[0.95rem] font-medium tracking-tight text-foreground">
@@ -120,20 +129,24 @@ function ProviderRow({
   );
 }
 
-function AntigravityIcon() {
+function BrandSvgImg({
+  src,
+  invertOnDark,
+}: {
+  src: string;
+  invertOnDark?: boolean;
+}) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-      <ellipse
-        cx="12"
-        cy="12"
-        rx="9"
-        ry="3.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-      />
-      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element -- flat SVG assets from `/public`
+    <img
+      src={src}
+      alt=""
+      width={18}
+      height={18}
+      decoding="async"
+      className={`size-[18px] shrink-0 ${invertOnDark ? "dark:brightness-0 dark:invert" : ""}`}
+      aria-hidden
+    />
   );
 }
 
