@@ -17,12 +17,14 @@
   "trustedDependencies": [
     "electron",
     "electron-winstaller",
-    "esbuild"
+    "esbuild",
+    "sqlite3"
   ],
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "rebuild:native": "electron-builder install-app-deps",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:win": "electron-vite build && electron-builder --win",
     "build:linux": "electron-vite build && electron-builder --linux",

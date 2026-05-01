@@ -80,7 +80,14 @@ export function useStudioAppState() {
       ]);
       setAuthStatus(nextAuth);
       setAuthLoaded(true);
-      setConversation(nextConversation);
+      const stalePiCursorMiss =
+        nextConversation.error &&
+        /Pi model not found: cursor\//i.test(nextConversation.error);
+      setConversation(
+        stalePiCursorMiss
+          ? { ...nextConversation, error: undefined }
+          : nextConversation,
+      );
       setDecks(nextDecks);
       setChatSessions(nextSessions);
       setUserSelectedDeckId(undefined);
@@ -103,8 +110,14 @@ export function useStudioAppState() {
         );
       }
       if (event.type === "conversation") {
-        setConversation(event.payload);
-        setError(event.payload.error);
+        const payload = event.payload;
+        const stalePiCursorMiss =
+          payload.error && /Pi model not found: cursor\//i.test(payload.error);
+        const sanitized = stalePiCursorMiss
+          ? { ...payload, error: undefined }
+          : payload;
+        setConversation(sanitized);
+        setError(sanitized.error);
       }
       if (event.type === "decks") {
         setDecks(event.payload);
@@ -131,8 +144,8 @@ export function useStudioAppState() {
     return unsubscribe;
   }, [refresh]);
 
-  const models = useMemo(
-    () =>
+  const models = useMemo(() => {
+    const piModels =
       authStatus?.availableModels.map((model) => ({
         id: model.id,
         name: model.label,
@@ -141,9 +154,17 @@ export function useStudioAppState() {
           model.provider,
           authStatus.oauthProviders,
         ),
-      })) ?? [],
-    [authStatus],
-  );
+      })) ?? [];
+    const cursorModels = cursorAuth.signedIn
+      ? (cursorAuth.models ?? []).map((model) => ({
+          id: `cursor/${model.id}`,
+          name: model.displayName || model.id,
+          provider: "cursor",
+          providerLabel: "Cursor",
+        }))
+      : [];
+    return [...piModels, ...cursorModels];
+  }, [authStatus, cursorAuth.signedIn, cursorAuth.models]);
 
   const displayedModels = useMemo(() => {
     if (models.length === 0) return [];
@@ -153,7 +174,9 @@ export function useStudioAppState() {
     return filtered.length > 0 ? filtered : models;
   }, [models, visibleModelIds]);
 
-  const isAuthed = Boolean(authStatus?.hasAvailableModels);
+  const isAuthed =
+    Boolean(authStatus?.hasAvailableModels) ||
+    (cursorAuth.signedIn && (cursorAuth.models?.length ?? 0) > 0);
 
   const selectedDeckId = useMemo(() => {
     if (
@@ -174,9 +197,13 @@ export function useStudioAppState() {
   }, [visibleModelIds]);
 
   useEffect(() => {
+    const syncRuntime = (id: string) => {
+      if (id.startsWith("cursor/")) return;
+      void window.api.selectModel({ modelId: id });
+    };
     if (!selectedModelId && displayedModels[0]) {
       setSelectedModelId(displayedModels[0].id);
-      void window.api.selectModel({ modelId: displayedModels[0].id });
+      syncRuntime(displayedModels[0].id);
     }
     if (selectedModelId && displayedModels.length > 0) {
       const isVisible = displayedModels.some(
@@ -184,7 +211,7 @@ export function useStudioAppState() {
       );
       if (!isVisible) {
         setSelectedModelId(displayedModels[0].id);
-        void window.api.selectModel({ modelId: displayedModels[0].id });
+        syncRuntime(displayedModels[0].id);
       }
     }
   }, [displayedModels, selectedModelId]);
@@ -326,6 +353,15 @@ export function useStudioAppState() {
     try {
       setError(undefined);
       setSelectedModelId(modelId);
+      // Cursor models live outside the Pi model registry; selecting them in
+      // the Pi runtime would throw. The renderer just tracks the selection
+      // locally until Cursor-side inference is wired up.
+      if (modelId.startsWith("cursor/")) {
+        setConversation((current) =>
+          current.error ? { ...current, error: undefined } : current,
+        );
+        return;
+      }
       const nextAuth = await window.api.selectModel({ modelId });
       setAuthStatus(nextAuth);
     } catch (nextError) {

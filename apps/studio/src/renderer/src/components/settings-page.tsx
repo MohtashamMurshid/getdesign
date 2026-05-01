@@ -4,7 +4,6 @@ import type { StudioCustomModelRow } from "../../../shared/studio-api";
 
 import { ByokCard, SessionCard } from "./settings/byok-and-session-cards";
 import { ConnectedProvidersCard } from "./settings/connected-providers-card";
-import { CursorAccountCard } from "./settings/cursor-account-card";
 import { CustomModelsCard } from "./settings/custom-models-card";
 import { SettingsHeader } from "./settings/settings-header";
 import { SettingsStatusAlerts } from "./settings/settings-status-alerts";
@@ -84,17 +83,6 @@ export function SettingsPage({
           <div className="space-y-6">
             <SettingsStatusAlerts error={error} authStatus={authStatus} />
 
-            <CursorAccountCard
-              cursorAuth={cursorAuth}
-              apiKeyDraft={cursorApiKeyDraft}
-              setApiKeyDraft={setCursorApiKeyDraft}
-              busy={cursorBusy}
-              error={cursorError}
-              onLogin={onCursorLogin}
-              onLogout={onCursorLogout}
-              onOpenDashboard={onOpenCursorDashboard}
-            />
-
             <ConnectedProvidersCard
               authStatus={authStatus}
               oauthProviderCards={oauthProviderCards}
@@ -106,6 +94,14 @@ export function SettingsPage({
               onDisconnectProvider={onDisconnectProvider}
               onAddCustomModel={onAddCustomModel}
               onRemoveCustomModel={onRemoveCustomModel}
+              cursorAuth={cursorAuth}
+              cursorApiKeyDraft={cursorApiKeyDraft}
+              setCursorApiKeyDraft={setCursorApiKeyDraft}
+              cursorBusy={cursorBusy}
+              cursorError={cursorError}
+              onCursorLogin={onCursorLogin}
+              onCursorLogout={onCursorLogout}
+              onOpenCursorDashboard={onOpenCursorDashboard}
             />
 
             <CustomModelsCard

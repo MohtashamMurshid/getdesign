@@ -120,27 +120,6 @@ export function AuthLanding({
           </div>
         ) : null}
 
-        <CursorLoginCard
-          cursorAuth={cursorAuth}
-          apiKeyDraft={cursorApiKeyDraft}
-          setApiKeyDraft={setCursorApiKeyDraft}
-          busy={cursorBusy}
-          error={cursorError}
-          expanded={showCursor}
-          setExpanded={setShowCursor}
-          onLogin={onCursorLogin}
-          onLogout={onCursorLogout}
-          onOpenDashboard={onOpenCursorDashboard}
-        />
-
-        <div className="my-6 flex items-center gap-3">
-          <span className="h-px flex-1 bg-border" />
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            or
-          </span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
-
         <div className="space-y-2">
           {oauthProviderCards.length > 0 ? (
             oauthProviderCards.map((oauthProvider) => {
@@ -180,11 +159,26 @@ export function AuthLanding({
                 </button>
               );
             })
-          ) : (
+          ) : null}
+
+          <CursorLoginCard
+            cursorAuth={cursorAuth}
+            apiKeyDraft={cursorApiKeyDraft}
+            setApiKeyDraft={setCursorApiKeyDraft}
+            busy={cursorBusy}
+            error={cursorError}
+            expanded={showCursor}
+            setExpanded={setShowCursor}
+            onLogin={onCursorLogin}
+            onLogout={onCursorLogout}
+            onOpenDashboard={onOpenCursorDashboard}
+          />
+
+          {oauthProviderCards.length === 0 && !cursorAuth.signedIn ? (
             <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
               No providers detected.
             </div>
-          )}
+          ) : null}
         </div>
 
         {authStatus?.login && authStatus.login.status !== "idle" ? (
@@ -401,18 +395,31 @@ function CursorLoginCard({
           .filter(Boolean)
           .join(" ")
       : account?.userEmail;
+  const cursorLogo = getProviderLogo("cursor", "Cursor");
 
   if (cursorAuth.signedIn) {
     return (
       <div className="rounded-xl border border-border bg-card px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span
-              aria-hidden
-              className="inline-flex size-[28px] shrink-0 items-center justify-center rounded-md bg-foreground text-[12px] font-semibold uppercase text-background"
-            >
-              C
-            </span>
+            {cursorLogo ? (
+              <img
+                src={cursorLogo.src}
+                alt=""
+                aria-hidden
+                width={18}
+                height={18}
+                className={`shrink-0 select-none object-contain ${cursorLogo.monochrome ? "dark:invert" : ""}`}
+                draggable={false}
+              />
+            ) : (
+              <span
+                aria-hidden
+                className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] bg-foreground text-[10px] font-semibold uppercase text-background"
+              >
+                C
+              </span>
+            )}
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">
                 Signed in to Cursor
@@ -446,12 +453,24 @@ function CursorLoginCard({
         onClick={() => setExpanded(true)}
         className="group flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/40"
       >
-        <span
-          aria-hidden
-          className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] bg-foreground text-[10px] font-semibold uppercase text-background"
-        >
-          C
-        </span>
+        {cursorLogo ? (
+          <img
+            src={cursorLogo.src}
+            alt=""
+            aria-hidden
+            width={18}
+            height={18}
+            className={`shrink-0 select-none object-contain ${cursorLogo.monochrome ? "dark:invert" : ""}`}
+            draggable={false}
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="inline-flex size-[18px] shrink-0 items-center justify-center rounded-[4px] bg-foreground text-[10px] font-semibold uppercase text-background"
+          >
+            C
+          </span>
+        )}
         <span className="flex-1 text-sm font-medium">Continue with Cursor</span>
         <IconChevronRight
           size={16}

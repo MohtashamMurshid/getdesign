@@ -23,6 +23,7 @@ const LOGO_BY_KEYWORD: LogoEntry[] = [
     src: "/openai.svg",
     monochrome: true,
   },
+  { keywords: ["cursor"], src: "/cursor.svg", monochrome: true },
 ];
 
 export type ProviderLogoInfo = { src: string; monochrome: boolean };
