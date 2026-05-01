@@ -20,12 +20,15 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function createWindow(): void {
+  const darwin = process.platform === "darwin";
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: process.platform === "darwin" ? "customButtonsOnHover" : "hidden",
+    titleBarStyle: darwin ? "hiddenInset" : "hidden",
+    /** Vertically align traffic lights with toolbars: `p-2` (8px) + half of `h-12` (24px) ≈ center 32px from top. */
+    trafficLightPosition: darwin ? { x: 13, y: 22 } : undefined,
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: false,
@@ -37,6 +40,19 @@ function createWindow(): void {
   mainWindow.on("ready-to-show", () => mainWindow.show());
   registerStudioIpc(mainWindow);
   registerCursorIpc(mainWindow);
+
+  const sendChrome = () => {
+    if (mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send("studio:window-chrome", {
+      fullScreen: mainWindow.isFullScreen(),
+      simpleFullScreen: mainWindow.isSimpleFullScreen(),
+    });
+  };
+  mainWindow.on("enter-full-screen", sendChrome);
+  mainWindow.on("leave-full-screen", sendChrome);
+  mainWindow.on("enter-html-full-screen", sendChrome);
+  mainWindow.on("leave-html-full-screen", sendChrome);
+  mainWindow.webContents.on("did-finish-load", sendChrome);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);

@@ -37,6 +37,7 @@
     "version:minor": "node scripts/version.mjs minor",
     "version:major": "node scripts/version.mjs major",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "bun test src/main",
     "clean": "rm -rf out dist"
   },
   "dependencies": {

@@ -75,4 +75,22 @@ const api: StudioApi = {
 
 contextBridge.exposeInMainWorld("api", api);
 
+type WindowChrome = { fullScreen: boolean; simpleFullScreen: boolean };
+
+const studioEnv = {
+  platform: process.platform as NodeJS.Platform,
+  onWindowChrome: (listener: (chrome: WindowChrome) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: WindowChrome) => {
+      listener(payload);
+    };
+    ipcRenderer.on("studio:window-chrome", handler);
+    return () => {
+      ipcRenderer.removeListener("studio:window-chrome", handler);
+    };
+  },
+};
+
+contextBridge.exposeInMainWorld("studioEnv", studioEnv);
+
 export type Api = StudioApi;
+export type StudioEnv = typeof studioEnv;

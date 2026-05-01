@@ -1,12 +1,10 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import type {
   StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
   StudioAuthStatus,
-  StudioChatSessionSummary,
   StudioCreateDeckInput,
   StudioConversationSnapshot,
   StudioCustomModelRow,
@@ -16,7 +14,6 @@ import type {
   StudioExportDeckResult,
   StudioLoginState,
   StudioMessage,
-  StudioMessagePart,
   StudioDeleteChatSessionInput,
   StudioRemoveCustomModelInput,
   StudioRenameChatSessionInput,
@@ -37,19 +34,20 @@ import {
 } from "./models-json";
 import { StudioDeckService } from "./deck-service";
 import { getCursorApiKey } from "./cursor-service";
+import { isCursorModelId } from "./cursor-model-id";
 import {
   cancelCursorRun,
   disposeCursorAgent,
   runCursorPrompt,
 } from "./cursor-runtime";
 
-import { isStoredChatSession } from "./pi/chat-guards";
+import { StudioChatController } from "./studio-chat-controller";
 import {
   PI_AUTH_DOCS_URL,
   PI_MODELS_DOCS_URL,
   STUDIO_SYSTEM_PROMPT,
 } from "./pi/constants";
-import { createId, createIdSuffix } from "./pi/id-utils";
+import { createId } from "./pi/id-utils";
 import {
   findModel,
   getModelKey,
@@ -59,45 +57,27 @@ import {
   toModelInfo,
 } from "./pi/model-format";
 import {
-  computeContentFromParts,
-  extractTitleFromAssistantMessage,
-  getSessionTitle,
-  isArtifactFileTool,
-  toAgentElementsToolName,
-  truncate,
-} from "./pi/message-text";
-import {
-  getChatSessionsPath,
   getModelsJsonPath,
   getPiAgentDir,
   stripPiProviderEnvironment,
 } from "./pi/paths";
-import { asRecord } from "./pi/record-utils";
-import type {
-  PiAi,
-  PiCodingAgent,
-  PiRuntime,
-  PiSession,
-  PiSessionEvent,
-  StoredChatSession,
-} from "./pi/types";
-import { createAssistantStreamState, type AssistantStreamState } from "./pi/types";
+import type { PiAi, PiCodingAgent, PiRuntime, PiSession } from "./pi/types";
+
 let mainWindow: BrowserWindow | undefined;
 let runtimePromise: Promise<PiRuntime> | undefined;
-let currentSessionId = createId("session");
-let messages: StudioMessage[] = [];
-let status: StudioConversationSnapshot["status"] = "ready";
-let lastError: string | undefined;
 let loginState: StudioLoginState = { status: "idle" };
 let manualCodeResolver: ((code: string) => void) | undefined;
 let deckService: StudioDeckService | undefined;
-let currentArtifactId = createId("artifact");
-let sessionsLoaded = false;
-let chatSessions: StoredChatSession[] = [];
-let assistantStream: AssistantStreamState = createAssistantStreamState();
+/** Conversation state, Pi streaming, session persistence. */
+let chat: StudioChatController;
 
 export function registerStudioIpc(window: BrowserWindow): void {
   mainWindow = window;
+
+  chat = new StudioChatController({
+    emit: (event) => mainWindow?.webContents.send("studio:event", event),
+    getDeckService,
+  });
 
   ipcMain.handle("studio:get-auth-status", () => getAuthStatus());
   ipcMain.handle("studio:set-runtime-api-key", (_event, input: StudioSetRuntimeKeyInput) =>
@@ -117,12 +97,12 @@ export function registerStudioIpc(window: BrowserWindow): void {
     selectModel(input),
   );
   ipcMain.handle("studio:get-conversation", () => getConversation());
-  ipcMain.handle("studio:list-chat-sessions", () => listChatSessions());
+  ipcMain.handle("studio:list-chat-sessions", () => chat.listChatSessionSummaries());
   ipcMain.handle("studio:open-chat-session", (_event, sessionId: string) =>
     openChatSession(sessionId),
   );
   ipcMain.handle("studio:rename-chat-session", (_event, input: StudioRenameChatSessionInput) =>
-    renameChatSession(input),
+    chat.renameChatSession(input),
   );
   ipcMain.handle("studio:delete-chat-session", (_event, input: StudioDeleteChatSessionInput) =>
     deleteChatSession(input),
@@ -143,7 +123,7 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:remove-custom-model", (_event, input: StudioRemoveCustomModelInput) =>
     removeCustomModel(input),
   );
-  ipcMain.handle("studio:list-decks", () => listDecks());
+  ipcMain.handle("studio:list-decks", () => chat.listDecksForCurrentArtifact());
   ipcMain.handle("studio:create-deck", (_event, input?: StudioCreateDeckInput) => createDeck(input));
   ipcMain.handle("studio:get-deck", (_event, deckId: string) => getDeck(deckId));
   ipcMain.handle("studio:open-deck", (_event, deckId: string) => openDeck(deckId));
@@ -460,10 +440,10 @@ async function selectModel(input: StudioSelectModelInput): Promise<StudioAuthSta
 
 async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversationSnapshot> {
   const content = input.content.trim();
-  if (!content) return getConversationSnapshot();
-  await ensureChatSessionsLoaded();
+  if (!content) return chat.getConversationSnapshot();
+  await chat.ensureChatSessionsLoaded();
 
-  const isCursorModel = Boolean(input.modelId?.startsWith("cursor/"));
+  const isCursorModel = isCursorModelId(input.modelId);
 
   if (isCursorModel && input.modelId) {
     return startCursorPrompt(content, input.modelId);
@@ -489,39 +469,39 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
     createdAt: Date.now(),
     status: "streaming",
   };
-  messages = [...messages, userMessage, assistantMessage];
-  assistantStream = createAssistantStreamState();
-  await saveCurrentChatSession();
-  status = "submitted";
-  lastError = undefined;
-  emitConversation();
+  chat.messages = [...chat.messages, userMessage, assistantMessage];
+  chat.clearAssistantStreamState();
+  await chat.saveCurrentChatSession();
+  chat.status = "submitted";
+  chat.lastError = undefined;
+  chat.emitConversation();
 
   const session = await ensureSession(runtime);
-  status = "streaming";
-  emitConversation();
+  chat.status = "streaming";
+  chat.emitConversation();
 
   session
     .prompt(content)
     .then(async () => {
-      finishAssistantMessage("done");
-      status = "ready";
-      emitConversation();
-      await saveCurrentChatSession();
+      chat.finishAssistantMessage("done");
+      chat.status = "ready";
+      chat.emitConversation();
+      await chat.saveCurrentChatSession();
       await emitSessions();
       void emitDecks();
-      void maybeGenerateSessionTitle(currentSessionId);
+      void chat.maybeGenerateSessionTitle(chat.currentSessionId, getRuntime);
     })
     .catch((error: unknown) => {
-      finishAssistantMessage("error");
-      status = "error";
-      lastError = error instanceof Error ? error.message : String(error);
-      appendStreamingText(undefined, `\n\n${lastError}`);
-      emitConversation();
-      void saveCurrentChatSession();
+      chat.finishAssistantMessage("error");
+      chat.status = "error";
+      chat.lastError = error instanceof Error ? error.message : String(error);
+      chat.appendStreamingText(undefined, `\n\n${chat.lastError}`);
+      chat.emitConversation();
+      void chat.saveCurrentChatSession();
       void emitSessions();
     });
 
-  return getConversationSnapshot();
+  return chat.getConversationSnapshot();
 }
 
 async function startCursorPrompt(
@@ -535,8 +515,8 @@ async function startCursorPrompt(
     );
   }
 
-  const cwd = await getDeckService().ensureArtifactWorkspace(currentArtifactId);
-  const sessionId = currentSessionId;
+  const cwd = await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
+  const sessionId = chat.currentSessionId;
 
   const userMessage: StudioMessage = {
     id: createId("user"),
@@ -553,15 +533,15 @@ async function startCursorPrompt(
     createdAt: Date.now(),
     status: "streaming",
   };
-  messages = [...messages, userMessage, assistantMessage];
-  assistantStream = createAssistantStreamState();
-  await saveCurrentChatSession();
-  status = "submitted";
-  lastError = undefined;
-  emitConversation();
+  chat.messages = [...chat.messages, userMessage, assistantMessage];
+  chat.clearAssistantStreamState();
+  await chat.saveCurrentChatSession();
+  chat.status = "submitted";
+  chat.lastError = undefined;
+  chat.emitConversation();
 
-  status = "streaming";
-  emitConversation();
+  chat.status = "streaming";
+  chat.emitConversation();
 
   void runCursorPrompt({
     sessionId,
@@ -572,50 +552,50 @@ async function startCursorPrompt(
     callbacks: {
       onTextDelta(delta) {
         if (!delta) return;
-        appendStreamingText(undefined, delta);
-        emitConversation();
+        chat.appendStreamingText(undefined, delta);
+        chat.emitConversation();
       },
       onThinkingDelta(delta) {
         if (!delta) return;
-        appendStreamingThinking(undefined, delta);
-        emitConversation();
+        chat.appendStreamingThinking(undefined, delta);
+        chat.emitConversation();
       },
       onFinish() {
-        if (sessionId !== currentSessionId) return;
-        finalizeStreamingThinking(undefined);
-        finishAssistantMessage("done");
-        status = "ready";
-        emitConversation();
-        void saveCurrentChatSession().then(() => {
+        if (sessionId !== chat.currentSessionId) return;
+        chat.finalizeStreamingThinking(undefined);
+        chat.finishAssistantMessage("done");
+        chat.status = "ready";
+        chat.emitConversation();
+        void chat.saveCurrentChatSession().then(() => {
           void emitSessions();
           void emitDecks();
-          void maybeGenerateSessionTitle(currentSessionId);
+          void chat.maybeGenerateSessionTitle(chat.currentSessionId, getRuntime);
         });
       },
       onError(message) {
-        if (sessionId !== currentSessionId) return;
-        finalizeStreamingThinking(undefined);
-        appendStreamingText(undefined, `\n\n${message}`);
-        finishAssistantMessage("error");
-        status = "error";
-        lastError = message;
-        emitConversation();
-        void saveCurrentChatSession();
+        if (sessionId !== chat.currentSessionId) return;
+        chat.finalizeStreamingThinking(undefined);
+        chat.appendStreamingText(undefined, `\n\n${message}`);
+        chat.finishAssistantMessage("error");
+        chat.status = "error";
+        chat.lastError = message;
+        chat.emitConversation();
+        void chat.saveCurrentChatSession();
         void emitSessions();
       },
       onCancel() {
-        if (sessionId !== currentSessionId) return;
-        finalizeStreamingThinking(undefined);
-        finishAssistantMessage("done");
-        status = "ready";
-        emitConversation();
-        void saveCurrentChatSession();
+        if (sessionId !== chat.currentSessionId) return;
+        chat.finalizeStreamingThinking(undefined);
+        chat.finishAssistantMessage("done");
+        chat.status = "ready";
+        chat.emitConversation();
+        void chat.saveCurrentChatSession();
         void emitSessions();
       },
     },
   });
 
-  return getConversationSnapshot();
+  return chat.getConversationSnapshot();
 }
 
 async function stopGeneration(): Promise<StudioConversationSnapshot> {
@@ -623,107 +603,80 @@ async function stopGeneration(): Promise<StudioConversationSnapshot> {
   if (runtime.session) {
     await runtime.session.abort();
   }
-  await cancelCursorRun(currentSessionId);
-  finishAssistantMessage("done");
-  status = "ready";
-  emitConversation();
-  await saveCurrentChatSession();
+  await cancelCursorRun(chat.currentSessionId);
+  chat.finishAssistantMessage("done");
+  chat.status = "ready";
+  chat.emitConversation();
+  await chat.saveCurrentChatSession();
   await emitSessions();
-  return getConversationSnapshot();
+  return chat.getConversationSnapshot();
 }
 
 async function getConversation(): Promise<StudioConversationSnapshot> {
-  await ensureChatSessionsLoaded();
-  return getConversationSnapshot();
+  await chat.ensureChatSessionsLoaded();
+  return chat.getConversationSnapshot();
 }
 
 async function newConversation(): Promise<StudioConversationSnapshot> {
-  await ensureChatSessionsLoaded();
-  await saveCurrentChatSession();
+  await chat.ensureChatSessionsLoaded();
+  await chat.saveCurrentChatSession();
   const runtime = await getRuntime();
   await disposeRuntimeSession(runtime);
-  await disposeCursorAgent(currentSessionId);
-  messages = [];
-  status = "ready";
-  lastError = undefined;
-  currentSessionId = createId("session");
-  currentArtifactId = createId("artifact");
-  await getDeckService().ensureArtifactWorkspace(currentArtifactId);
-  emitConversation();
+  await disposeCursorAgent(chat.currentSessionId);
+  chat.messages = [];
+  chat.status = "ready";
+  chat.lastError = undefined;
+  chat.currentSessionId = createId("session");
+  chat.currentArtifactId = createId("artifact");
+  await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
+  chat.emitConversation();
   await emitSessions();
   await emitDecks();
-  return getConversationSnapshot();
-}
-
-async function listChatSessions(): Promise<StudioChatSessionSummary[]> {
-  await ensureChatSessionsLoaded();
-  await saveCurrentChatSession();
-  return chatSessions.map(({ messages: _messages, ...summary }) => summary);
+  return chat.getConversationSnapshot();
 }
 
 async function openChatSession(sessionId: string): Promise<StudioConversationSnapshot> {
-  await ensureChatSessionsLoaded();
-  await saveCurrentChatSession();
+  await chat.ensureChatSessionsLoaded();
+  await chat.saveCurrentChatSession();
   const runtime = await getRuntime();
   await disposeRuntimeSession(runtime);
-  await disposeCursorAgent(currentSessionId);
-  const session = chatSessions.find((candidate) => candidate.id === sessionId);
+  await disposeCursorAgent(chat.currentSessionId);
+  const session = chat.chatSessions.find((candidate) => candidate.id === sessionId);
   if (!session) throw new Error("Chat session not found.");
-  currentSessionId = session.id;
-  currentArtifactId = session.artifactId;
-  messages = session.messages;
-  status = "ready";
-  lastError = undefined;
-  emitConversation();
+  chat.currentSessionId = session.id;
+  chat.currentArtifactId = session.artifactId;
+  chat.messages = session.messages;
+  chat.status = "ready";
+  chat.lastError = undefined;
+  chat.emitConversation();
   await emitSessions();
   await emitDecks();
-  return getConversationSnapshot();
-}
-
-async function renameChatSession(
-  input: StudioRenameChatSessionInput,
-): Promise<StudioChatSessionSummary[]> {
-  await ensureChatSessionsLoaded();
-  const title = input.title.trim().slice(0, 64);
-  if (!title) throw new Error("Chat title is required.");
-  const target = chatSessions.find((session) => session.id === input.sessionId);
-  if (!target) throw new Error("Chat session not found.");
-  target.title = title;
-  target.manualTitle = true;
-  target.updatedAt = Date.now();
-  await persistChatSessions();
-  await emitSessions();
-  return chatSessions.map(({ messages: _messages, ...summary }) => summary);
+  return chat.getConversationSnapshot();
 }
 
 async function deleteChatSession(
   input: StudioDeleteChatSessionInput,
 ): Promise<StudioConversationSnapshot> {
-  await ensureChatSessionsLoaded();
-  chatSessions = chatSessions.filter((session) => session.id !== input.sessionId);
-  await persistChatSessions();
+  await chat.ensureChatSessionsLoaded();
+  chat.chatSessions = chat.chatSessions.filter((session) => session.id !== input.sessionId);
+  await chat.persistChatSessions();
 
-  if (input.sessionId === currentSessionId) {
+  if (input.sessionId === chat.currentSessionId) {
     const runtime = await getRuntime();
     await disposeRuntimeSession(runtime);
-    await disposeCursorAgent(currentSessionId);
-    messages = [];
-    status = "ready";
-    lastError = undefined;
-    currentSessionId = createId("session");
-    currentArtifactId = createId("artifact");
-    await getDeckService().ensureArtifactWorkspace(currentArtifactId);
-    emitConversation();
+    await disposeCursorAgent(chat.currentSessionId);
+    chat.messages = [];
+    chat.status = "ready";
+    chat.lastError = undefined;
+    chat.currentSessionId = createId("session");
+    chat.currentArtifactId = createId("artifact");
+    await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
+    chat.emitConversation();
   }
 
   await emitSessions();
   await emitDecks();
-  return getConversationSnapshot();
-}
-
-async function listDecks(): Promise<StudioDeckProject[]> {
-  const deck = await getDeckService().readArtifactDeck(currentArtifactId);
-  return deck ? [deck] : [];
+  return chat.getConversationSnapshot();
 }
 
 async function createDeck(input?: StudioCreateDeckInput): Promise<StudioDeckProject> {
@@ -753,7 +706,7 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
 
   const { createAgentSession, DefaultResourceLoader, SessionManager, SettingsManager } =
     await import("@mariozechner/pi-coding-agent");
-  const cwd = await getDeckService().ensureArtifactWorkspace(currentArtifactId);
+  const cwd = await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
   // Append Studio guidance instead of overriding Pi's base system prompt: the
   // base prompt is what tells the model the available tools and how to call
   // them. Replacing it caused the model to invent <tool_call>...</tool_call>
@@ -790,7 +743,7 @@ async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
   });
 
   runtime.session = session as PiSession;
-  runtime.unsubscribe = runtime.session.subscribe(handlePiEvent);
+  runtime.unsubscribe = runtime.session.subscribe((event) => chat.handlePiEvent(event));
   return runtime.session;
 }
 
@@ -805,375 +758,15 @@ async function disposeRuntimeSession(runtime: PiRuntime): Promise<void> {
   runtime.session.dispose();
   runtime.session = undefined;
   runtime.unsubscribe = undefined;
-  assistantStream = createAssistantStreamState();
-}
-
-function handlePiEvent(event: PiSessionEvent): void {
-  if (event.type === "message_start") {
-    // A new LLM turn begins inside this assistant message. Bump the turn so
-    // contentIndex pointers from the previous turn don't collide with the
-    // ones the next turn will emit (both turns start counting from 0 again).
-    assistantStream.turn += 1;
-    return;
-  }
-
-  if (event.type === "tool_execution_start") {
-    updateToolPart(event.toolCallId, event.toolName, {
-      input: event.args,
-      state: "input-available",
-    });
-    emitConversation();
-    return;
-  }
-
-  if (event.type === "tool_execution_update") {
-    updateToolPart(event.toolCallId, event.toolName, {
-      input: event.args,
-      output: event.partialResult,
-      result: event.partialResult,
-      state: "input-available",
-    });
-    emitConversation();
-    return;
-  }
-
-  if (event.type === "tool_execution_end") {
-    updateToolPart(event.toolCallId, event.toolName, {
-      output: event.result,
-      result: event.result,
-      state: event.isError ? "output-error" : "output-available",
-    });
-    emitConversation();
-    if (!event.isError && isArtifactFileTool(event.toolName)) {
-      void emitDecks();
-    }
-    return;
-  }
-
-  if (event.type === "message_end" && event.message) {
-    // Streaming events maintain authoritative ordering and content. We only
-    // backfill anything that didn't make it through the stream — primarily
-    // legacy thinking blocks for providers that don't emit thinking_delta.
-    backfillFromMessage(event.message);
-    emitConversation();
-    return;
-  }
-
-  if (event.type !== "message_update") return;
-
-  const assistantEvent = event.assistantMessageEvent;
-  if (!assistantEvent) return;
-
-  switch (assistantEvent.type) {
-    case "text_start":
-      ensureTextPart(assistantEvent.contentIndex, "");
-      break;
-    case "text_delta":
-      if (typeof assistantEvent.delta === "string" && assistantEvent.delta) {
-        appendStreamingText(assistantEvent.contentIndex, assistantEvent.delta);
-        emitConversation();
-      }
-      break;
-    case "text_end":
-      if (typeof assistantEvent.content === "string") {
-        finalizeStreamingText(assistantEvent.contentIndex, assistantEvent.content);
-        emitConversation();
-      }
-      break;
-    case "thinking_start":
-      ensureThinkingPart(assistantEvent.contentIndex, "");
-      emitConversation();
-      break;
-    case "thinking_delta":
-      if (typeof assistantEvent.delta === "string" && assistantEvent.delta) {
-        appendStreamingThinking(assistantEvent.contentIndex, assistantEvent.delta);
-        emitConversation();
-      }
-      break;
-    case "thinking_end":
-      if (
-        typeof assistantEvent.content === "string" ||
-        typeof assistantEvent.thinking === "string"
-      ) {
-        finalizeStreamingThinking(
-          assistantEvent.contentIndex,
-          (assistantEvent.content ?? assistantEvent.thinking)!,
-        );
-        emitConversation();
-      } else {
-        finalizeStreamingThinking(assistantEvent.contentIndex);
-        emitConversation();
-      }
-      break;
-    case "toolcall_end":
-      if (assistantEvent.toolCall) {
-        upsertAssistantToolCall(assistantEvent.toolCall);
-        emitConversation();
-      }
-      break;
-  }
-}
-
-function getConversationSnapshot(): StudioConversationSnapshot {
-  return {
-    id: currentSessionId,
-    status,
-    messages,
-    selectedModelId: undefined,
-    currentArtifactId,
-    error: lastError,
-  };
-}
-
-/* ----------------------------------------------------------------------- */
-/* Assistant message mutation helpers                                       */
-/* ----------------------------------------------------------------------- */
-
-function mutateAssistantParts(
-  mutator: (parts: StudioMessagePart[]) => StudioMessagePart[],
-): void {
-  messages = messages.map((message, index) => {
-    if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    const nextParts = mutator(message.parts ?? []);
-    if (nextParts === message.parts) return message;
-    return {
-      ...message,
-      parts: nextParts,
-      content: computeContentFromParts(nextParts),
-    };
-  });
-}
-
-function streamKey(contentIndex: number | undefined): string {
-  // Each LLM turn within an assistant message gets its own contentIndex
-  // namespace, so combine turn + contentIndex. `contentIndex` may be
-  // undefined for providers that don't emit it; in that case we fall back to
-  // `null` and the helpers below use append-style fallbacks.
-  return `${assistantStream.turn}:${contentIndex ?? "null"}`;
-}
-
-function ensureTextPart(contentIndex: number | undefined, initialText: string): void {
-  const key = streamKey(contentIndex);
-  if (assistantStream.textIndices.has(key)) return;
-  mutateAssistantParts((parts) => {
-    const next = [...parts, { type: "text" as const, text: initialText }];
-    assistantStream.textIndices.set(key, next.length - 1);
-    return next;
-  });
-}
-
-function appendStreamingText(contentIndex: number | undefined, delta: string): void {
-  if (!delta) return;
-  const key = streamKey(contentIndex);
-  mutateAssistantParts((parts) => {
-    let index = assistantStream.textIndices.get(key);
-    if (index === undefined || !parts[index] || parts[index]!.type !== "text") {
-      const next = [...parts, { type: "text" as const, text: delta }];
-      assistantStream.textIndices.set(key, next.length - 1);
-      return next;
-    }
-    const target = parts[index] as StudioMessagePart;
-    const updated: StudioMessagePart = { ...target, text: `${target.text ?? ""}${delta}` };
-    return parts.map((part, i) => (i === index ? updated : part));
-  });
-}
-
-function finalizeStreamingText(contentIndex: number | undefined, finalText: string): void {
-  const key = streamKey(contentIndex);
-  mutateAssistantParts((parts) => {
-    const index = assistantStream.textIndices.get(key);
-    if (index === undefined || !parts[index] || parts[index]!.type !== "text") {
-      const next = [...parts, { type: "text" as const, text: finalText }];
-      assistantStream.textIndices.set(key, next.length - 1);
-      return next;
-    }
-    return parts.map((part, i) =>
-      i === index ? ({ ...part, text: finalText } as StudioMessagePart) : part,
-    );
-  });
-}
-
-function ensureThinkingPart(contentIndex: number | undefined, initialText: string): void {
-  const key = streamKey(contentIndex);
-  if (assistantStream.thinkingIndices.has(key)) return;
-  mutateAssistantParts((parts) => {
-    const part: StudioMessagePart = {
-      type: "tool-Thinking",
-      toolCallId: `thinking-${assistantStream.turn}-${contentIndex ?? "x"}-${createIdSuffix()}`,
-      state: "input-streaming",
-      input: { thought: initialText },
-      output: initialText,
-    };
-    const next = [...parts, part];
-    assistantStream.thinkingIndices.set(key, next.length - 1);
-    return next;
-  });
-}
-
-function appendStreamingThinking(contentIndex: number | undefined, delta: string): void {
-  if (!delta) return;
-  const key = streamKey(contentIndex);
-  ensureThinkingPart(contentIndex, "");
-  mutateAssistantParts((parts) => {
-    const index = assistantStream.thinkingIndices.get(key);
-    if (index === undefined || !parts[index]) return parts;
-    const target = parts[index]!;
-    const prevText = typeof target.output === "string" ? target.output : "";
-    const nextText = `${prevText}${delta}`;
-    const updated: StudioMessagePart = {
-      ...target,
-      state: "input-streaming",
-      input: { ...(target.input as Record<string, unknown> | undefined), thought: nextText },
-      output: nextText,
-    };
-    return parts.map((part, i) => (i === index ? updated : part));
-  });
-}
-
-function finalizeStreamingThinking(
-  contentIndex: number | undefined,
-  finalText?: string,
-): void {
-  const key = streamKey(contentIndex);
-  mutateAssistantParts((parts) => {
-    const index = assistantStream.thinkingIndices.get(key);
-    if (index === undefined || !parts[index]) return parts;
-    const target = parts[index]!;
-    const text =
-      typeof finalText === "string"
-        ? finalText
-        : typeof target.output === "string"
-          ? target.output
-          : "";
-    const updated: StudioMessagePart = {
-      ...target,
-      state: "output-available",
-      input: { ...(target.input as Record<string, unknown> | undefined), thought: text },
-      output: text,
-      result: text,
-    };
-    return parts.map((part, i) => (i === index ? updated : part));
-  });
-}
-
-function upsertAssistantToolCall(toolCall: unknown): void {
-  const record = asRecord(toolCall);
-  if (!record) return;
-  const id = record["id"];
-  const name = record["name"];
-  if (typeof id !== "string" || typeof name !== "string") return;
-  const part: StudioMessagePart = {
-    type: `tool-${toAgentElementsToolName(name)}`,
-    toolCallId: id,
-    state: "input-available",
-    input: record["arguments"] ?? {},
-  };
-  insertOrUpdateToolPart(part);
-}
-
-function updateToolPart(
-  toolCallId: unknown,
-  toolName: unknown,
-  patch: Partial<StudioMessagePart>,
-): void {
-  if (typeof toolCallId !== "string" || typeof toolName !== "string") return;
-  const part: StudioMessagePart = {
-    type: `tool-${toAgentElementsToolName(toolName)}`,
-    toolCallId,
-    ...patch,
-  };
-  insertOrUpdateToolPart(part);
-}
-
-function insertOrUpdateToolPart(part: StudioMessagePart): void {
-  if (!part.toolCallId) return;
-  const toolCallId = part.toolCallId;
-  mutateAssistantParts((parts) => {
-    const existingIndex =
-      assistantStream.toolIndices.get(toolCallId) ??
-      parts.findIndex((candidate) => candidate.toolCallId === toolCallId);
-    if (existingIndex !== undefined && existingIndex >= 0 && parts[existingIndex]) {
-      const target = parts[existingIndex]!;
-      const merged: StudioMessagePart = {
-        ...target,
-        ...part,
-        input: part.input ?? target.input,
-        output: part.output ?? target.output,
-        result: part.result ?? target.result,
-        state: part.state ?? target.state,
-      };
-      assistantStream.toolIndices.set(toolCallId, existingIndex);
-      return parts.map((candidate, i) => (i === existingIndex ? merged : candidate));
-    }
-    const next = [...parts, part];
-    assistantStream.toolIndices.set(toolCallId, next.length - 1);
-    return next;
-  });
-}
-
-/**
- * Backfill anything Pi reported in its authoritative content array that the
- * streaming events didn't already capture. With proper text/thinking/tool
- * streaming this is largely a no-op, but it keeps us robust against
- * providers that omit thinking deltas.
- */
-function backfillFromMessage(piMessage: unknown): void {
-  const record = asRecord(piMessage);
-  if (!record || record["role"] !== "assistant" || !Array.isArray(record["content"])) return;
-  for (const block of record["content"]) {
-    const item = asRecord(block);
-    if (!item) continue;
-    if (item["type"] === "thinking" && typeof item["thinking"] === "string") {
-      const text = item["thinking"];
-      const alreadyHave = messages[messages.length - 1]?.parts?.some(
-        (p) =>
-          p.type === "tool-Thinking" &&
-          typeof p.output === "string" &&
-          p.output.trim() === text.trim(),
-      );
-      if (alreadyHave) continue;
-      mutateAssistantParts((parts) => [
-        ...parts,
-        {
-          type: "tool-Thinking",
-          toolCallId: `thinking-backfill-${assistantStream.turn}-${createIdSuffix()}`,
-          state: "output-available",
-          input: { thought: text },
-          output: text,
-          result: text,
-        } as StudioMessagePart,
-      ]);
-      continue;
-    }
-    if (item["type"] === "toolCall") {
-      const id = item["id"];
-      if (typeof id !== "string") continue;
-      const haveTool = messages[messages.length - 1]?.parts?.some(
-        (p) => p.toolCallId === id,
-      );
-      if (haveTool) continue;
-      upsertAssistantToolCall(item);
-    }
-  }
-}
-
-function finishAssistantMessage(nextStatus: NonNullable<StudioMessage["status"]>): void {
-  messages = messages.map((message, index) => {
-    if (index !== messages.length - 1 || message.role !== "assistant") return message;
-    return { ...message, status: nextStatus };
-  });
-}
-
-function emitConversation(): void {
-  emit({ type: "conversation", payload: getConversationSnapshot() });
+  chat.clearAssistantStreamState();
 }
 
 async function emitDecks(): Promise<void> {
-  emit({ type: "decks", payload: await listDecks() });
+  await chat.emitDecks();
 }
 
 async function emitSessions(): Promise<void> {
-  emit({ type: "sessions", payload: await listChatSessions() });
+  await chat.emitSessions();
 }
 
 async function emitAuth(): Promise<void> {
@@ -1193,93 +786,6 @@ function waitForManualCode(): Promise<string> {
 function getDeckService(): StudioDeckService {
   deckService ??= new StudioDeckService(join(app.getPath("userData"), "artifacts"));
   return deckService;
-}
-
-async function ensureChatSessionsLoaded(): Promise<void> {
-  if (sessionsLoaded) return;
-  sessionsLoaded = true;
-  try {
-    const raw = await readFile(getChatSessionsPath(), "utf8");
-    const parsed = JSON.parse(raw) as unknown;
-    chatSessions = Array.isArray(parsed)
-      ? parsed.filter(isStoredChatSession).sort((a, b) => b.updatedAt - a.updatedAt)
-      : [];
-  } catch {
-    chatSessions = [];
-  }
-}
-
-async function saveCurrentChatSession(): Promise<void> {
-  await ensureChatSessionsLoaded();
-  if (messages.length === 0) return;
-  const now = Date.now();
-  const existing = chatSessions.find((session) => session.id === currentSessionId);
-  const session: StoredChatSession = {
-    id: currentSessionId,
-    title: existing?.manualTitle ? existing.title : getSessionTitle(messages),
-    artifactId: currentArtifactId,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-    messages,
-    manualTitle: existing?.manualTitle,
-  };
-  chatSessions = [
-    session,
-    ...chatSessions.filter((candidate) => candidate.id !== currentSessionId),
-  ].sort((a, b) => b.updatedAt - a.updatedAt);
-  await persistChatSessions();
-}
-
-async function persistChatSessions(): Promise<void> {
-  await mkdir(getPiAgentDir(), { recursive: true });
-  await writeFile(getChatSessionsPath(), JSON.stringify(chatSessions, null, 2), "utf8");
-}
-
-async function maybeGenerateSessionTitle(sessionId: string): Promise<void> {
-  const session = chatSessions.find((candidate) => candidate.id === sessionId);
-  if (!session || session.manualTitle) return;
-
-  const userText = session.messages
-    .find((message) => message.role === "user")
-    ?.content.trim();
-  const assistantText = session.messages
-    .filter((message) => message.role === "assistant")
-    .map((message) => message.content)
-    .join("\n")
-    .trim();
-  if (!userText || !assistantText) return;
-
-  const runtime = await getRuntime();
-  if (!runtime.selectedModel) return;
-
-  try {
-    const { completeSimple } = await import("@mariozechner/pi-ai");
-    const result = await completeSimple(runtime.selectedModel as never, {
-      systemPrompt:
-        "You name chat conversations. Reply with a concise 3-6 word title in Title Case. No quotes, no punctuation, no trailing period. Capture the core task or topic.",
-      messages: [
-        {
-          role: "user",
-          content: `User message:\n${truncate(userText, 600)}\n\nAssistant reply:\n${truncate(
-            assistantText,
-            600,
-          )}\n\nReturn only the title.`,
-          timestamp: Date.now(),
-        },
-      ],
-    });
-
-    const title = extractTitleFromAssistantMessage(result);
-    if (!title) return;
-
-    const stored = chatSessions.find((candidate) => candidate.id === sessionId);
-    if (!stored || stored.manualTitle) return;
-    stored.title = title;
-    await persistChatSessions();
-    await emitSessions();
-  } catch {
-    // Title generation is best-effort; keep the heuristic title on failure.
-  }
 }
 
 async function resyncSelectedModelAfterRegistryChange(runtime: PiRuntime): Promise<void> {

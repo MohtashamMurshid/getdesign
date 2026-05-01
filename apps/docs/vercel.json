@@ -4,6 +4,7 @@
   "outputDirectory": "dist",
   "framework": "astro",
   "installCommand": "bun install",
+  "ignoreCommand": "npx turbo-ignore",
   "headers": [
     {
       "source": "/llms.txt",
