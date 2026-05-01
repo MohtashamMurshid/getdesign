@@ -65,15 +65,13 @@ export function buildStudioModelOptions(
   authStatus: StudioAuthStatus | undefined,
   cursorAuth: StudioCursorAuthStatus,
 ): StudioModelOption[] {
+  const oauthProviders = authStatus?.oauthProviders;
   const piModels =
     authStatus?.availableModels.map((model) => ({
       id: model.id,
       name: model.label,
       provider: model.provider,
-      providerLabel: formatProviderDisplayName(
-        model.provider,
-        authStatus.oauthProviders,
-      ),
+      providerLabel: formatProviderDisplayName(model.provider, oauthProviders),
     })) ?? [];
 
   const cursorModels = cursorAuth.signedIn
