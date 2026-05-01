@@ -35,6 +35,14 @@ export function SettingsPage({
   onBack,
   onRefresh,
   error,
+  cursorAuth,
+  cursorApiKeyDraft,
+  setCursorApiKeyDraft,
+  cursorBusy,
+  cursorError,
+  onCursorLogin,
+  onCursorLogout,
+  onOpenCursorDashboard,
 }: SettingsPageProps) {
   const modelsByProviderId = useMemo(
     () => buildModelsByProviderId(models),
@@ -86,6 +94,14 @@ export function SettingsPage({
               onDisconnectProvider={onDisconnectProvider}
               onAddCustomModel={onAddCustomModel}
               onRemoveCustomModel={onRemoveCustomModel}
+              cursorAuth={cursorAuth}
+              cursorApiKeyDraft={cursorApiKeyDraft}
+              setCursorApiKeyDraft={setCursorApiKeyDraft}
+              cursorBusy={cursorBusy}
+              cursorError={cursorError}
+              onCursorLogin={onCursorLogin}
+              onCursorLogout={onCursorLogout}
+              onOpenCursorDashboard={onOpenCursorDashboard}
             />
 
             <CustomModelsCard

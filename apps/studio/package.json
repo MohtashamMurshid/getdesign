@@ -17,12 +17,14 @@
   "trustedDependencies": [
     "electron",
     "electron-winstaller",
-    "esbuild"
+    "esbuild",
+    "sqlite3"
   ],
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "rebuild:native": "electron-builder install-app-deps",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:win": "electron-vite build && electron-builder --win",
     "build:linux": "electron-vite build && electron-builder --linux",
@@ -39,6 +41,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
+    "@cursor/sdk": "^1.0.11",
     "@fontsource-variable/geist": "^5.2.8",
     "@mariozechner/pi-ai": "^0.70.5",
     "@mariozechner/pi-coding-agent": "^0.70.5",

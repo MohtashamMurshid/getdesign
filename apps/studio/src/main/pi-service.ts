@@ -36,6 +36,12 @@ import {
   writeModelsJson,
 } from "./models-json";
 import { StudioDeckService } from "./deck-service";
+import { getCursorApiKey } from "./cursor-service";
+import {
+  cancelCursorRun,
+  disposeCursorAgent,
+  runCursorPrompt,
+} from "./cursor-runtime";
 
 import { isStoredChatSession } from "./pi/chat-guards";
 import {
@@ -457,8 +463,14 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
   if (!content) return getConversationSnapshot();
   await ensureChatSessionsLoaded();
 
+  const isCursorModel = Boolean(input.modelId?.startsWith("cursor/"));
+
+  if (isCursorModel && input.modelId) {
+    return startCursorPrompt(content, input.modelId);
+  }
+
   const runtime = await getRuntime();
-  if (input.modelId) {
+  if (input.modelId && !isCursorModel) {
     await selectModel({ modelId: input.modelId });
   }
 
@@ -512,11 +524,106 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
   return getConversationSnapshot();
 }
 
+async function startCursorPrompt(
+  content: string,
+  modelId: string,
+): Promise<StudioConversationSnapshot> {
+  const apiKey = getCursorApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "Sign in to Cursor first — no API key is currently stored for this device.",
+    );
+  }
+
+  const cwd = await getDeckService().ensureArtifactWorkspace(currentArtifactId);
+  const sessionId = currentSessionId;
+
+  const userMessage: StudioMessage = {
+    id: createId("user"),
+    role: "user",
+    content,
+    parts: [{ type: "text", text: content }],
+    createdAt: Date.now(),
+    status: "done",
+  };
+  const assistantMessage: StudioMessage = {
+    id: createId("assistant"),
+    role: "assistant",
+    content: "",
+    createdAt: Date.now(),
+    status: "streaming",
+  };
+  messages = [...messages, userMessage, assistantMessage];
+  assistantStream = createAssistantStreamState();
+  await saveCurrentChatSession();
+  status = "submitted";
+  lastError = undefined;
+  emitConversation();
+
+  status = "streaming";
+  emitConversation();
+
+  void runCursorPrompt({
+    sessionId,
+    modelId,
+    cwd,
+    apiKey,
+    prompt: content,
+    callbacks: {
+      onTextDelta(delta) {
+        if (!delta) return;
+        appendStreamingText(undefined, delta);
+        emitConversation();
+      },
+      onThinkingDelta(delta) {
+        if (!delta) return;
+        appendStreamingThinking(undefined, delta);
+        emitConversation();
+      },
+      onFinish() {
+        if (sessionId !== currentSessionId) return;
+        finalizeStreamingThinking(undefined);
+        finishAssistantMessage("done");
+        status = "ready";
+        emitConversation();
+        void saveCurrentChatSession().then(() => {
+          void emitSessions();
+          void emitDecks();
+          void maybeGenerateSessionTitle(currentSessionId);
+        });
+      },
+      onError(message) {
+        if (sessionId !== currentSessionId) return;
+        finalizeStreamingThinking(undefined);
+        appendStreamingText(undefined, `\n\n${message}`);
+        finishAssistantMessage("error");
+        status = "error";
+        lastError = message;
+        emitConversation();
+        void saveCurrentChatSession();
+        void emitSessions();
+      },
+      onCancel() {
+        if (sessionId !== currentSessionId) return;
+        finalizeStreamingThinking(undefined);
+        finishAssistantMessage("done");
+        status = "ready";
+        emitConversation();
+        void saveCurrentChatSession();
+        void emitSessions();
+      },
+    },
+  });
+
+  return getConversationSnapshot();
+}
+
 async function stopGeneration(): Promise<StudioConversationSnapshot> {
   const runtime = await getRuntime();
   if (runtime.session) {
     await runtime.session.abort();
   }
+  await cancelCursorRun(currentSessionId);
   finishAssistantMessage("done");
   status = "ready";
   emitConversation();
@@ -535,6 +642,7 @@ async function newConversation(): Promise<StudioConversationSnapshot> {
   await saveCurrentChatSession();
   const runtime = await getRuntime();
   await disposeRuntimeSession(runtime);
+  await disposeCursorAgent(currentSessionId);
   messages = [];
   status = "ready";
   lastError = undefined;
@@ -558,6 +666,7 @@ async function openChatSession(sessionId: string): Promise<StudioConversationSna
   await saveCurrentChatSession();
   const runtime = await getRuntime();
   await disposeRuntimeSession(runtime);
+  await disposeCursorAgent(currentSessionId);
   const session = chatSessions.find((candidate) => candidate.id === sessionId);
   if (!session) throw new Error("Chat session not found.");
   currentSessionId = session.id;
@@ -597,6 +706,7 @@ async function deleteChatSession(
   if (input.sessionId === currentSessionId) {
     const runtime = await getRuntime();
     await disposeRuntimeSession(runtime);
+    await disposeCursorAgent(currentSessionId);
     messages = [];
     status = "ready";
     lastError = undefined;

@@ -197,11 +197,46 @@ export type StudioSubmitLoginCodeInput = {
   code: string;
 };
 
+export type StudioCursorAccount = {
+  apiKeyName: string;
+  userEmail?: string;
+  userFirstName?: string;
+  userLastName?: string;
+  userId?: number;
+  createdAt?: string;
+};
+
+export type StudioCursorModel = {
+  id: string;
+  displayName: string;
+  description?: string;
+};
+
+export type StudioCursorAuthStatus = {
+  /** True when an API key is stored and last validation succeeded. */
+  signedIn: boolean;
+  /** Authenticated user details from `Cursor.me()`, when available. */
+  account?: StudioCursorAccount;
+  /** Last login error surfaced to the UI. */
+  error?: string;
+  /** Local fingerprint of the stored key (e.g. `cursor_***abcd`) for display. */
+  apiKeyHint?: string;
+  /** Lifecycle of the in-progress login flow. */
+  status: "idle" | "verifying" | "ready" | "error";
+  /** Models available to the authenticated user (`Cursor.models.list()`). */
+  models?: StudioCursorModel[];
+};
+
+export type StudioCursorLoginInput = {
+  apiKey: string;
+};
+
 export type StudioEvent =
   | { type: "auth"; payload: StudioAuthStatus }
   | { type: "conversation"; payload: StudioConversationSnapshot }
   | { type: "decks"; payload: StudioDeckProject[] }
-  | { type: "sessions"; payload: StudioChatSessionSummary[] };
+  | { type: "sessions"; payload: StudioChatSessionSummary[] }
+  | { type: "cursor-auth"; payload: StudioCursorAuthStatus };
 
 export type StudioApi = {
   newConversation: () => Promise<StudioConversationSnapshot>;
@@ -234,5 +269,9 @@ export type StudioApi = {
   openDeck: (deckId: string) => Promise<void>;
   revealPath: (path: string) => Promise<void>;
   exportDeck: (input: StudioExportDeckInput) => Promise<StudioExportDeckResult>;
+  getCursorAuth: () => Promise<StudioCursorAuthStatus>;
+  cursorLogin: (input: StudioCursorLoginInput) => Promise<StudioCursorAuthStatus>;
+  cursorLogout: () => Promise<StudioCursorAuthStatus>;
+  openCursorDashboard: () => Promise<void>;
   onStudioEvent: (listener: (event: StudioEvent) => void) => () => void;
 };
