@@ -7,9 +7,17 @@
  * `appendStreamingText` / `emitConversation` / persistence helpers without
  * having to leak module state.
  *
+ * Stream events are mapped through `dispatchCursorStreamEvent` so transport
+ * stays separate from how deltas are produced.
+ *
  * The Cursor SDK is loaded lazily so a missing/native-build failure of
  * `@cursor/sdk` doesn't crash the rest of Studio.
  */
+
+import { bareCursorModelId } from "./cursor-model-id";
+import { normalizeCursorSdkImportError } from "./cursor-import-error";
+import { dispatchCursorStreamEvent } from "./cursor-stream-dispatch";
+import { toCursorRunErrorMessage } from "./cursor-runtime-errors";
 
 type CursorSdkModule = typeof import("@cursor/sdk");
 type SDKAgent = Awaited<ReturnType<CursorSdkModule["Agent"]["create"]>>;
@@ -44,22 +52,10 @@ async function getSdk(): Promise<CursorSdkModule> {
       return (await import("@cursor/sdk")) as CursorSdkModule;
     } catch (error) {
       sdkPromise = undefined;
-      const message = error instanceof Error ? error.message : String(error);
-      if (/bindings|node_sqlite3|MODULE_NOT_FOUND/i.test(message)) {
-        throw new Error(
-          "Cursor SDK native dependencies aren't built for this Electron " +
-            "runtime. Run `bun install` (or `npm rebuild`) inside apps/studio " +
-            "to compile the SDK's native bindings, then restart Studio.",
-        );
-      }
-      throw new Error(`Could not load @cursor/sdk: ${message}`);
+      throw normalizeCursorSdkImportError(error);
     }
   })();
   return sdkPromise;
-}
-
-function bareCursorModelId(modelId: string): string {
-  return modelId.startsWith("cursor/") ? modelId.slice("cursor/".length) : modelId;
 }
 
 async function getOrCreateAgent(
@@ -108,7 +104,7 @@ export async function runCursorPrompt(input: {
     const agent = await getOrCreateAgent(sessionId, modelId, cwd, apiKey);
     run = await agent.send(prompt);
   } catch (error) {
-    callbacks.onError(toCursorErrorMessage(error));
+    callbacks.onError(toCursorRunErrorMessage(error));
     return;
   }
 
@@ -116,41 +112,8 @@ export async function runCursorPrompt(input: {
 
   try {
     for await (const event of run.stream()) {
-      switch (event.type) {
-        case "assistant": {
-          const blocks = event.message?.content ?? [];
-          for (const block of blocks) {
-            if (block.type === "text" && typeof block.text === "string") {
-              callbacks.onTextDelta(block.text);
-            }
-          }
-          break;
-        }
-        case "thinking": {
-          if (typeof event.text === "string" && event.text) {
-            callbacks.onThinkingDelta(event.text);
-          }
-          break;
-        }
-        // Tool calls, status, task, request — surface as plain text hints so
-        // the user sees something rather than nothing. We can render them
-        // structurally later.
-        case "tool_call": {
-          if (event.status === "running" && typeof event.name === "string") {
-            callbacks.onTextDelta(`\n\n_Running tool: \`${event.name}\`_\n`);
-          }
-          break;
-        }
-        case "status": {
-          if (event.status === "ERROR" && typeof event.message === "string") {
-            callbacks.onError(event.message);
-            return;
-          }
-          break;
-        }
-        default:
-          break;
-      }
+      const result = dispatchCursorStreamEvent(event, callbacks);
+      if (result === "abort") return;
     }
 
     if (run.status === "cancelled") {
@@ -171,7 +134,7 @@ export async function runCursorPrompt(input: {
 
     callbacks.onFinish();
   } catch (error) {
-    callbacks.onError(toCursorErrorMessage(error));
+    callbacks.onError(toCursorRunErrorMessage(error));
   } finally {
     if (activeRuns.get(sessionId) === run) {
       activeRuns.delete(sessionId);
@@ -204,15 +167,4 @@ export async function disposeCursorAgent(sessionId: string): Promise<void> {
 export async function disposeAllCursorAgents(): Promise<void> {
   const ids = [...sessions.keys()];
   await Promise.all(ids.map((id) => disposeCursorAgent(id)));
-}
-
-function toCursorErrorMessage(error: unknown): string {
-  if (!error) return "Unknown Cursor error.";
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string") return error;
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
-  }
 }

@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { StudioAuthStatus } from "../../../../shared/studio-api";
 import type { StudioAppState } from "@/hooks/use-studio-app-state";
 import { useTheme } from "@/hooks/use-theme";
+import { cn } from "@/lib/utils";
 
 type ChatSidebarProps = Pick<
   StudioAppState,
@@ -29,6 +30,8 @@ type ChatSidebarProps = Pick<
   | "displayedModels"
   | "selectedModelId"
 > & {
+  /** macOS: push header content past native traffic lights (hiddenInset). */
+  darwinTrafficLightInset?: boolean;
   onCollapse: () => void;
   onNewChat: () => void;
   onOpenSettings: () => void;
@@ -47,6 +50,7 @@ export function ChatSidebar({
   error,
   displayedModels,
   selectedModelId,
+  darwinTrafficLightInset = false,
   onCollapse,
   onNewChat,
   onOpenSettings,
@@ -60,7 +64,12 @@ export function ChatSidebar({
   const { theme, toggle } = useTheme();
   return (
     <aside className="flex min-h-0 w-[30%] min-w-[320px] max-w-[460px] flex-col rounded-xl border border-border bg-background shadow-sm">
-      <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
+      <header
+        className={cn(
+          "flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70",
+          darwinTrafficLightInset ? "ps-[78px] pe-4" : "px-4",
+        )}
+      >
         <div className="flex items-center gap-3">
           <Logo size="sm" />
         </div>

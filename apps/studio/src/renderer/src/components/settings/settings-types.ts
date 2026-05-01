@@ -18,6 +18,7 @@ export type SettingsModelRow = {
 };
 
 export type SettingsPageProps = {
+  darwinTrafficLightInset?: boolean;
   models: SettingsModelRow[];
   visibleModelIds: string[];
   setVisibleModelIds: (

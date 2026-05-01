@@ -22,11 +22,14 @@ import type {
   StudioExportDeckResult,
 } from "../../../shared/studio-api";
 
+import { cn } from "@/lib/utils";
+
 type DeckWorkspaceProps = {
   decks: StudioDeckProject[];
   selectedDeckId?: string;
   status: "ready" | "submitted" | "streaming" | "error";
   showChatToggle?: boolean;
+  darwinTrafficLightInset?: boolean;
   onShowChat?: () => void;
   onSelectDeck: (deckId: string) => void;
   onOpenDeck: (deckId: string) => Promise<void>;
@@ -42,6 +45,7 @@ export function DeckWorkspace({
   selectedDeckId,
   status,
   showChatToggle = false,
+  darwinTrafficLightInset = false,
   onShowChat,
   onSelectDeck,
   onOpenDeck,
@@ -85,27 +89,30 @@ export function DeckWorkspace({
 
   return (
     <aside className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70 px-4">
+      <div
+        className={cn(
+          "flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/70",
+          darwinTrafficLightInset ? "ps-[78px] pe-4" : "px-4",
+        )}
+      >
         <div className="flex min-w-0 items-center gap-2">
           {showChatToggle && onShowChat ? (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
               onClick={onShowChat}
               aria-label="Show chat"
               title="Show chat"
             >
-              <IconLayoutSidebarLeftExpand size={16} />
+              <IconLayoutSidebarLeftExpand size={18} />
             </Button>
           ) : null}
-          <span className="rounded border border-border bg-muted/40 px-2 py-1 text-xs font-medium">
+          <span className="rounded border border-border bg-muted/40 px-2 py-1 text-xs font-medium leading-none">
             Design Files
           </span>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
             onClick={() => {
               setPreviewError(undefined);
               setPreviewKey((key) => key + 1);
@@ -113,7 +120,7 @@ export function DeckWorkspace({
             aria-label="Reload artifact"
             title="Reload artifact"
           >
-            <IconRefresh size={14} />
+            <IconRefresh size={18} />
           </Button>
           <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
             <span className="truncate">project</span>

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import { AuthLanding } from "@/components/auth-landing";
 import { ChatSidebar } from "@/components/studio/chat-sidebar";
 import { StudioLoadingScreen } from "@/components/studio/studio-loading-screen";
@@ -7,6 +9,7 @@ import { useStudioAppState } from "@/hooks/use-studio-app-state";
 
 export default function App() {
   const studio = useStudioAppState();
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const {
     view,
     setView,
@@ -65,6 +68,17 @@ export default function App() {
     constants,
   } = studio;
 
+  useEffect(() => {
+    const subscribe = window.studioEnv?.onWindowChrome;
+    if (typeof subscribe !== "function") return;
+    const unsubscribe = subscribe((chrome) => {
+      setIsFullScreen(chrome.fullScreen || chrome.simpleFullScreen);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   if (!authLoaded) {
     return <StudioLoadingScreen />;
   }
@@ -102,9 +116,16 @@ export default function App() {
     );
   }
 
+  /** Traffic lights are hidden in fullscreen, so the inset is only needed in windowed mode. */
+  const darwinToolbarPad =
+    typeof window !== "undefined" &&
+    window.studioEnv?.platform === "darwin" &&
+    !isFullScreen;
+
   if (view === "settings") {
     return (
       <SettingsPage
+        darwinTrafficLightInset={darwinToolbarPad}
         models={models}
         visibleModelIds={visibleModelIds}
         setVisibleModelIds={setVisibleModelIds}
@@ -146,6 +167,7 @@ export default function App() {
     <main className="flex h-full gap-2 overflow-hidden bg-canvas p-2 text-foreground">
       {isChatOpen ? (
         <ChatSidebar
+          darwinTrafficLightInset={darwinToolbarPad}
           conversation={conversation}
           chatSessions={chatSessions}
           authStatus={authStatus}
@@ -164,6 +186,7 @@ export default function App() {
         />
       ) : null}
       <DeckWorkspace
+        darwinTrafficLightInset={darwinToolbarPad && !isChatOpen}
         decks={decks}
         selectedDeckId={selectedDeckId}
         status={conversation.status}

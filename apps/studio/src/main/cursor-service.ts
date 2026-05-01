@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { normalizeCursorSdkImportError } from "./cursor-import-error";
 import { disposeAllCursorAgents } from "./cursor-runtime";
 import type {
   StudioCursorAccount,
@@ -142,16 +143,7 @@ async function fetchCursorAccount(apiKey: string): Promise<StudioCursorAccount> 
   try {
     sdk = (await import("@cursor/sdk")) as typeof import("@cursor/sdk");
   } catch (importError) {
-    const message =
-      importError instanceof Error ? importError.message : String(importError);
-    if (/bindings|node_sqlite3|MODULE_NOT_FOUND/i.test(message)) {
-      throw new Error(
-        "Cursor SDK native dependencies are not built for this Electron runtime. " +
-          "Run `bun install` (or `npm rebuild`) inside apps/studio to compile the " +
-          "SDK's native bindings, then restart Studio.",
-      );
-    }
-    throw new Error(`Could not load @cursor/sdk: ${message}`);
+    throw normalizeCursorSdkImportError(importError);
   }
 
   const me = await sdk.Cursor.me({ apiKey });

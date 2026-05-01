@@ -13,6 +13,7 @@ import type { SettingsPageProps } from "./settings/settings-types";
 export type { SettingsPageProps } from "./settings/settings-types";
 
 export function SettingsPage({
+  darwinTrafficLightInset = false,
   models,
   visibleModelIds,
   setVisibleModelIds,
@@ -75,11 +76,15 @@ export function SettingsPage({
   }
 
   return (
-    <main className="flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-canvas p-2 text-foreground">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-        <SettingsHeader onBack={onBack} onRefresh={onRefresh} />
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <SettingsHeader
+          darwinTrafficLightInset={darwinTrafficLightInset}
+          onBack={onBack}
+          onRefresh={onRefresh}
+        />
 
-        <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+        <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto px-4 py-5 sm:px-6">
           <div className="space-y-6">
             <SettingsStatusAlerts error={error} authStatus={authStatus} />
 
