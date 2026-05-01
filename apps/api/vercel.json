@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "ignoreCommand": "npx turbo-ignore",
   "functions": {
     "api/index.ts": {
       "runtime": "nodejs20.x",
