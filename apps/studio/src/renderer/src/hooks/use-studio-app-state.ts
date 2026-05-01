@@ -93,6 +93,9 @@ export function useStudioAppState() {
       setUserSelectedDeckId(undefined);
       setSelectedModelId((current) => current || nextAuth.selectedModelId || "");
       setCursorAuth(nextCursorAuth);
+      setCursorError(
+        nextCursorAuth.status === "error" ? nextCursorAuth.error : undefined,
+      );
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     } finally {

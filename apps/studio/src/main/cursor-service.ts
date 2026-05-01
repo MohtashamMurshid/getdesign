@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, shell } from "electron";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { disposeAllCursorAgents } from "./cursor-runtime";
 import type {
   StudioCursorAccount,
   StudioCursorAuthStatus,
@@ -15,7 +16,8 @@ const CURSOR_DASHBOARD_URL = "https://cursor.com/dashboard/integrations";
 let cursorWindow: BrowserWindow | undefined;
 let cursorState: StudioCursorAuthStatus = { signedIn: false, status: "idle" };
 let cachedApiKey: string | undefined;
-let stateLoaded = false;
+let cursorIpcRegistered = false;
+let stateLoadPromise: Promise<void> | undefined;
 let saveLock: Promise<void> = Promise.resolve();
 
 type StoredCursorAuth = {
@@ -28,6 +30,8 @@ type StoredCursorAuth = {
 
 export function registerCursorIpc(window: BrowserWindow): void {
   cursorWindow = window;
+  if (cursorIpcRegistered) return;
+  cursorIpcRegistered = true;
 
   ipcMain.handle("studio:cursor-get-auth", () => getCursorAuth());
   ipcMain.handle(
@@ -68,6 +72,9 @@ async function cursorLogin(
   try {
     const account = await fetchCursorAccount(apiKey);
     const models = await fetchCursorModels(apiKey);
+    if (cachedApiKey && cachedApiKey !== apiKey) {
+      await disposeAllCursorAgents();
+    }
     cachedApiKey = apiKey;
     process.env.CURSOR_API_KEY = apiKey;
     await persistApiKey(apiKey, account, models);
@@ -123,6 +130,7 @@ function describeCursorError(error: unknown): string {
 async function cursorLogout(): Promise<StudioCursorAuthStatus> {
   cachedApiKey = undefined;
   delete process.env.CURSOR_API_KEY;
+  await disposeAllCursorAgents();
   await deletePersistedAuth();
   setState({ signedIn: false, status: "idle" });
   return cursorState;
@@ -196,37 +204,37 @@ function getCursorAuthPath(): string {
 }
 
 async function ensureLoaded(): Promise<void> {
-  if (stateLoaded) return;
-  stateLoaded = true;
+  stateLoadPromise ??= (async () => {
+    const path = getCursorAuthPath();
+    let raw: string;
+    try {
+      raw = await readFile(path, "utf8");
+    } catch {
+      return;
+    }
 
-  const path = getCursorAuthPath();
-  let raw: string;
-  try {
-    raw = await readFile(path, "utf8");
-  } catch {
-    return;
-  }
+    let parsed: StoredCursorAuth | undefined;
+    try {
+      parsed = JSON.parse(raw) as StoredCursorAuth;
+    } catch {
+      return;
+    }
+    if (!parsed) return;
 
-  let parsed: StoredCursorAuth | undefined;
-  try {
-    parsed = JSON.parse(raw) as StoredCursorAuth;
-  } catch {
-    return;
-  }
-  if (!parsed) return;
+    const apiKey = decodeStoredKey(parsed);
+    if (!apiKey) return;
 
-  const apiKey = decodeStoredKey(parsed);
-  if (!apiKey) return;
-
-  cachedApiKey = apiKey;
-  process.env.CURSOR_API_KEY = apiKey;
-  cursorState = {
-    signedIn: true,
-    status: "ready",
-    account: parsed.account,
-    apiKeyHint: maskApiKey(apiKey),
-    models: parsed.models,
-  };
+    cachedApiKey = apiKey;
+    process.env.CURSOR_API_KEY = apiKey;
+    cursorState = {
+      signedIn: true,
+      status: "ready",
+      account: parsed.account,
+      apiKeyHint: maskApiKey(apiKey),
+      models: parsed.models,
+    };
+  })();
+  await stateLoadPromise;
 }
 
 async function hydrateOnStartup(): Promise<void> {
@@ -251,7 +259,7 @@ async function hydrateOnStartup(): Promise<void> {
     setState({
       ...cursorState,
       status: "error",
-      error: error instanceof Error ? error.message : String(error),
+      error: describeCursorError(error),
     });
   }
 }
@@ -261,7 +269,7 @@ async function persistApiKey(
   account?: StudioCursorAccount,
   models?: StudioCursorModel[],
 ): Promise<void> {
-  saveLock = saveLock.then(async () => {
+  saveLock = saveLock.catch(() => undefined).then(async () => {
     const path = getCursorAuthPath();
     await mkdir(app.getPath("userData"), { recursive: true });
     const payload = encodeStoredKey(apiKey, account, models);
@@ -271,7 +279,7 @@ async function persistApiKey(
 }
 
 async function deletePersistedAuth(): Promise<void> {
-  saveLock = saveLock.then(async () => {
+  saveLock = saveLock.catch(() => undefined).then(async () => {
     const path = getCursorAuthPath();
     try {
       await rm(path, { force: true });

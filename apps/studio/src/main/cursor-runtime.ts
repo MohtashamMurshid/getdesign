@@ -30,6 +30,7 @@ type SessionEntry = {
   agent: SDKAgent;
   modelId: string;
   cwd: string;
+  apiKey: string;
 };
 
 const sessions = new Map<string, SessionEntry>();
@@ -68,12 +69,17 @@ async function getOrCreateAgent(
   apiKey: string,
 ): Promise<SDKAgent> {
   const existing = sessions.get(sessionId);
-  if (existing && existing.modelId === modelId && existing.cwd === cwd) {
+  if (
+    existing &&
+    existing.modelId === modelId &&
+    existing.cwd === cwd &&
+    existing.apiKey === apiKey
+  ) {
     return existing.agent;
   }
 
   if (existing) {
-    // Model or workspace changed — dispose the old agent before starting a new one.
+    // Model, workspace, or credential changed; dispose before starting a new agent.
     await disposeCursorAgent(sessionId);
   }
 
@@ -83,7 +89,7 @@ async function getOrCreateAgent(
     model: { id: bareCursorModelId(modelId) },
     local: { cwd },
   });
-  sessions.set(sessionId, { agent, modelId, cwd });
+  sessions.set(sessionId, { agent, modelId, cwd, apiKey });
   return agent;
 }
 
@@ -170,7 +176,6 @@ export async function runCursorPrompt(input: {
     if (activeRuns.get(sessionId) === run) {
       activeRuns.delete(sessionId);
     }
-    void apiKey; // silence unused-after-create lint when we cache the agent
   }
 }
 

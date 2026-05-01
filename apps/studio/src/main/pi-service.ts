@@ -465,13 +465,13 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
 
   const isCursorModel = Boolean(input.modelId?.startsWith("cursor/"));
 
+  if (isCursorModel && input.modelId) {
+    return startCursorPrompt(content, input.modelId);
+  }
+
   const runtime = await getRuntime();
   if (input.modelId && !isCursorModel) {
     await selectModel({ modelId: input.modelId });
-  }
-
-  if (isCursorModel && input.modelId) {
-    return startCursorPrompt(content, input.modelId);
   }
 
   const userMessage: StudioMessage = {

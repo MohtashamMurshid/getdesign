@@ -446,10 +446,11 @@ function CursorProviderRow({
               >
                 cursor.com/dashboard/integrations
               </button>
-              . The key is encrypted on this device.
+              . The key is stored locally on this device (encrypted when available).
             </p>
             <Input
               type="password"
+              aria-label="Cursor API key"
               value={apiKeyDraft}
               onChange={(event) => setApiKeyDraft(event.target.value)}
               placeholder="cursor_..."

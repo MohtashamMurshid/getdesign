@@ -491,6 +491,7 @@ function CursorLoginCard({
       </div>
       <Input
         type="password"
+        aria-label="Cursor API key"
         value={apiKeyDraft}
         onChange={(event) => setApiKeyDraft(event.target.value)}
         placeholder="cursor_..."
