@@ -239,6 +239,7 @@
     "electron",
     "sharp",
     "esbuild",
+    "sqlite3",
     "electron-winstaller",
   ],
   "packages": {

@@ -206,6 +206,12 @@ export type StudioCursorAccount = {
   createdAt?: string;
 };
 
+export type StudioCursorModel = {
+  id: string;
+  displayName: string;
+  description?: string;
+};
+
 export type StudioCursorAuthStatus = {
   /** True when an API key is stored and last validation succeeded. */
   signedIn: boolean;
@@ -217,6 +223,8 @@ export type StudioCursorAuthStatus = {
   apiKeyHint?: string;
   /** Lifecycle of the in-progress login flow. */
   status: "idle" | "verifying" | "ready" | "error";
+  /** Models available to the authenticated user (`Cursor.models.list()`). */
+  models?: StudioCursorModel[];
 };
 
 export type StudioCursorLoginInput = {

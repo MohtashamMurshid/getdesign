@@ -6,6 +6,7 @@ import type {
   StudioCursorAccount,
   StudioCursorAuthStatus,
   StudioCursorLoginInput,
+  StudioCursorModel,
   StudioEvent,
 } from "../shared/studio-api";
 
@@ -22,6 +23,7 @@ type StoredCursorAuth = {
   cipher?: string;
   plain?: string;
   account?: StudioCursorAccount;
+  models?: StudioCursorModel[];
 };
 
 export function registerCursorIpc(window: BrowserWindow): void {
@@ -65,14 +67,16 @@ async function cursorLogin(
 
   try {
     const account = await fetchCursorAccount(apiKey);
+    const models = await fetchCursorModels(apiKey);
     cachedApiKey = apiKey;
     process.env.CURSOR_API_KEY = apiKey;
-    await persistApiKey(apiKey, account);
+    await persistApiKey(apiKey, account, models);
     setState({
       signedIn: true,
       status: "ready",
       account,
       apiKeyHint: maskApiKey(apiKey),
+      models,
     });
     return cursorState;
   } catch (error) {
@@ -153,6 +157,22 @@ async function fetchCursorAccount(apiKey: string): Promise<StudioCursorAccount> 
   };
 }
 
+async function fetchCursorModels(apiKey: string): Promise<StudioCursorModel[]> {
+  try {
+    const sdk = (await import("@cursor/sdk")) as typeof import("@cursor/sdk");
+    const items = await sdk.Cursor.models.list({ apiKey });
+    return (items ?? []).map((item) => ({
+      id: item.id,
+      displayName: item.displayName,
+      description: item.description,
+    }));
+  } catch {
+    // Don't fail login if the catalog fetch hiccups; the renderer will show an
+    // empty list and the user can refresh from settings.
+    return [];
+  }
+}
+
 function maskApiKey(apiKey: string): string {
   const tail = apiKey.slice(-4);
   return `cursor_***${tail}`;
@@ -205,6 +225,7 @@ async function ensureLoaded(): Promise<void> {
     status: "ready",
     account: parsed.account,
     apiKeyHint: maskApiKey(apiKey),
+    models: parsed.models,
   };
 }
 
@@ -217,13 +238,15 @@ async function hydrateOnStartup(): Promise<void> {
   // shouldn't kick someone out of the app.
   try {
     const account = await fetchCursorAccount(cachedApiKey);
+    const models = await fetchCursorModels(cachedApiKey);
     setState({
       signedIn: true,
       status: "ready",
       account,
       apiKeyHint: maskApiKey(cachedApiKey),
+      models,
     });
-    await persistApiKey(cachedApiKey, account);
+    await persistApiKey(cachedApiKey, account, models);
   } catch (error) {
     setState({
       ...cursorState,
@@ -236,11 +259,12 @@ async function hydrateOnStartup(): Promise<void> {
 async function persistApiKey(
   apiKey: string,
   account?: StudioCursorAccount,
+  models?: StudioCursorModel[],
 ): Promise<void> {
   saveLock = saveLock.then(async () => {
     const path = getCursorAuthPath();
     await mkdir(app.getPath("userData"), { recursive: true });
-    const payload = encodeStoredKey(apiKey, account);
+    const payload = encodeStoredKey(apiKey, account, models);
     await writeFile(path, JSON.stringify(payload, null, 2), { encoding: "utf8", mode: 0o600 });
   });
   await saveLock;
@@ -261,15 +285,16 @@ async function deletePersistedAuth(): Promise<void> {
 function encodeStoredKey(
   apiKey: string,
   account: StudioCursorAccount | undefined,
+  models: StudioCursorModel[] | undefined,
 ): StoredCursorAuth {
   if (safeStorage.isEncryptionAvailable()) {
     const cipher = safeStorage.encryptString(apiKey).toString("base64");
-    return { cipher, account };
+    return { cipher, account, models };
   }
   // Fall back to plaintext on platforms / configurations where Electron
   // safeStorage isn't available (e.g. Linux without an org keyring). The
   // file is written 0o600 so other users on the system can't read it.
-  return { plain: apiKey, account };
+  return { plain: apiKey, account, models };
 }
 
 function decodeStoredKey(stored: StoredCursorAuth): string | undefined {
