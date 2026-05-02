@@ -84,14 +84,17 @@ Every run executes, in order:
 
 1. **Authorize** — require an authenticated user plus Daytona and OpenAI credentials, either request-scoped for the current API/SDK/CLI run or stored in Convex for web reuse.
 2. **Crawl** — fetch HTML, all linked stylesheets, `@import` chains, and `@font-face` sources over HTTPS. Runs in Bun on the API server; does not require the sandbox.
-3. **Spawn sandbox** — use the authenticated user's Daytona credential with `daytona.create({ snapshot: 'getdesign-<sha>' })` + `sandbox.computerUse.start()`.
-4. **Open URL** — launch Chromium kiosk inside the sandbox's Xvfb display via `sandbox.process.executeCommand`.
-5. **Capture rendered page** — measure the actual rendered document height in Chromium, dismiss or hide common visual blockers when possible, capture viewport-sized tiles via `sandbox.computerUse.screenshot.takeCompressed`, dedupe repeated fixed/sticky elements after the first tile, and derive a stitched full-page preview from the tiles.
-6. **Extract tokens** — deterministic CSS parsing → `DesignTokens` Zod object (colors, typography, spacing, radii, shadows, borders, breakpoints).
-7. **Synthesize** — LLM call using the authenticated user's OpenAI credential produces a structured `DesignDoc` conforming to the 9-section Zod schema. Vision input = curated visual synthesis subset + tokens JSON + crawl notes.
-8. **Render** — deterministic markdown renderer converts `DesignDoc` → final `design.md`.
-9. **Persist** — write run, tokens, capture tiles, stitched preview, capture metadata, and final doc to Convex.
-10. **Teardown** — `sandbox.delete()`.
+3. **Ensure capture runtime** — resolve the user's per-account capture snapshot for the current `CAPTURE_RUNTIME_VERSION`. If it does not yet exist in `active` state, create it from the pinned public capture runtime image and wait. Web does this as an explicit setup step; API/CLI runs auto-ensure on first use and emit `capture_runtime` status events.
+4. **Spawn sandbox** — use the authenticated user's Daytona credential with `daytona.create({ snapshot: 'getdesign-capture-<runtimeVersion>' })` + `sandbox.computerUse.start()`.
+5. **Open URL** — launch Chromium kiosk inside the sandbox's Xvfb display via `sandbox.process.executeCommand`.
+6. **Capture rendered page** — measure the actual rendered document height in Chromium, dismiss or hide common visual blockers when possible, capture viewport-sized tiles via `sandbox.computerUse.screenshot.takeCompressed`, dedupe repeated fixed/sticky elements after the first tile, and derive a stitched full-page preview from the tiles.
+7. **Extract tokens** — deterministic CSS parsing → `DesignTokens` Zod object (colors, typography, spacing, radii, shadows, borders, breakpoints).
+8. **Synthesize** — LLM call using the authenticated user's OpenAI credential produces a structured `DesignDoc` conforming to the 9-section Zod schema. Vision input = curated visual synthesis subset + tokens JSON + crawl notes.
+9. **Render** — deterministic markdown renderer converts `DesignDoc` → final `design.md`.
+10. **Persist** — write run, tokens, capture tiles, stitched preview, capture metadata, runtime version, run mode (`visual` vs `text_only`), and final doc to Convex.
+11. **Teardown** — `sandbox.delete()`.
+
+If step 3 cannot reach an `active` capture snapshot (quota, build failure, registry error, timeout) or step 6 cannot complete after the in-tool retry budget, the run fails with `capture_runtime_unavailable` (or `capture_failed`) and the user is offered an explicit text-only re-run instead of silently degrading.
 
 ### F2a — Auth, credentials, and pricing
 
@@ -105,6 +108,25 @@ Every run executes, in order:
 - The credential model includes a provider field so additional LLM providers can be added later without changing the user-funded run model. V1 only supports OpenAI for synthesis.
 - Request-scoped credentials must be sent over authenticated HTTPS in headers or request body fields, never in query parameters, and must not be persisted or logged unless the user explicitly saves them.
 - Raw stored credentials are never displayed after save; the UI may show masked suffixes and last-updated timestamps.
+
+### F2b — Capture runtime provisioning
+
+- The capture runtime is a public, versioned OCI image published by getdesign (built from `infra/daytona/Dockerfile`, pinned by digest on GHCR). The image is not user-configurable in v1.
+- Each user owns their own immutable Daytona snapshot per runtime version, named `getdesign-capture-<runtimeVersion>`. The snapshot is created in the user's Daytona account using their key and reused across runs.
+- Web shows an explicit "Connect Daytona" setup that calls `ensureDaytonaCaptureSnapshot` and surfaces `provisioning` / `ready` / `failed` status. Visual runs are not started until status is `ready`.
+- API, SDK, and CLI runs auto-ensure the snapshot on the first run with a given Daytona credential and emit `provisioning_capture_runtime` / `capture_runtime_ready` / `capture_runtime_failed` status events while waiting.
+- Provisioning failures surface a clear, actionable error (quota, build failure, permissions, timeout) with the snapshot name. getdesign never falls back to platform-funded Daytona capacity.
+- v1 does not auto-delete getdesign-created snapshots from the user's account. Bumping `CAPTURE_RUNTIME_VERSION` creates a new snapshot alongside any older versions; cleanup is a future explicit user action.
+
+### F2c — Text-only fallback
+
+- When visual capture is unavailable (no Daytona key, snapshot provisioning failure, capture failure after retries) the run does not silently degrade. The user is offered an explicit text-only re-run.
+- Text-only runs still produce a `design.md`, but with a clear "text-only mode" banner so downstream consumers know the visual sections were derived from CSS tokens alone.
+- Hosted UI / API / CLI all expose the same opt-in:
+  - Web: "Continue with text-only" button on the capture-unavailable error.
+  - API: `x-getdesign-mode: text_only` header on the retry request; the response includes `x-getdesign-mode: text_only`.
+  - CLI: `--text-only` flag.
+- The run record stores `mode: 'visual' | 'text_only'` so analytics and history can distinguish the two.
 
 ### F3 — Output: `design.md`
 
@@ -139,6 +161,9 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 - `400` on missing/invalid URL.
 - `401` when unauthenticated.
 - `402` or `409` when required BYOK credentials are missing or invalid.
+- `409 capture_runtime_unavailable` when the user's Daytona capture snapshot is not ready or capture failed; the response body includes the snapshot name and a `retryWith` hint pointing to the `x-getdesign-mode: text_only` header.
+- Successful `200` responses include an `x-getdesign-mode: visual|text_only` response header.
+- Optional request headers: `x-daytona-api-key` and `x-openai-api-key` for request-scoped BYOK credentials, and `x-getdesign-mode: text_only` to opt into the text-only fallback after a prior `409`.
 - `502` if the target URL cannot be reached.
 - `504` on agent timeout (> 120 s).
 - No streaming in v1. No JSON endpoint in v1.
@@ -149,6 +174,8 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 - `npx @getdesign/cli` (no URL) — interactive REPL via [OpenTUI](https://github.com/openturn/opentui); same transport as the web chat.
 - `npx @getdesign/cli --version`, `--help`.
 - When `DAYTONA_API_KEY` + `OPENAI_API_KEY` are set locally, the CLI either calls the agent directly or forwards those keys as request-scoped credentials to the hosted API. Without local keys, it calls the hosted API using the authenticated account's stored BYOK credentials.
+- The CLI auto-ensures the per-user capture snapshot in direct mode using the same `ensureDaytonaCaptureSnapshot` helper as the hosted API, and prints `provisioning_capture_runtime` / `capture_runtime_ready` status.
+- `--text-only` opts into the text-only fallback when the capture runtime is unavailable.
 - Internally implemented on top of the TypeScript SDK (F7) so we keep one transport layer.
 
 ### F7 — TypeScript SDK behavior

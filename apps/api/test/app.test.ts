@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import type { RunDesignResult } from "@getdesign/agent";
+import { RunDesignError, type RunDesignResult } from "@getdesign/agent";
 
 import { createApp } from "../src/app";
 
@@ -12,6 +12,7 @@ function stubResult(markdown: string): RunDesignResult {
     tokens: {} as RunDesignResult["tokens"],
     crawl: {} as RunDesignResult["crawl"],
     visual: {} as RunDesignResult["visual"],
+    mode: "visual",
   };
 }
 
@@ -62,6 +63,63 @@ test("GET /?url=https://example.com returns 200 markdown from stub", async () =>
   expect(res.headers.get("cache-control")).toBe("no-store");
   expect(await res.text()).toBe(markdown);
   expect(calledWith).toBe("https://example.com");
+});
+
+test("GET / returns 409 when capture runtime is unavailable", async () => {
+  const app = createApp({
+    runDesign: async () => {
+      throw new RunDesignError("capture_runtime_unavailable", {
+        status: "runtime_unavailable",
+        reason: "Snapshot pending",
+        snapshot: "getdesign-capture-test",
+      });
+    },
+  });
+
+  const res = await app.fetch(
+    new Request("http://localhost/?url=https://example.com"),
+  );
+  expect(res.status).toBe(409);
+  const body = (await res.json()) as {
+    code: string;
+    snapshot?: string;
+    retryWith?: { header: string; value: string };
+  };
+  expect(body.code).toBe("capture_runtime_unavailable");
+  expect(body.snapshot).toBe("getdesign-capture-test");
+  expect(body.retryWith?.header).toBe("x-getdesign-mode");
+});
+
+test("GET / forwards x-getdesign-mode and credential headers to runDesign", async () => {
+  let received: { url: string; options?: unknown } | undefined;
+  const app = createApp({
+    runDesign: async (url, options) => {
+      received = { url, options };
+      return {
+        ...stubResult("# text only"),
+        mode: "text_only",
+      } satisfies RunDesignResult;
+    },
+  });
+
+  const res = await app.fetch(
+    new Request("http://localhost/?url=https://example.com", {
+      headers: {
+        "x-getdesign-mode": "text_only",
+        "x-daytona-api-key": "dtn_test",
+        "x-openai-api-key": "sk_test",
+      },
+    }),
+  );
+  expect(res.status).toBe(200);
+  expect(res.headers.get("x-getdesign-mode")).toBe("text_only");
+  const opts = (received?.options ?? {}) as {
+    visualRequirement?: string;
+    credentials?: { daytonaApiKey?: string; openaiApiKey?: string };
+  };
+  expect(opts.visualRequirement).toBe("text_only_fallback");
+  expect(opts.credentials?.daytonaApiKey).toBe("dtn_test");
+  expect(opts.credentials?.openaiApiKey).toBe("sk_test");
 });
 
 test("GET / returns 500 JSON when runDesign throws", async () => {

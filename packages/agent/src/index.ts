@@ -1,9 +1,12 @@
-export { runDesign } from "./runDesign";
+export { runDesign, RunDesignError } from "./runDesign";
 export type {
+  CaptureRuntimeEvent,
+  RunDesignCredentials,
   RunDesignEvent,
   RunDesignOptions,
   RunDesignPhase,
   RunDesignResult,
+  VisualRequirement,
 } from "./runDesign";
 
 export { createCoordinator } from "./agents/coordinator";
@@ -17,7 +20,7 @@ export { runCrawl, summarizeCrawl } from "./agents/crawler";
 export type { CrawlSummary, CrawlerInput } from "./agents/crawler";
 
 export { runVisual, summarizeVisual } from "./agents/visual";
-export type { VisualInput, VisualResult } from "./agents/visual";
+export type { VisualInput, VisualResult, VisualRunOptions } from "./agents/visual";
 
 export { runExtractTokens, summarizeTokens } from "./agents/tokenExtractor";
 export type { TokenExtractorInput } from "./agents/tokenExtractor";

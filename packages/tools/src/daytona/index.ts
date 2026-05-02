@@ -1,7 +1,22 @@
 import { Daytona, type CreateSandboxFromSnapshotParams, type Sandbox, type ScreenshotOptions } from "@daytonaio/sdk";
 import sharp from "sharp";
 
-const DEFAULT_SNAPSHOT_NAME = "getdesign-latest";
+import { captureSnapshotName } from "./runtime";
+
+export {
+  CAPTURE_RUNTIME_RESOURCES,
+  CAPTURE_RUNTIME_VERSION,
+  captureSnapshotName,
+  ensureDaytonaCaptureSnapshot,
+  getCaptureRuntimeImage,
+  type CaptureRuntimeStatus,
+  type EnsureCaptureSnapshotOptions,
+  type EnsureCaptureSnapshotResult,
+} from "./runtime";
+
+export { withCdpClient, openCdpClient, type CdpClient } from "./cdp";
+
+const DEFAULT_SNAPSHOT_NAME = captureSnapshotName();
 const DEFAULT_TIMEOUT_SECONDS = 90;
 const DEFAULT_CHROMIUM_FLAGS = [
   "--kiosk",
@@ -48,6 +63,9 @@ export type FullPageScreenshotOptions = {
 };
 
 type DaytonaScreenshotResponse = {
+  /** Current Daytona toolbox response field (base64-encoded image). */
+  screenshot?: string;
+  /** Older field aliases observed in past Daytona SDK responses. */
   image?: string;
   imageBase64?: string;
   data?: string;
@@ -68,11 +86,14 @@ function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-function normalizeScreenshotResponse(
+export function normalizeScreenshotResponse(
   response: DaytonaScreenshotResponse,
 ): ScreenshotArtifact {
   const imageBase64 =
-    response.imageBase64 ?? response.image ?? response.data;
+    response.screenshot ??
+    response.imageBase64 ??
+    response.image ??
+    response.data;
 
   if (!imageBase64) {
     throw new Error("Daytona screenshot response did not contain image data.");
@@ -267,7 +288,7 @@ export function daytonaOpenUrlCommand(
     throw new Error(`Unsupported URL protocol: ${parsed.protocol}`);
   }
 
-  const chromiumBinary = options.chromiumBinary ?? "chromium";
+  const chromiumBinary = options.chromiumBinary ?? "getdesign-chromium";
   const display = options.display ?? ":1";
   const flags = [...DEFAULT_CHROMIUM_FLAGS, ...(options.extraFlags ?? [])];
   const quotedUrl = shellSingleQuote(parsed.toString());
