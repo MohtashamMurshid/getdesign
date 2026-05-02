@@ -345,7 +345,9 @@ export function useStudioAppState() {
 
   const handleStop = useCallback(async () => {
     try {
-      setConversation(sanitizeConversation(await window.api.stop()));
+      const nextConversation = sanitizeConversation(await window.api.stop());
+      setConversation(nextConversation);
+      setError(nextConversation.error);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
