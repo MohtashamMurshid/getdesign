@@ -14,7 +14,7 @@
  * `@cursor/sdk` doesn't crash the rest of Studio.
  */
 
-import { bareCursorModelId } from "./cursor-model-id";
+import { bareCursorModelId } from "../shared/cursor-model-id";
 import { normalizeCursorSdkImportError } from "./cursor-import-error";
 import { dispatchCursorStreamEvent } from "./cursor-stream-dispatch";
 import { toCursorRunErrorMessage } from "./cursor-runtime-errors";

@@ -34,7 +34,7 @@ import {
 } from "./models-json";
 import { StudioDeckService } from "./deck-service";
 import { getCursorApiKey } from "./cursor-service";
-import { isCursorModelId } from "./cursor-model-id";
+import { isCursorModelId } from "../shared/cursor-model-id";
 import {
   cancelCursorRun,
   disposeCursorAgent,

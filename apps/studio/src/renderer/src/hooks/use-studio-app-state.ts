@@ -335,7 +335,7 @@ export function useStudioAppState() {
           content: message.content,
           modelId: selectedModelId || undefined,
         });
-        setConversation(nextConversation);
+        setConversation(sanitizeConversation(nextConversation));
       } catch (nextError) {
         setError(toErrorMessage(nextError));
       }
@@ -345,7 +345,7 @@ export function useStudioAppState() {
 
   const handleStop = useCallback(async () => {
     try {
-      setConversation(await window.api.stop());
+      setConversation(sanitizeConversation(await window.api.stop()));
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -356,7 +356,7 @@ export function useStudioAppState() {
       setError(undefined);
       const next = await window.api.newConversation();
       const nextDecks = await window.api.listDecks();
-      setConversation(next);
+      setConversation(sanitizeConversation(next));
       setDecks(nextDecks);
       setUserSelectedDeckId(undefined);
       setIsChatOpen(true);
@@ -382,7 +382,7 @@ export function useStudioAppState() {
     try {
       setError(undefined);
       const next = await window.api.deleteChatSession({ sessionId });
-      setConversation(next);
+      setConversation(sanitizeConversation(next));
       const [nextSessions, nextDecks] = await Promise.all([
         window.api.listChatSessions(),
         window.api.listDecks(),
@@ -402,7 +402,7 @@ export function useStudioAppState() {
         setError(undefined);
         const nextConversation = await window.api.openChatSession(sessionId);
         const nextDecks = await window.api.listDecks();
-        setConversation(nextConversation);
+        setConversation(sanitizeConversation(nextConversation));
         setDecks(nextDecks);
         setUserSelectedDeckId(undefined);
         setIsChatOpen(true);

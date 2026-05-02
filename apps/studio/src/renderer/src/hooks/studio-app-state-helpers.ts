@@ -1,5 +1,9 @@
 import { formatProviderDisplayName } from "@/lib/format-provider-label";
 
+import {
+  CURSOR_MODEL_PREFIX,
+  isCursorModelId,
+} from "../../../shared/cursor-model-id";
 import type {
   StudioAuthStatus,
   StudioConversationSnapshot,
@@ -9,7 +13,6 @@ import type {
 
 const VISIBLE_MODEL_IDS_STORAGE_KEY = "studio.visibleModelIds";
 const STALE_PI_CURSOR_MODEL_ERROR = /Pi model not found: cursor\//i;
-const CURSOR_MODEL_PREFIX = "cursor/";
 
 export type StudioModelOption = {
   id: string;
@@ -19,25 +22,38 @@ export type StudioModelOption = {
 };
 
 export function readVisibleModelIds(): string[] {
-  const raw = localStorage.getItem(VISIBLE_MODEL_IDS_STORAGE_KEY);
-  if (!raw) return [];
-
   try {
+    const raw = localStorage.getItem(VISIBLE_MODEL_IDS_STORAGE_KEY);
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed)
       ? parsed.filter((id) => typeof id === "string")
       : [];
-  } catch {
+  } catch (error) {
+    console.warn(
+      `[studio] Failed to read ${VISIBLE_MODEL_IDS_STORAGE_KEY} from localStorage`,
+      error,
+    );
     return [];
   }
 }
 
 export function writeVisibleModelIds(modelIds: string[]) {
-  localStorage.setItem(VISIBLE_MODEL_IDS_STORAGE_KEY, JSON.stringify(modelIds));
+  try {
+    localStorage.setItem(
+      VISIBLE_MODEL_IDS_STORAGE_KEY,
+      JSON.stringify(modelIds),
+    );
+  } catch (error) {
+    console.warn(
+      `[studio] Failed to persist ${VISIBLE_MODEL_IDS_STORAGE_KEY} to localStorage`,
+      error,
+    );
+  }
 }
 
 export function isCursorModel(modelId: string) {
-  return modelId.startsWith(CURSOR_MODEL_PREFIX);
+  return isCursorModelId(modelId);
 }
 
 export function sanitizeConversation(
