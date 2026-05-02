@@ -84,17 +84,16 @@ Every run executes, in order:
 
 1. **Authorize** — require an authenticated user plus Daytona and OpenAI credentials, either request-scoped for the current API/SDK/CLI run or stored in Convex for web reuse.
 2. **Crawl** — fetch HTML, all linked stylesheets, `@import` chains, and `@font-face` sources over HTTPS. Runs in Bun on the API server; does not require the sandbox.
-3. **Ensure capture runtime** — resolve the user's per-account capture snapshot for the current `CAPTURE_RUNTIME_VERSION`. If it does not yet exist in `active` state, create it from the pinned public capture runtime image and wait. Web does this as an explicit setup step; API/CLI runs auto-ensure on first use and emit `capture_runtime` status events.
-4. **Spawn sandbox** — use the authenticated user's Daytona credential with `daytona.create({ snapshot: 'getdesign-capture-<runtimeVersion>' })` + `sandbox.computerUse.start()`.
-5. **Open URL** — launch Chromium kiosk inside the sandbox's Xvfb display via `sandbox.process.executeCommand`.
-6. **Capture rendered page** — measure the actual rendered document height in Chromium, dismiss or hide common visual blockers when possible, capture viewport-sized tiles via `sandbox.computerUse.screenshot.takeCompressed`, dedupe repeated fixed/sticky elements after the first tile, and derive a stitched full-page preview from the tiles.
-7. **Extract tokens** — deterministic CSS parsing → `DesignTokens` Zod object (colors, typography, spacing, radii, shadows, borders, breakpoints).
-8. **Synthesize** — LLM call using the authenticated user's OpenAI credential produces a structured `DesignDoc` conforming to the 9-section Zod schema. Vision input = curated visual synthesis subset + tokens JSON + crawl notes.
-9. **Render** — deterministic markdown renderer converts `DesignDoc` → final `design.md`.
-10. **Persist** — write run, tokens, capture tiles, stitched preview, capture metadata, runtime version, run mode (`visual` vs `text_only`), and final doc to Convex.
-11. **Teardown** — `sandbox.delete()`.
+3. **Spawn sandbox** — use the authenticated user's Daytona credential with `daytona.create({ autoStopInterval, autoArchiveInterval, autoDeleteInterval })` (default Daytona sandbox; no custom snapshot) + `sandbox.computerUse.start()`. Optionally `apt install fonts-noto-cjk fonts-noto-color-emoji` when the URL TLD heuristic flags i18n content.
+4. **Open URL** — write `/tmp/getdesign-chromium.sh` and launch Chromium 144 in kiosk mode with `--remote-debugging-address=127.0.0.1 --remote-debugging-port=9222 --remote-allow-origins=*` via `sandbox.process.executeCommand`.
+5. **Capture rendered page** — wait for `document.readyState === "complete"` via in-sandbox CDP, measure the actual rendered document height (CDP probe with visual-stability fallback), capture viewport-sized tiles via `sandbox.computerUse.screenshot.takeCompressed`, advance with `Page_Down`, and derive a stitched full-page preview from the tiles.
+6. **Extract tokens** — deterministic CSS parsing → `DesignTokens` Zod object (colors, typography, spacing, radii, shadows, borders, breakpoints).
+7. **Synthesize** — LLM call using the authenticated user's OpenAI credential produces a structured `DesignDoc` conforming to the 9-section Zod schema. Vision input = curated visual synthesis subset + tokens JSON + crawl notes.
+8. **Render** — deterministic markdown renderer converts `DesignDoc` → final `design.md`.
+9. **Persist** — write run, tokens, capture tiles, stitched preview, capture metadata, run mode (`visual` vs `text_only`), and final doc to Convex.
+10. **Teardown** — `sandbox.delete()` (Daytona's auto-delete also cleans up).
 
-If step 3 cannot reach an `active` capture snapshot (quota, build failure, registry error, timeout) or step 6 cannot complete after the in-tool retry budget, the run fails with `capture_runtime_unavailable` (or `capture_failed`) and the user is offered an explicit text-only re-run instead of silently degrading.
+If step 5 cannot complete after the in-tool retry budget (3 attempts, fresh sandbox each), the run fails with `capture_failed` and the user is offered an explicit text-only re-run instead of silently degrading.
 
 ### F2a — Auth, credentials, and pricing
 
@@ -109,14 +108,12 @@ If step 3 cannot reach an `active` capture snapshot (quota, build failure, regis
 - Request-scoped credentials must be sent over authenticated HTTPS in headers or request body fields, never in query parameters, and must not be persisted or logged unless the user explicitly saves them.
 - Raw stored credentials are never displayed after save; the UI may show masked suffixes and last-updated timestamps.
 
-### F2b — Capture runtime provisioning
+### F2b — Capture sandbox lifecycle
 
-- The capture runtime is a public, versioned OCI image published by getdesign (built from `infra/daytona/Dockerfile`, pinned by digest on GHCR). The image is not user-configurable in v1.
-- Each user owns their own immutable Daytona snapshot per runtime version, named `getdesign-capture-<runtimeVersion>`. The snapshot is created in the user's Daytona account using their key and reused across runs.
-- Web shows an explicit "Connect Daytona" setup that calls `ensureDaytonaCaptureSnapshot` and surfaces `provisioning` / `ready` / `failed` status. Visual runs are not started until status is `ready`.
-- API, SDK, and CLI runs auto-ensure the snapshot on the first run with a given Daytona credential and emit `provisioning_capture_runtime` / `capture_runtime_ready` / `capture_runtime_failed` status events while waiting.
-- Provisioning failures surface a clear, actionable error (quota, build failure, permissions, timeout) with the snapshot name. getdesign never falls back to platform-funded Daytona capacity.
-- v1 does not auto-delete getdesign-created snapshots from the user's account. Bumping `CAPTURE_RUNTIME_VERSION` creates a new snapshot alongside any older versions; cleanup is a future explicit user action.
+- Every run uses the default Daytona sandbox plus the hosted Computer Use HTTP API. There is no custom snapshot, no GHCR image, and no SSH tunnel. See [ADR 0002](apps/web/docs/adr/0002-capture-control-surface-daytona-computer-use.md).
+- Sandboxes are short-lived and ephemeral. Lifecycle is handled by Daytona via `autoStopInterval` / `autoArchiveInterval` / `autoDeleteInterval`; the agent also calls `sandbox.delete()` on the way out.
+- Capture failures (Computer Use unavailable, browser never ready, measurement cannot complete) surface as `capture_failed` after three sandbox-isolated retries. getdesign never falls back to platform-funded Daytona capacity.
+- International rendering (CJK, emoji) is opt-in via a TLD heuristic in `shouldInstallI18nFonts(url)` or an explicit `installI18nFonts: boolean` option. Default font coverage is Latin/Cyrillic/Greek only.
 
 ### F2c — Text-only fallback
 
@@ -161,7 +158,7 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 - `400` on missing/invalid URL.
 - `401` when unauthenticated.
 - `402` or `409` when required BYOK credentials are missing or invalid.
-- `409 capture_runtime_unavailable` when the user's Daytona capture snapshot is not ready or capture failed; the response body includes the snapshot name and a `retryWith` hint pointing to the `x-getdesign-mode: text_only` header.
+- `409 capture_failed` when the capture pipeline cannot complete after retries; the response body includes a `retryWith` hint pointing to the `x-getdesign-mode: text_only` header.
 - Successful `200` responses include an `x-getdesign-mode: visual|text_only` response header.
 - Optional request headers: `x-daytona-api-key` and `x-openai-api-key` for request-scoped BYOK credentials, and `x-getdesign-mode: text_only` to opt into the text-only fallback after a prior `409`.
 - `502` if the target URL cannot be reached.
@@ -174,7 +171,7 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 - `npx @getdesign/cli` (no URL) — interactive REPL via [OpenTUI](https://github.com/openturn/opentui); same transport as the web chat.
 - `npx @getdesign/cli --version`, `--help`.
 - When `DAYTONA_API_KEY` + `OPENAI_API_KEY` are set locally, the CLI either calls the agent directly or forwards those keys as request-scoped credentials to the hosted API. Without local keys, it calls the hosted API using the authenticated account's stored BYOK credentials.
-- The CLI auto-ensures the per-user capture snapshot in direct mode using the same `ensureDaytonaCaptureSnapshot` helper as the hosted API, and prints `provisioning_capture_runtime` / `capture_runtime_ready` status.
+- The CLI streams capture phase events (`sandbox_create`, `prepare`, `chromium_launch`, `measure_cdp` / `measure_visual`, `tiles`) to stderr in direct mode so users see progress and timing breakdowns.
 - `--text-only` opts into the text-only fallback when the capture runtime is unavailable.
 - Internally implemented on top of the TypeScript SDK (F7) so we keep one transport layer.
 
@@ -243,7 +240,7 @@ console.log(doc.palette.primary[0]); // typed ColorEntry
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | LLM fabricates palette values not present in CSS | M | H | Deterministic token extraction feeds structured output; validator rejects colors not in the crawled set |
-| Chromium in Daytona needs `--no-sandbox` / fails on some sites | M | M | Pre-bake snapshot, launch via `getdesign-chromium`, and smoke-test on top 20 brands; fallback to `chromium --headless=new --screenshot` only after primary Daytona capture fails |
+| Chromium in Daytona needs `--no-sandbox` / fails on some sites | M | M | Launch via `/tmp/getdesign-chromium.sh` with `--no-sandbox` + `--remote-allow-origins=*`, smoke-test on top 20 brands; fallback to `chromium --headless=new --screenshot` only after primary Daytona capture fails |
 | Daytona snapshot cold-start > 5 s | M | M | Pre-baked snapshot + optional warm pool in v1.1 |
 | Default OpenAI model choice changes | L | L | Keep the model id config-driven and record the model used on each run |
 | Tile stitching artifacts on sticky headers or overlays | H | M | Browser-side overlay cleanup, fixed-element dedupe after the first tile, capture metadata, and visual smoke tests on common landing-page patterns |

@@ -65,13 +65,13 @@ test("GET /?url=https://example.com returns 200 markdown from stub", async () =>
   expect(calledWith).toBe("https://example.com");
 });
 
-test("GET / returns 409 when capture runtime is unavailable", async () => {
+test("GET / returns 409 when capture fails", async () => {
   const app = createApp({
     runDesign: async () => {
-      throw new RunDesignError("capture_runtime_unavailable", {
-        status: "runtime_unavailable",
-        reason: "Snapshot pending",
-        snapshot: "getdesign-capture-test",
+      throw new RunDesignError({
+        status: "failed",
+        reason: "Chromium did not become ready",
+        attempts: 3,
       });
     },
   });
@@ -82,11 +82,9 @@ test("GET / returns 409 when capture runtime is unavailable", async () => {
   expect(res.status).toBe(409);
   const body = (await res.json()) as {
     code: string;
-    snapshot?: string;
     retryWith?: { header: string; value: string };
   };
-  expect(body.code).toBe("capture_runtime_unavailable");
-  expect(body.snapshot).toBe("getdesign-capture-test");
+  expect(body.code).toBe("capture_failed");
   expect(body.retryWith?.header).toBe("x-getdesign-mode");
 });
 

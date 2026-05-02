@@ -2,98 +2,84 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import {
-  CAPTURE_RUNTIME_VERSION,
-  captureSnapshotName,
-  createDaytonaClient,
-  daytonaOpenUrl,
-  daytonaScreenshotFullPage,
-  daytonaScreenshotViewport,
-  daytonaSpawn,
-  daytonaStop,
-  ensureDaytonaCaptureSnapshot,
-  type CaptureRuntimeStatus,
+  runCapture,
+  shouldInstallI18nFonts,
+  stitchCaptureTiles,
+  type CaptureMeasurementMode,
+  type CapturePhaseEvent,
+  type CaptureResult,
   type ScreenshotArtifact,
 } from "@getdesign/tools/daytona";
 
 const visualInputSchema = z.object({
   url: z.string().url(),
-  /**
-   * Optional override for the Daytona snapshot name. When omitted, the
-   * versioned `captureSnapshotName()` helper is used and ensured automatically.
-   * Advanced override only; the v1 product surface should not expose this.
-   */
-  snapshot: z.string().trim().min(1).optional(),
-  captureFullPage: z.boolean().optional().default(false),
-  fullPageSteps: z.number().int().positive().max(12).optional().default(4),
-  scrollStepPx: z.number().int().positive().max(2000).optional().default(900),
+  installI18nFonts: z.boolean().optional(),
+  measurementMode: z.enum(["cdp", "visual", "auto"]).optional(),
 });
 
 export type VisualInput = z.input<typeof visualInputSchema>;
 
 export type VisualRunOptions = {
   /**
-   * Request-scoped Daytona API key. When omitted, the agent falls back to
-   * the `DAYTONA_API_KEY` env var. Hosted runs should pass this explicitly
-   * so per-user BYOK credentials are never confused with process-level keys.
+   * Per-run Daytona key. When omitted, falls back to `DAYTONA_API_KEY`.
    */
   daytonaApiKey?: string;
   /**
-   * Hook that observes capture runtime provisioning status. Useful so API/CLI
-   * surfaces can emit `provisioning_capture_runtime`/`capture_runtime_ready`/
-   * `capture_runtime_failed` events without coupling to the snapshot helper.
+   * Hook that observes capture phase events (sandbox_create, prepare, fonts,
+   * chromium_launch, measure, tiles, etc.) so coordinators can surface them
+   * to the user.
    */
-  onCaptureRuntimeStatus?: (event: {
-    status: CaptureRuntimeStatus;
-    snapshotName: string;
-    message?: string;
-  }) => void;
-};
-
-export type VisualScreenshots = {
-  hero?: ScreenshotArtifact;
-  fullPage?: ScreenshotArtifact;
+  onCapturePhase?: (event: CapturePhaseEvent) => void;
+  /**
+   * Maximum total attempts before reporting `failed`. Defaults to 3 per
+   * ADR 0001's full landing page capture retry contract.
+   */
+  maxAttempts?: number;
 };
 
 export type VisualResult =
   | {
       status: "captured";
-      hero?: ScreenshotArtifact;
-      fullPage?: ScreenshotArtifact;
-      snapshot: string;
-      runtimeVersion: string;
+      hero: ScreenshotArtifact;
+      fullPage: ScreenshotArtifact;
+      tiles: CaptureResult["tiles"];
+      documentHeight: number;
+      documentWidth: number;
+      viewport: CaptureResult["viewport"];
+      measurementMode: CaptureMeasurementMode;
+      installedI18nFonts: boolean;
+      durationsMs: CaptureResult["durationsMs"];
     }
   | {
       status: "skipped";
       reason: string;
     }
   | {
-      /**
-       * Snapshot provisioning failed before any rendering happened. The run
-       * coordinator should surface an actionable error and offer text_only.
-       */
-      status: "runtime_unavailable";
-      reason: string;
-      snapshot?: string;
-    }
-  | {
-      /** Capture failed after the runtime was ready. */
       status: "failed";
       reason: string;
-      snapshot?: string;
+      attempts: number;
     };
+
+function tileToArtifact(tile: CaptureResult["tiles"][number]): ScreenshotArtifact {
+  return {
+    imageBase64: tile.pngBase64,
+    width: tile.width,
+    height: tile.height,
+    format: "png",
+  };
+}
 
 /**
  * Run the VisualAgent. When no Daytona key is available the run is skipped.
- * When a key is available, the per-user capture snapshot is auto-ensured
- * before opening the URL. Provisioning failures surface as
- * `runtime_unavailable` so the coordinator can offer a marked text-only run.
+ * Otherwise we run the full Computer Use capture pipeline (default sandbox
+ * + in-sandbox Chromium + CDP-or-visual-stability measurement + tile
+ * capture) with up to `maxAttempts` retries against fresh sandboxes.
  */
 export async function runVisual(
   input: VisualInput,
   options: VisualRunOptions = {},
 ): Promise<VisualResult> {
   const parsed = visualInputSchema.parse(input);
-
   const apiKey = options.daytonaApiKey ?? process.env.DAYTONA_API_KEY;
   if (!apiKey) {
     return {
@@ -103,87 +89,80 @@ export async function runVisual(
     };
   }
 
-  const client = createDaytonaClient({ apiKey });
-  const snapshotName = parsed.snapshot ?? captureSnapshotName();
+  const installI18nFonts =
+    parsed.installI18nFonts ?? shouldInstallI18nFonts(parsed.url);
+  const maxAttempts = options.maxAttempts ?? 3;
 
-  const ensureResult = await ensureDaytonaCaptureSnapshot(client, {
-    snapshotName,
-    onStatus: options.onCaptureRuntimeStatus,
-  });
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const capture = await runCapture({
+        daytonaApiKey: apiKey,
+        url: parsed.url,
+        installI18nFonts,
+        measurementMode: parsed.measurementMode,
+        onPhase: options.onCapturePhase,
+      });
 
-  if (ensureResult.status !== "ready") {
-    return {
-      status: "runtime_unavailable",
-      reason:
-        ensureResult.reason ??
-        `Capture runtime snapshot ${snapshotName} is not ready.`,
-      snapshot: snapshotName,
-    };
-  }
+      const heroTile = capture.tiles[0];
+      if (!heroTile) {
+        throw new Error("Capture produced zero tiles.");
+      }
 
-  let sandbox: Awaited<ReturnType<typeof daytonaSpawn>> | null = null;
-
-  try {
-    sandbox = await daytonaSpawn(client, { snapshot: snapshotName });
-    await daytonaOpenUrl(sandbox, parsed.url);
-    const hero = await daytonaScreenshotViewport(sandbox);
-
-    let fullPage: ScreenshotArtifact | undefined;
-    if (parsed.captureFullPage) {
-      const activeSandbox = sandbox;
-      fullPage = await daytonaScreenshotFullPage({
-        capture: () => daytonaScreenshotViewport(activeSandbox),
-        scroll: async (step) => {
-          await activeSandbox.computerUse.mouse.scroll(720, 450, "down", step);
-        },
-        steps: parsed.fullPageSteps,
-        scrollStepPx: parsed.scrollStepPx,
+      const fullPage = await stitchCaptureTiles(capture.tiles);
+      return {
+        status: "captured",
+        hero: tileToArtifact(heroTile),
+        fullPage,
+        tiles: capture.tiles,
+        documentHeight: capture.documentHeight,
+        documentWidth: capture.documentWidth,
+        viewport: capture.viewport,
+        measurementMode: capture.measurementMode,
+        installedI18nFonts: capture.installedI18nFonts,
+        durationsMs: capture.durationsMs,
+      };
+    } catch (error) {
+      lastError = error;
+      options.onCapturePhase?.({
+        phase: "attempt",
+        status: "warn",
+        detail: `attempt ${attempt}/${maxAttempts} failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       });
     }
-
-    return {
-      status: "captured",
-      snapshot: snapshotName,
-      runtimeVersion: CAPTURE_RUNTIME_VERSION,
-      hero,
-      fullPage,
-    };
-  } catch (error) {
-    return {
-      status: "failed",
-      reason: error instanceof Error ? error.message : "Unknown Daytona error",
-      snapshot: snapshotName,
-    };
-  } finally {
-    if (sandbox) {
-      try {
-        await daytonaStop(sandbox);
-      } catch {
-        // best-effort teardown
-      }
-    }
   }
+
+  return {
+    status: "failed",
+    attempts: maxAttempts,
+    reason:
+      lastError instanceof Error
+        ? lastError.message
+        : "Unknown Daytona capture error",
+  };
 }
 
 export function summarizeVisual(result: VisualResult): Record<string, unknown> {
   if (result.status === "captured") {
     return {
       status: result.status,
-      snapshot: result.snapshot,
-      runtimeVersion: result.runtimeVersion,
-      heroBytes: result.hero?.sizeBytes ?? result.hero?.imageBase64.length,
-      heroWidth: result.hero?.width,
-      heroHeight: result.hero?.height,
-      fullPageBytes:
-        result.fullPage?.sizeBytes ?? result.fullPage?.imageBase64.length,
-      fullPageHeight: result.fullPage?.height,
+      tiles: result.tiles.length,
+      documentHeight: result.documentHeight,
+      documentWidth: result.documentWidth,
+      measurementMode: result.measurementMode,
+      installedI18nFonts: result.installedI18nFonts,
+      heroBytes: result.hero.sizeBytes ?? result.hero.imageBase64.length,
+      fullPageBytes: result.fullPage.sizeBytes ?? result.fullPage.imageBase64.length,
+      durations: result.durationsMs,
     };
   }
-  if (result.status === "runtime_unavailable" || result.status === "failed") {
+  if (result.status === "failed") {
     return {
       status: result.status,
       reason: result.reason,
-      snapshot: result.snapshot,
+      attempts: result.attempts,
     };
   }
   return { status: result.status, reason: result.reason };
@@ -195,7 +174,7 @@ export function createVisualTool(
 ) {
   return tool({
     description:
-      "Capture a hero screenshot of the URL inside the user's Daytona capture runtime. Auto-provisions the per-user snapshot when missing; returns status: 'skipped' or 'runtime_unavailable' when capture cannot proceed.",
+      "Capture the full landing page of the URL inside a Daytona sandbox using Computer Use. Returns status: 'skipped' when no Daytona key is available, or 'failed' after retries when capture cannot complete.",
     inputSchema: visualInputSchema,
     execute: async (input) => {
       const result = await runVisual(input, options);

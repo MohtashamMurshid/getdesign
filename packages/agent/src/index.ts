@@ -1,6 +1,5 @@
 export { runDesign, RunDesignError } from "./runDesign";
 export type {
-  CaptureRuntimeEvent,
   RunDesignCredentials,
   RunDesignEvent,
   RunDesignOptions,

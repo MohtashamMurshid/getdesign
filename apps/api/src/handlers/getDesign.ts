@@ -55,10 +55,9 @@ export function createGetDesignHandler(runDesign: RunDesignFn) {
       if (err instanceof RunDesignError) {
         return c.json(
           {
-            error: "capture_runtime_unavailable",
+            error: "capture_failed",
             code: err.code,
             reason: err.message,
-            snapshot: err.snapshot,
             retryWith: {
               header: TEXT_ONLY_HEADER,
               value: "text_only",

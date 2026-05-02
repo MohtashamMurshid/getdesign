@@ -60,6 +60,12 @@ getdesign/
 ├── turbo.json
 ├── bun.lock
 └── package.json      workspaces: apps/*, packages/*
+
+```
+
+(There is no `infra/daytona/` directory; the capture pipeline runs on the default Daytona sandbox plus Computer Use, see [ADR 0002](apps/web/docs/adr/0002-capture-control-surface-daytona-computer-use.md).)
+
+```
 ```
 
 Target repository layout (planned, not fully scaffolded yet):
@@ -82,7 +88,6 @@ getdesign/
 │   ├── types/
 │   └── config/
 ├── convex/
-├── infra/daytona/
 ├── turbo.json
 ├── bun.lock
 └── package.json
@@ -98,10 +103,10 @@ Rationale for the maximal split: the eventual `packages/agent` is reused by web,
 - **Agents**: `ToolLoopAgent` + `InferAgentUIMessage` per AI SDK v6 docs (`node_modules/ai/docs/` after `bun add ai`).
 - **Auth**: Clerk for user identity. Hosted web/API runs require an authenticated user.
 - **Chat UI primitives**: [ai-elements](https://ai-sdk.dev/elements) on top of [shadcn/ui](https://ui.shadcn.com).
-- **Browser + screenshots**: Chromium launched inside the Daytona desktop via the `getdesign-chromium` wrapper, which exposes Chrome DevTools Protocol on `127.0.0.1:9222` (localhost-only). Screenshots stay on Daytona's own [`computerUse.screenshot.takeCompressed()`](https://www.daytona.io/docs/en/computer-use/#take-compressed) / `takeRegion()` — Daytona owns the desktop via `computerUse.start()` and remains the isolated rendering/screenshot environment. Kiosk mode is mandatory at the call site so Daytona screenshots do not catch window chrome.
-- **Computer-use integration**: [Daytona Computer Use](https://www.daytona.io/docs/en/computer-use/) — `sandbox.computerUse.start()` brings up the desktop session. The capture-runtime image does not run a self-managed Xvfb. We use [`screenshot.takeCompressed`](https://www.daytona.io/docs/en/computer-use/#take-compressed) for screenshots and keep mouse/keyboard APIs for future interactive states; wheel scrolling is not the source of truth for full-page capture because Daytona scroll amounts are wheel ticks, not pixels.
-- **Capture control plane (CDP)**: the host agent process opens an SSH tunnel to the sandbox via the Daytona TS SDK and drives Chrome DevTools Protocol against `127.0.0.1:9222` for measurement (`Runtime.evaluate` document height), scroll-to-pixel (`window.scrollTo`), overlay cleanup, and fixed-element dedup (`Page.addStyleSheet` / injected `<style>` tags). CDP is the *control* surface only; screenshots stay on Daytona's compressed screenshot API. See [ADR 0003](apps/web/docs/adr/0003-cdp-capture-control-surface.md).
-- **Persistence**: [Convex](https://docs.convex.dev) — real-time DB, functions, and file storage for users, encrypted provider credentials, runs, UIMessage history, extracted tokens, capture tiles, stitched previews, and final artifacts.
+- **Browser + screenshots**: every run creates a default Daytona sandbox (no custom snapshot) and calls `sandbox.computerUse.start()` to bring up Xvfb + xfce4. The agent process writes a small wrapper at `/tmp/getdesign-chromium.sh` and launches Chromium 144 in kiosk mode with `--remote-debugging-address=127.0.0.1 --remote-debugging-port=9222`. Screenshots and input use Daytona Computer Use directly: [`computerUse.screenshot.takeCompressed`](https://www.daytona.io/docs/en/computer-use/#take-compressed), `computerUse.keyboard.press` (Page_Down / Ctrl+Home for scroll), and `computerUse.display.getWindows`. Kiosk is mandatory so screenshots do not catch window chrome.
+- **Computer-use integration**: [Daytona Computer Use](https://www.daytona.io/docs/en/computer-use/) is the entire control plane for screenshots and input. There is no custom Daytona image and no SSH tunnel.
+- **Page measurement (in-sandbox CDP)**: a small Python script run via `sandbox.process.executeCommand` connects to `http://127.0.0.1:9222/json` and runs a single `Runtime.evaluate` over websocket to read the rendered document height, width, and `devicePixelRatio`. CDP stays inside the sandbox, behind localhost; the host never tunnels to it. If the CDP probe fails (browser not yet ready, network quirk), the measurement layer falls back to a visual-stability scroll loop — `Page_Down` + screenshot until N consecutive frames are pixel-identical or below a small diff threshold — and approximates document height from the scroll count. See [ADR 0002](apps/web/docs/adr/0002-capture-control-surface-daytona-computer-use.md).
+- **Persistence**: [Convex](https://docs.convex.dev) — real-time DB, functions, and file storage for users, encrypted provider credentials, runs, UIMessage history, extracted tokens, capture tiles, stitched previews, and final artifacts. The `runs` row stores `mode: 'visual' | 'text_only'` so analytics can distinguish completed captures from acknowledged text-only runs.
 - **Hosting**: Vercel for web + api (separate Vercel projects); CLI distributed via npm + GitHub releases.
 
 ## 4. Agent topology (sub-agents)
@@ -125,17 +130,16 @@ Each sub-agent is itself a `ToolLoopAgent` exposed to the coordinator as a singl
 
 - **CoordinatorAgent** — plans, calls sub-agents, ensures every run does: (1) crawl, (2) required full landing page capture via VisualAgent, (3) extract tokens, (4) synthesize.
 - **CrawlerAgent** — static network tools (no browser needed): `fetchHtml`, `fetchStylesheets`, `resolveFonts`, `parseComputedStylesFromInlined` (resolves `<link rel="stylesheet">`, `@import`, `@font-face`). Runs in Bun on the API server, not in Daytona, to keep sandbox life short.
-- **VisualAgent** — tools that wrap the [Daytona TypeScript SDK](https://www.daytona.io/docs/en/computer-use/) directly:
-  - `ensureDaytonaCaptureSnapshot` — looks up the per-user immutable snapshot (e.g. `getdesign-capture-<runtimeVersion>`) and creates it from the pinned public capture runtime image when missing, waiting until it reaches the `active` state.
-  - `daytonaSpawn` — `daytona.create({ snapshot: '<resolved per-user snapshot>' })` + `sandbox.computerUse.start()`.
-  - `daytonaOpenUrl(url)` — `sandbox.process.executeCommand("DISPLAY=:1 getdesign-chromium --kiosk --no-first-run --hide-crash-restore-bubble --disable-session-crashed-bubble <url>")` and polls until the page is idle. Kiosk mode is mandatory so screenshots do not capture window chrome.
-  - `daytonaMeasureRenderedPage()` — drives CDP (`Runtime.evaluate`) over the host-side SSH tunnel to read viewport size, document height, scroll position, and stability of lazy-loaded content.
-  - `daytonaCleanupOverlays()` — dismisses or hides common blockers (cookie banners, newsletter modals, chat widgets) by injecting CSS via CDP `Page.addStyleSheet` / `Runtime.evaluate`, recording the action in capture metadata.
-  - `daytonaCaptureTiles()` — scrolls to measured pixel offsets via CDP `window.scrollTo`, captures viewport-sized tiles with `sandbox.computerUse.screenshot.takeCompressed({ format: 'png', showCursor: false })`, keeps sticky/fixed elements in the first tile, and suppresses repeated fixed elements in later tiles via injected CDP style overrides.
-  - `daytonaBuildStitchedPreview()` — stitches capture tiles server-side with [`sharp`](https://sharp.pixelplumbing.com) into a derived preview/export image.
-  - `daytonaStop` — `sandbox.delete()`.
+- **VisualAgent** — wraps the Daytona Computer Use HTTP API. Per-run primitives (in `@getdesign/tools/daytona`):
+  - `createCaptureSandbox` — `daytona.create({ autoStopInterval, autoArchiveInterval, autoDeleteInterval })` against the user's Daytona key. No custom snapshot; the default Daytona sandbox already ships Chromium 144, Xvfb, xfce4, and Latin fonts.
+  - `prepareCaptureSandbox` — `sandbox.computerUse.start()`, plus an optional `apt install fonts-noto-cjk fonts-noto-color-emoji` when the URL TLD heuristic flags i18n content.
+  - `launchChromiumKiosk` — writes `/tmp/getdesign-chromium.sh` and spawns Chromium with `--kiosk --remote-debugging-address=127.0.0.1 --remote-debugging-port=9222`, then waits until either the kiosk window appears (`computerUse.display.getWindows`) or `curl http://127.0.0.1:9222/json/version` succeeds.
+  - `measurePageHeight` — runs a Python `Runtime.evaluate` probe over CDP inside the sandbox to read `document.documentElement.scrollHeight` / `scrollWidth` / `devicePixelRatio`. Falls back to a visual-stability scroll loop (`Page_Down` + screenshot until consecutive frames match) when CDP is unavailable.
+  - `captureFullPage` — scrolls to top with `Ctrl+Home`, then captures `ceil(documentHeight / viewport.height)` tiles via `sandbox.computerUse.screenshot.takeCompressed({ format: 'png' })`, advancing with `Page_Down` between tiles.
+  - `stitchCaptureTiles` — derives the stitched preview server-side with [`sharp`](https://sharp.pixelplumbing.com).
+  - `disposeCaptureSandbox` — `sandbox.delete()` (best-effort; Daytona's auto-delete also cleans up).
 
-  Full landing page capture policy: every run must capture the actual rendered landing page from top to document bottom. Capture tiles plus metadata are canonical; the stitched full-page image is derived. The synthesizer receives a curated visual synthesis subset (hero, representative middle tiles, footer/final tile), while the complete capture remains available for preview/export. The capture tool performs three total attempts with fresh Daytona sandboxes before returning final failure to the coordinator.
+  Full landing page capture policy: every run must capture the actual rendered landing page from top to document bottom. Capture tiles plus metadata are canonical; the stitched full-page image is derived. The capture tool performs three total attempts with fresh Daytona sandboxes before returning final failure to the coordinator.
 - **TokenExtractorAgent** — pure deterministic tools (no LLM calls unless ambiguous): `extractColors` (walk computed styles, cluster by frequency/role), `extractTypography`, `extractSpacing`, `extractRadii`, `extractShadows`, `extractBorders`. Emits a `DesignTokens` [Zod v4](https://zod.dev) object.
 - **SynthesizerAgent** — takes `DesignTokens` + the visual synthesis subset + crawl notes, returns a `DesignDoc` conforming to a Zod schema with exactly the 9 sections from the reference example. Then a deterministic renderer in [packages/ui/src/renderDesignMd.ts](packages/ui/src/renderDesignMd.ts) converts `DesignDoc` → markdown. This guarantees the exact template ("exact_template" choice).
 
@@ -155,17 +159,16 @@ Defined in [packages/types/src/design-doc.ts](packages/types/src/design-doc.ts) 
 
 The renderer is deterministic; the LLM cannot drift from the template.
 
-## 6. Daytona lifecycle (per-user reusable snapshot)
+## 6. Daytona lifecycle (default sandbox + Computer Use)
 
-getdesign publishes the capture runtime as a public, pinned OCI image. Each user's Daytona account imports that image into an immutable, versioned snapshot named `getdesign-capture-<runtimeVersion>` and reuses it for every subsequent run. There is no shared getdesign-funded Daytona infrastructure; each user's BYOK Daytona account holds its own snapshots and pays Daytona directly.
+There is no custom Daytona snapshot in v1. Every run uses the default Daytona sandbox plus the hosted Computer Use HTTP API; the user's BYOK Daytona account pays Daytona directly. See [ADR 0002](apps/web/docs/adr/0002-capture-control-surface-daytona-computer-use.md).
 
-- **Publish once (getdesign maintainers)**: Build [infra/daytona/Dockerfile](infra/daytona/Dockerfile) (the `getdesign-chromium` wrapper with CDP on `127.0.0.1:9222`, Daytona Computer Use desktop helpers `dbus-x11`/`wmctrl`/`x11-utils`/`xdotool`/`xvfb`, fonts for Latin/Cyrillic/Greek + emoji + CJK + Inter + Roboto, the embedded `chromium --version` in `/etc/getdesign/runtime.json`, and the `getdesign-doctor` probe) into a public image on GitHub Container Registry, pinned by digest. Bumping `CAPTURE_RUNTIME_VERSION` produces a new versioned image and snapshot name; old runs stay reproducible against earlier versions.
-- **Provision per user (one-time)**: When a user adds or rotates a Daytona credential, getdesign calls `ensureDaytonaCaptureSnapshot(client)` which (1) `daytona.snapshot.get('getdesign-capture-<runtimeVersion>')`, (2) if missing, `daytona.snapshot.create({ name, image: '<pinned ghcr image>', resources: CAPTURE_RUNTIME_RESOURCES })`, (3) polls until the snapshot reaches `active`. `CAPTURE_RUNTIME_RESOURCES` is the snapshot resources floor: 2 vCPU, 4 GiB memory, 5 GiB disk. Web does this as an explicit setup/check step. API and CLI runs may auto-ensure on the first run and emit `provisioning_capture_runtime` → `capture_runtime_ready` (or `capture_runtime_failed`) status events.
-- **Per request**: resolve the Daytona credential from request-scoped credentials first, then the authenticated user's encrypted Convex credential → ensure the per-user capture snapshot is `active` for the current runtime version → `daytona.create({ snapshot: 'getdesign-capture-<runtimeVersion>' })` → `sandbox.computerUse.start()` → `daytonaOpenUrl(url)` launches `getdesign-chromium` kiosk on `DISPLAY=:1` → wait for page-ready heuristic → browser-side measurement determines actual rendered height and scroll offsets → overlay cleanup → tile capture via `sandbox.computerUse.screenshot.takeCompressed({ format: 'png' })` → fixed-element deduplication on later tiles → derived stitched preview → upload tiles, metadata, and preview to Convex → `sandbox.delete()`. Target cold-start: under 5 s because the snapshot is pre-baked.
-- **Retry contract**: transient Daytona or browser failures are retried inside the capture tool, with three total attempts and a fresh sandbox for each attempt. The coordinator receives either a completed capture or a final failure; it does not silently degrade to text-only output while retry budget remains.
-- **Provisioning failure policy**: if the user's Daytona account cannot reach an `active` capture snapshot (quota, build failure, registry/permissions error, timeout) the run returns `capture_runtime_unavailable` with an actionable reason. The user is then offered an explicit text-only run; getdesign never silently substitutes platform-funded Daytona capacity.
-- **Snapshot lifecycle**: v1 never auto-deletes user-owned snapshots. New runtime versions create new snapshots alongside old ones; cleanup of older getdesign snapshots is left to the user (and to a future maintenance action).
-- **Interactive escape hatch** (wired, off by default): if the synthesizer needs a hover/click state, VisualAgent uses [`sandbox.computerUse.mouse.move/click`](https://www.daytona.io/docs/en/computer-use/#click) + another `takeCompressed()`. This is the same API path as the hero capture, so there is no second rendering system.
+- **Per request**: resolve the Daytona credential from request-scoped credentials first, then the authenticated user's encrypted Convex credential → `daytona.create({ autoStopInterval: 5, autoArchiveInterval: 5, autoDeleteInterval: 1 })` → `sandbox.computerUse.start()` → optional `apt install fonts-noto-cjk fonts-noto-color-emoji` when the URL TLD heuristic flags i18n content → write `/tmp/getdesign-chromium.sh` and launch Chromium kiosk on `DISPLAY=:0` with CDP bound to `127.0.0.1:9222` → wait for kiosk window or `curl 127.0.0.1:9222/json/version` → in-sandbox CDP probe reads `document.documentElement.scrollHeight` (visual-stability fallback if CDP fails) → tile capture via `sandbox.computerUse.screenshot.takeCompressed` advancing with `Page_Down` → derived stitched preview via `sharp` → upload tiles + metadata + preview to Convex → `sandbox.delete()` (Daytona's auto-delete also cleans up).
+- **Lifecycle**: sandboxes are short-lived and ephemeral. `autoStopInterval` / `autoArchiveInterval` / `autoDeleteInterval` are the source of truth; no manual snapshot management.
+- **Retry contract**: transient Daytona or browser failures are retried inside the capture tool with three total attempts and a fresh sandbox each time. The coordinator receives either a completed capture or a final failure.
+- **Capture failure policy**: if all attempts fail (browser never ready, measurement cannot complete, Computer Use unavailable) the run returns `capture_failed` with an actionable reason. The user is offered an explicit text-only re-run; getdesign never silently substitutes platform-funded Daytona capacity.
+- **i18n fonts**: opt-in via the `installI18nFonts` option or the TLD heuristic in `shouldInstallI18nFonts(url)`. Default font coverage is Latin/Cyrillic/Greek only.
+- **Interactive escape hatch** (wired, off by default): if the synthesizer needs a hover/click state, VisualAgent uses [`sandbox.computerUse.mouse.move/click`](https://www.daytona.io/docs/en/computer-use/#click) + another `takeCompressed()`. Same API path as tile capture.
 
 ## 6a. Pricing and credentials
 
@@ -179,11 +182,9 @@ V1 is BYOK-only. getdesign does not bill users and does not subsidize Daytona or
 - Daytona and OpenAI calls use the authenticated user's stored or request-scoped credentials, so users pay those providers directly.
 - The LLM credential record includes a provider field. V1 supports OpenAI only; later providers can reuse the same credential and model-resolution boundary.
 - CLI direct mode can bypass hosted auth by using local `DAYTONA_API_KEY` and `OPENAI_API_KEY` environment variables. Hosted CLI mode forwards those env vars as request-scoped credentials or falls back to stored account credentials.
-- The capture runtime image and snapshot name are not user-configurable in v1. An internal env override (`GETDESIGN_CAPTURE_RUNTIME_IMAGE`) exists for development only and is not exposed in UI/API.
-
 ### Text-only fallback
 
-When the visual capture path is unavailable (snapshot provisioning failure, capture failure after retries, or no Daytona key available), runs fail with a `capture_runtime_unavailable` (or `capture_failed`) error rather than silently producing a degraded design.md. The user can then re-run with `visualRequirement: "text_only_fallback"` (web button, `x-getdesign-mode: text_only` header for the API, or `--text-only` for the CLI). Text-only runs still produce a `design.md`, but the markdown is prepended with a clear "text-only mode" banner so downstream consumers know visual sections were derived from CSS tokens alone.
+When the visual capture path is unavailable (capture failure after retries or no Daytona key available), runs fail with a `capture_failed` error rather than silently producing a degraded design.md. The user can then re-run with `visualRequirement: "text_only_fallback"` (web button, `x-getdesign-mode: text_only` header for the API, or `--text-only` for the CLI). Text-only runs still produce a `design.md`, but the markdown is prepended with a clear "text-only mode" banner so downstream consumers know visual sections were derived from CSS tokens alone.
 
 ## 7. Request flows
 
@@ -205,10 +206,10 @@ sequenceDiagram
     R->>C: agent.stream({ messages })
     C->>CV: verify user + resolve request-scoped or stored credentials
     C->>CV: create run row
-    C->>D: spawn sandbox with user's Daytona key + computerUse.start
-    C->>D: executeCommand(getdesign-chromium --kiosk URL)
-    C->>D: measure rendered height + cleanup overlays
-    C->>D: capture viewport tiles + build stitched preview
+    C->>D: spawn default sandbox with user's Daytona key + computerUse.start
+    C->>D: executeCommand(/tmp/getdesign-chromium.sh URL) [kiosk + CDP on 127.0.0.1:9222]
+    C->>D: in-sandbox CDP probe reads document height (visual-stability fallback)
+    C->>D: capture viewport tiles via screenshot.takeCompressed + Page_Down
     D-->>C: capture tiles, metadata, synthesis subset
     C->>C: CrawlerAgent fetches HTML/CSS over HTTPS
     C->>C: extract tokens -> DesignTokens
@@ -221,7 +222,7 @@ sequenceDiagram
 
 ### API flow
 
-[apps/api/src/index.ts](apps/api/src/index.ts): same coordinator, requires auth plus either request-scoped or stored BYOK credentials, awaits full result, and returns `renderDesignMd(doc)` as `text/markdown` with a `x-getdesign-mode: visual|text_only` header. No streaming, no UIMessage parts. Request-scoped credentials must be sent in authenticated HTTPS headers or body fields, not query parameters, and must not be logged. When the user's capture runtime is not ready, the endpoint returns `409 capture_runtime_unavailable` with the snapshot name and a `retryWith` hint pointing to the `x-getdesign-mode: text_only` header.
+[apps/api/src/index.ts](apps/api/src/index.ts): same coordinator, requires auth plus either request-scoped or stored BYOK credentials, awaits full result, and returns `renderDesignMd(doc)` as `text/markdown` with a `x-getdesign-mode: visual|text_only` header. No streaming, no UIMessage parts. Request-scoped credentials must be sent in authenticated HTTPS headers or body fields, not query parameters, and must not be logged. When the capture pipeline cannot complete, the endpoint returns `409 capture_failed` with a `retryWith` hint pointing to the `x-getdesign-mode: text_only` header.
 
 ### CLI flow
 
@@ -294,14 +295,14 @@ for await (const event of streamDesign("https://cursor.com")) {
 - No compare-brands / diff mode.
 - No multiple stored credentials per user; v1 allows one active stored Daytona credential and one active stored OpenAI credential.
 - No interactive computer-use states (hover, open menu); full landing page capture is required.
-- No user-facing override of the capture runtime image or snapshot name in v1.
+- No user-configurable Daytona snapshot or runtime image (the pipeline uses Daytona's default sandbox).
 - No automatic deletion of getdesign-created snapshots from a user's Daytona account in v1.
 
 ## 11. Open risks / verifications before implementation
 
 - Confirm default OpenAI model id and AI SDK provider wiring for user-supplied OpenAI keys.
 - Confirm Clerk + Convex auth integration and encrypted credential storage strategy.
-- Confirm Chromium kiosk launches cleanly through `/usr/local/bin/getdesign-chromium` on the Daytona Xvfb display without first-run prompts and that `--no-sandbox` is acceptable inside the sandbox. Validate browser-side measurement, stable rendered height detection, overlay cleanup, fixed-element deduplication, tile stitching, and three-attempt retry behavior against 20 real landing pages. Keep `chromium --headless=new --screenshot` as a fallback only, not the primary capture path.
+- Validate Chromium kiosk launch via `/tmp/getdesign-chromium.sh` (with `--no-sandbox` and `--remote-allow-origins=*`), in-sandbox CDP measurement, visual-stability fallback, tile stitching, and three-attempt retry behavior against 20 real landing pages. Keep `chromium --headless=new --screenshot` as a fallback only, not the primary capture path.
 - Confirm AI SDK v6 `ToolLoopAgent` + `InferAgentUIMessage` API shapes against `node_modules/ai/docs/` after `bun add ai` (per ai-sdk skill: do not trust memory).
 - Confirm Next.js 16 + ai-elements + [Convex](https://docs.convex.dev) coexist without React version mismatch (ai-elements requires shadcn/ui set up first).
 
@@ -310,7 +311,7 @@ for await (const event of streamDesign("https://cursor.com")) {
 1. Scaffold Turborepo with Bun workspaces (done).
 2. Define Zod schemas in `@getdesign/types` (`DesignTokens`, `DesignDoc`).
 3. Implement `@getdesign/tools`: `crawler`, `extractors`, `daytona`, `render`.
-4. Author `infra/daytona/Dockerfile` and publish the custom snapshot.
+4. Default Daytona sandbox + Computer Use as the capture control surface (no custom snapshot — see [ADR 0002](apps/web/docs/adr/0002-capture-control-surface-daytona-computer-use.md)).
 5. Build `@getdesign/agent`: Crawler / Visual / TokenExtractor / Synthesizer / Coordinator.
 6. Wire Convex (schema + actions + file storage).
 7. Build `apps/web` (Next.js 16 + ai-elements + Artifact panel).

@@ -1,6 +1,7 @@
 import { renderDesignMd } from "@getdesign/tools/render";
 
 import type { CrawlSiteResult } from "@getdesign/tools";
+import type { CapturePhaseEvent } from "@getdesign/tools/daytona";
 import type { DesignDoc, DesignTokens } from "@getdesign/types";
 
 import { runCrawl } from "./agents/crawler";
@@ -9,25 +10,18 @@ import { runSynthesize } from "./agents/synthesizer";
 import { runVisual, type VisualResult } from "./agents/visual";
 import { resolveModel } from "./model";
 import type { LanguageModel } from "ai";
-import type { CaptureRuntimeStatus } from "@getdesign/tools/daytona";
 
 export type RunDesignPhase =
   | "crawl"
-  | "capture_runtime"
+  | "capture"
   | "visual"
   | "extract"
   | "synthesize"
   | "render";
 
-export type CaptureRuntimeEvent = {
-  status: CaptureRuntimeStatus;
-  snapshotName: string;
-  message?: string;
-};
-
 export type RunDesignEvent =
   | { phase: "crawl"; crawl: CrawlSiteResult }
-  | { phase: "capture_runtime"; event: CaptureRuntimeEvent }
+  | { phase: "capture"; event: CapturePhaseEvent }
   | { phase: "visual"; visual: VisualResult }
   | { phase: "extract"; tokens: DesignTokens }
   | { phase: "synthesize"; doc: DesignDoc }
@@ -35,17 +29,15 @@ export type RunDesignEvent =
 
 /**
  * How the run should react when the visual capture path is unavailable
- * (e.g. snapshot provisioning failure, capture failure, or missing key).
+ * (e.g. capture failure or missing key).
  *
- * - `"require"`: fail the run with `RunDesignError` so the caller can prompt
- *   the user before retrying as text-only. This is the safe default for
- *   hosted runs where visual fidelity is the product promise.
+ * - `"require"`: fail with `RunDesignError` so the caller can prompt the
+ *   user before retrying as text-only. Default for hosted runs.
  * - `"text_only_fallback"`: continue without screenshots and mark the
- *   resulting run as `text_only`. Use only after the user has explicitly
- *   acknowledged the loss of visual capture.
- * - `"skip_silently"`: legacy behavior. Continue without screenshots and
- *   without marking the run as text-only. Reserved for local development
- *   where Daytona is intentionally not configured.
+ *   run as `text_only`. Use only after the user has explicitly accepted
+ *   the loss of visual capture.
+ * - `"skip_silently"`: legacy. Continue without screenshots and without
+ *   marking the run as text-only. Reserved for local development.
  */
 export type VisualRequirement =
   | "require"
@@ -53,24 +45,18 @@ export type VisualRequirement =
   | "skip_silently";
 
 export type RunDesignCredentials = {
-  /** Per-run Daytona key. Falls back to `DAYTONA_API_KEY` when omitted. */
   daytonaApiKey?: string;
-  /**
-   * Per-run OpenAI key. The model resolver also reads `OPENAI_API_KEY` and
-   * `AI_GATEWAY_API_KEY` from the environment when this is omitted.
-   */
   openaiApiKey?: string;
 };
 
 export type RunDesignOptions = {
   model?: LanguageModel;
-  captureFullPage?: boolean;
-  /** Optional per-run snapshot override. Internal/dev use only. */
-  snapshot?: string;
-  /** Visual capture policy. Defaults to `"require"`. */
   visualRequirement?: VisualRequirement;
-  /** Request-scoped credentials for hosted API/CLI runs. */
   credentials?: RunDesignCredentials;
+  /** Force or disable the i18n font install. Auto-detected from URL TLD when omitted. */
+  installI18nFonts?: boolean;
+  /** Override measurement strategy. `auto` (default) tries CDP first then visual-stability. */
+  measurementMode?: "cdp" | "visual" | "auto";
   onPhase?: (event: RunDesignEvent) => void | Promise<void>;
 };
 
@@ -82,47 +68,33 @@ export type RunDesignResult = {
   crawl: CrawlSiteResult;
   visual: VisualResult;
   /**
-   * Output mode of this run. `"visual"` means a hero screenshot was used;
-   * `"text_only"` means visual capture was unavailable and the user accepted
-   * a text-only run. The render layer uses this to mark the design doc.
+   * `"visual"` when a hero capture was used, `"text_only"` when capture was
+   * unavailable and the user accepted a degraded run.
    */
   mode: "visual" | "text_only";
 };
 
 export class RunDesignError extends Error {
-  readonly code:
-    | "capture_runtime_unavailable"
-    | "capture_failed";
-  readonly snapshot?: string;
+  readonly code: "capture_failed";
   readonly visual: VisualResult;
 
-  constructor(
-    code: "capture_runtime_unavailable" | "capture_failed",
-    visual: VisualResult,
-  ) {
+  constructor(visual: VisualResult) {
     const reason =
-      visual.status === "runtime_unavailable" || visual.status === "failed"
+      visual.status === "failed" || visual.status === "skipped"
         ? visual.reason
         : "Visual capture unavailable.";
     super(reason);
     this.name = "RunDesignError";
-    this.code = code;
+    this.code = "capture_failed";
     this.visual = visual;
-    this.snapshot =
-      "snapshot" in visual && typeof visual.snapshot === "string"
-        ? visual.snapshot
-        : undefined;
   }
 }
 
 /**
- * Imperative one-shot driver: crawl -> capture_runtime -> visual -> extract -> synthesize -> render.
- *
- * Hosted callers should pass `credentials` with the authenticated user's
- * Daytona/OpenAI keys. CLI direct mode should leave credentials empty so
- * the env-based fallback applies. The visual phase uses the per-user
- * versioned snapshot resolved by `@getdesign/tools/daytona` and emits
- * `capture_runtime` events while the snapshot is provisioned.
+ * Imperative one-shot driver: crawl -> capture -> extract -> synthesize ->
+ * render. Hosted callers should pass `credentials` with the authenticated
+ * user's Daytona/OpenAI keys; CLI direct mode should leave credentials
+ * empty so the env-based fallback applies.
  */
 export async function runDesign(
   url: string,
@@ -139,26 +111,21 @@ export async function runDesign(
   const visual = await runVisual(
     {
       url: crawl.sourceUrl,
-      snapshot: options.snapshot,
-      captureFullPage: options.captureFullPage ?? false,
+      installI18nFonts: options.installI18nFonts,
+      measurementMode: options.measurementMode,
     },
     {
       daytonaApiKey: credentials?.daytonaApiKey,
-      onCaptureRuntimeStatus: (event) => {
-        void options.onPhase?.({ phase: "capture_runtime", event });
+      onCapturePhase: (event) => {
+        void options.onPhase?.({ phase: "capture", event });
       },
     },
   );
   await options.onPhase?.({ phase: "visual", visual });
 
-  if (visual.status === "runtime_unavailable" || visual.status === "failed") {
+  if (visual.status === "failed") {
     if (visualRequirement === "require") {
-      throw new RunDesignError(
-        visual.status === "runtime_unavailable"
-          ? "capture_runtime_unavailable"
-          : "capture_failed",
-        visual,
-      );
+      throw new RunDesignError(visual);
     }
   }
 

@@ -93,6 +93,7 @@ export const SAMPLE_DESIGN_DOC: DesignDoc = {
         weight: "400",
         lineHeight: "1.6",
         letterSpacing: "0",
+        notes: "Default body sizing.",
       },
     ],
     principles: [

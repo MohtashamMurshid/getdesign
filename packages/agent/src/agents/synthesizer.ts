@@ -1,6 +1,35 @@
 import { generateText, Output, type LanguageModel, type UserContent } from "ai";
+import { z } from "zod";
 
 import { designDocSchema, type DesignDoc, type DesignTokens } from "@getdesign/types";
+
+/**
+ * OpenAI's structured-output validator rejects:
+ *   1. JSON Schema `format: "uri"` (emitted by Zod's `z.string().url()`).
+ *   2. Any property declared without being in `required` (i.e. optional fields).
+ *
+ * We always override `sourceUrl` from the caller and re-validate against
+ * the strict `designDocSchema` after substitution, so it's safe to relax
+ * those constraints for the synthesis call only.
+ */
+const typographyHierarchyForSynthesisSchema = z
+  .object({
+    role: z.string().min(1),
+    font: z.string().min(1),
+    size: z.string().min(1),
+    weight: z.string().min(1),
+    lineHeight: z.string().min(1),
+    letterSpacing: z.string().min(1),
+    notes: z.string().nullable(),
+  })
+  .strict();
+
+const synthesisSchema = designDocSchema.extend({
+  sourceUrl: z.string(),
+  typography: designDocSchema.shape.typography.extend({
+    hierarchy: z.array(typographyHierarchyForSynthesisSchema).min(1),
+  }),
+});
 
 import type { ScreenshotArtifact } from "@getdesign/tools/daytona";
 import { resolveModel } from "../model";
@@ -53,17 +82,23 @@ export async function runSynthesize(
     model,
     system: SYSTEM_INSTRUCTIONS,
     messages: [{ role: "user", content }],
-    output: Output.object({ schema: designDocSchema }),
+    output: Output.object({ schema: synthesisSchema }),
   });
 
-  // `output` is already validated against `designDocSchema` by Output.object.
-  // We only patch in the caller-provided siteName/sourceUrl when the model
-  // didn't supply them.
-  const doc: DesignDoc = {
+  const normalizedHierarchy = output.typography.hierarchy.map((entry) => {
+    const { notes, ...rest } = entry;
+    return notes == null ? rest : { ...rest, notes };
+  });
+
+  const doc: DesignDoc = designDocSchema.parse({
     ...output,
     siteName: output.siteName ?? input.siteName,
-    sourceUrl: output.sourceUrl ?? input.sourceUrl,
-  };
+    sourceUrl: input.sourceUrl,
+    typography: {
+      ...output.typography,
+      hierarchy: normalizedHierarchy,
+    },
+  });
 
   return { doc };
 }

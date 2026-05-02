@@ -2,19 +2,16 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  CAPTURE_RUNTIME_VERSION,
-  captureSnapshotName,
   crawlSite,
-  daytonaOpenUrlCommand,
-  buildSnapshotTag,
   deriveSiteName,
-  ensureDaytonaCaptureSnapshot,
   extractDesignTokens,
-  normalizeScreenshotResponse,
   renderDesignMd,
 } from "../src";
-
-import { __testing as cdpTesting } from "../src/daytona/cdp";
+import {
+  buildChromiumWrapperScript,
+  CDP_PORT,
+  shouldInstallI18nFonts,
+} from "../src/daytona";
 
 test("crawlSite resolves linked stylesheets and inline style blocks", async () => {
   const html = `
@@ -344,196 +341,32 @@ test("renderDesignMd outputs the required 9 sections in order", () => {
   assert.match(markdown, /`\u200B``/u);
 });
 
-test("daytonaOpenUrlCommand quotes the target URL", () => {
-  const command = daytonaOpenUrlCommand(
-    "https://example.com/path?utm=1&name=$(id)",
-  );
-
-  assert.ok(command.includes("chromium"));
-  assert.ok(command.includes("getdesign-chromium"));
-  assert.ok(command.includes("DISPLAY=':1'"));
-  assert.ok(command.includes("'https://example.com/path?utm=1&name=$(id)'"));
-  assert.ok(!command.includes("\"https://example.com/path?utm=1&name=$(id)\""));
-  assert.equal(buildSnapshotTag("ac10286"), "getdesign-ac10286");
+test("shouldInstallI18nFonts: latin URLs are skipped, i18n TLDs and IDN trigger install", () => {
+  assert.equal(shouldInstallI18nFonts("https://example.com"), false);
+  assert.equal(shouldInstallI18nFonts("https://stripe.com"), false);
+  assert.equal(shouldInstallI18nFonts("https://taobao.cn"), true);
+  assert.equal(shouldInstallI18nFonts("https://example.co.jp"), true);
+  assert.equal(shouldInstallI18nFonts("https://news.naver.kr"), true);
+  assert.equal(shouldInstallI18nFonts("https://yandex.ru"), true);
+  assert.equal(shouldInstallI18nFonts("https://xn--fsq.com"), true);
+  assert.equal(shouldInstallI18nFonts("not a url"), false);
 });
 
-test("captureSnapshotName produces a stable per-version name", () => {
-  assert.equal(
-    captureSnapshotName(),
-    `getdesign-capture-${CAPTURE_RUNTIME_VERSION}`,
-  );
-  assert.equal(
-    captureSnapshotName("2026-06-01-b"),
-    "getdesign-capture-2026-06-01-b",
-  );
-});
-
-test("normalizeScreenshotResponse handles current and legacy SDK shapes", () => {
-  const current = normalizeScreenshotResponse({
-    screenshot: "BASE64_FROM_DAYTONA",
-    sizeBytes: 1234,
-  });
-  assert.equal(current.imageBase64, "BASE64_FROM_DAYTONA");
-  assert.equal(current.sizeBytes, 1234);
-
-  const legacy = normalizeScreenshotResponse({
-    image: "BASE64_LEGACY",
-    size_bytes: 99,
-    width: 100,
-    height: 50,
-    format: "png",
-  });
-  assert.equal(legacy.imageBase64, "BASE64_LEGACY");
-  assert.equal(legacy.sizeBytes, 99);
-  assert.equal(legacy.width, 100);
-  assert.equal(legacy.height, 50);
-  assert.equal(legacy.format, "png");
-
-  assert.throws(
-    () => normalizeScreenshotResponse({ sizeBytes: 1 }),
-    /did not contain image data/,
-  );
-});
-
-test("ensureDaytonaCaptureSnapshot reuses an active snapshot", async () => {
-  const calls: string[] = [];
-  const fakeClient = {
-    snapshot: {
-      get: async (name: string) => {
-        calls.push(`get:${name}`);
-        return { name, state: "active" };
-      },
-      create: async () => {
-        calls.push("create");
-        throw new Error("create should not be called when snapshot is active");
-      },
-    },
-  } as unknown as Parameters<typeof ensureDaytonaCaptureSnapshot>[0];
-
-  const result = await ensureDaytonaCaptureSnapshot(fakeClient, {
-    snapshotName: "getdesign-capture-test-active",
-  });
-
-  assert.equal(result.status, "ready");
-  assert.equal(result.created, false);
-  assert.equal(result.snapshotName, "getdesign-capture-test-active");
-  assert.deepEqual(calls, ["get:getdesign-capture-test-active"]);
-});
-
-test("ensureDaytonaCaptureSnapshot creates a missing snapshot and waits until active", async () => {
-  let getCalls = 0;
-  let createCalls = 0;
-  const fakeClient = {
-    snapshot: {
-      get: async (name: string) => {
-        getCalls += 1;
-        if (getCalls === 1) {
-          const error: Error & { response?: { status: number } } = Object.assign(
-            new Error("not found"),
-            { response: { status: 404 } },
-          );
-          throw error;
-        }
-        if (getCalls === 2) return { name, state: "pending" };
-        return { name, state: "active" };
-      },
-      create: async () => {
-        createCalls += 1;
-        return { name: "x", state: "pending" } as unknown;
-      },
-    },
-  } as unknown as Parameters<typeof ensureDaytonaCaptureSnapshot>[0];
-
-  const events: string[] = [];
-  const result = await ensureDaytonaCaptureSnapshot(fakeClient, {
-    snapshotName: "getdesign-capture-test-missing",
-    image: "ghcr.io/example/runtime@sha256:abc",
-    waitForActiveSeconds: 5,
-    onStatus: (event) => events.push(`${event.status}`),
-  });
-
-  assert.equal(result.status, "ready");
-  assert.equal(result.created, true);
-  assert.equal(createCalls, 1);
-  assert.ok(events.includes("provisioning"));
-  assert.equal(events.at(-1), "ready");
-});
-
-test("CDP client issues correct frames for documentHeight and scrollTo", async () => {
-  type SentFrame = { id: number; method: string; params: Record<string, unknown> };
-  const sent: SentFrame[] = [];
-  let onMessage: ((event: { data: string }) => void) | null = null;
-
-  const fakeSocket = {
-    readyState: 1,
-    onopen: null as ((ev: unknown) => unknown) | null,
-    onmessage: null as ((ev: { data: string }) => unknown) | null,
-    onerror: null as ((ev: unknown) => unknown) | null,
-    onclose: null as ((ev: unknown) => unknown) | null,
-    send(data: string) {
-      const frame = JSON.parse(data) as SentFrame;
-      sent.push(frame);
-      // Auto-respond per method so the client's pending map resolves.
-      const reply: { id: number; result?: unknown } = { id: frame.id };
-      if (frame.method === "Runtime.evaluate") {
-        const expression = String(
-          (frame.params as { expression?: unknown }).expression ?? "",
-        );
-        if (expression.includes("scrollHeight")) {
-          reply.result = { result: { value: 4321 } };
-        } else if (expression.startsWith("window.scrollTo")) {
-          reply.result = { result: { value: undefined } };
-        } else {
-          reply.result = { result: { value: null } };
-        }
-      } else {
-        reply.result = {};
-      }
-      // Defer to next tick so send() returns first.
-      queueMicrotask(() => onMessage?.({ data: JSON.stringify(reply) }));
-    },
-    close() {
-      /* no-op */
-    },
-  };
-
-  const transport = new cdpTesting.JsonRpcCdpTransport(fakeSocket);
-  // bind onMessage from the transport-installed handler
-  onMessage = fakeSocket.onmessage as typeof onMessage;
-  const client = cdpTesting.buildClient(transport);
-
-  const height = await client.documentHeight();
-  assert.equal(height, 4321);
-  await client.scrollTo(900);
-
-  assert.equal(sent.length, 2);
-  assert.equal(sent[0]?.method, "Runtime.evaluate");
+test("buildChromiumWrapperScript embeds the required Chromium flags", () => {
+  const script = buildChromiumWrapperScript({ width: 1440, height: 900 });
+  assert.match(script, /--no-sandbox/);
+  assert.match(script, /--disable-dev-shm-usage/);
+  assert.match(script, /--no-first-run/);
+  assert.match(script, /--no-default-browser-check/);
+  assert.match(script, /--hide-scrollbars/);
+  assert.match(script, /--force-color-profile=srgb/);
+  assert.match(script, /--remote-debugging-address=127\.0\.0\.1/);
   assert.match(
-    String((sent[0]?.params as { expression?: unknown }).expression ?? ""),
-    /scrollHeight/,
+    script,
+    new RegExp(`--remote-debugging-port=${CDP_PORT}`),
   );
-  assert.equal(sent[1]?.method, "Runtime.evaluate");
-  assert.match(
-    String((sent[1]?.params as { expression?: unknown }).expression ?? ""),
-    /window\.scrollTo\(0, 900\)/,
-  );
-
-  await client.close();
-});
-
-test("ensureDaytonaCaptureSnapshot returns failed status on terminal snapshot state", async () => {
-  const fakeClient = {
-    snapshot: {
-      get: async (name: string) => ({ name, state: "build_failed", errorReason: "registry unreachable" }),
-      create: async () => ({ name: "x", state: "pending" } as unknown),
-    },
-  } as unknown as Parameters<typeof ensureDaytonaCaptureSnapshot>[0];
-
-  const result = await ensureDaytonaCaptureSnapshot(fakeClient, {
-    snapshotName: "getdesign-capture-test-failed",
-  });
-
-  assert.equal(result.status, "failed");
-  assert.equal(result.created, false);
-  assert.match(String(result.reason), /build_failed/);
+  // Chromium 144+ requires this flag for in-sandbox CDP WebSocket handshakes.
+  assert.match(script, /--remote-allow-origins=\*/);
+  assert.match(script, /--kiosk/);
+  assert.match(script, /--window-size=1440,900/);
 });

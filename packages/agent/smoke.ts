@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 /**
  * End-to-end smoke test:
- *   `bun run smoke.ts <url> [--out design.md] [--full-page] [--text-only]`.
+ *   `bun run smoke.ts <url> [--out design.md] [--text-only]`.
  *
- * Runs crawl -> capture_runtime -> (optional) screenshot -> extract ->
- * synthesize -> render and writes the resulting markdown to disk.
+ * Runs crawl -> capture -> extract -> synthesize -> render and writes the
+ * resulting markdown to disk.
  *
  * `--text-only` opts into the text-only fallback when Daytona capture is
  * unavailable, instead of failing with `RunDesignError`.
@@ -19,7 +19,7 @@ async function main() {
 
   if (!url) {
     console.error(
-      "Usage: bun run smoke.ts <url> [--out design.md] [--full-page] [--text-only]",
+      "Usage: bun run smoke.ts <url> [--out design.md] [--text-only]",
     );
     process.exit(1);
   }
@@ -27,7 +27,6 @@ async function main() {
   const outIndex = args.indexOf("--out");
   const outPath =
     outIndex >= 0 && args[outIndex + 1] ? args[outIndex + 1]! : "design.md";
-  const captureFullPage = args.includes("--full-page");
   const textOnly = args.includes("--text-only");
 
   process.stderr.write(`[getdesign] running on ${url}\n`);
@@ -35,7 +34,6 @@ async function main() {
   const start = Date.now();
   try {
     const result = await runDesign(url, {
-      captureFullPage,
       visualRequirement: textOnly ? "text_only_fallback" : "require",
       onPhase: (event) => {
         const elapsed = ((Date.now() - start) / 1000).toFixed(1);
@@ -45,10 +43,10 @@ async function main() {
               `[${elapsed}s] crawl: ${event.crawl.stylesheets.length} stylesheets from ${event.crawl.siteName}\n`,
             );
             break;
-          case "capture_runtime":
+          case "capture":
             process.stderr.write(
-              `[${elapsed}s] capture_runtime: ${event.event.status} (${event.event.snapshotName})${
-                event.event.message ? ` — ${event.event.message}` : ""
+              `[${elapsed}s] capture.${event.event.phase}: ${event.event.status}${
+                event.event.detail ? ` — ${event.event.detail}` : ""
               }\n`,
             );
             break;
@@ -87,7 +85,7 @@ async function main() {
   } catch (error) {
     if (error instanceof RunDesignError) {
       process.stderr.write(
-        `[getdesign] capture runtime unavailable: ${error.message}\n`,
+        `[getdesign] capture failed: ${error.message}\n`,
       );
       process.stderr.write(
         `[getdesign] re-run with --text-only to accept a text-only design.md.\n`,
