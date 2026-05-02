@@ -1,10 +1,14 @@
 import { renderDesignMd } from "@getdesign/tools/render";
 
 import type { CrawlSiteResult } from "@getdesign/tools";
-import type { CapturePhaseEvent } from "@getdesign/tools/daytona";
+import type {
+  CapturePhaseEvent,
+  ScreenshotArtifact,
+} from "@getdesign/tools/daytona";
 import type { DesignDoc, DesignTokens } from "@getdesign/types";
 
 import { runCrawl } from "./agents/crawler";
+import { runDescribe } from "./agents/describe";
 import { runExtractTokens } from "./agents/tokenExtractor";
 import { runSynthesize } from "./agents/synthesizer";
 import { runVisual, type VisualResult } from "./agents/visual";
@@ -15,6 +19,7 @@ export type RunDesignPhase =
   | "crawl"
   | "capture"
   | "visual"
+  | "describe"
   | "extract"
   | "synthesize"
   | "render";
@@ -23,6 +28,7 @@ export type RunDesignEvent =
   | { phase: "crawl"; crawl: CrawlSiteResult }
   | { phase: "capture"; event: CapturePhaseEvent }
   | { phase: "visual"; visual: VisualResult }
+  | { phase: "describe"; status: "start" | "ok"; detail?: string }
   | { phase: "extract"; tokens: DesignTokens }
   | { phase: "synthesize"; doc: DesignDoc }
   | { phase: "render"; markdown: string };
@@ -68,6 +74,14 @@ export type RunDesignResult = {
   crawl: CrawlSiteResult;
   visual: VisualResult;
   /**
+   * Long-form markdown walkthrough of the rendered page, produced by the
+   * VisualDescriber sub-agent from the full ordered tile sequence. `null`
+   * when capture was skipped or text-only mode forced no tiles.
+   */
+  visualDescription: string | null;
+  /** Number of tiles captured (0 when capture was skipped). */
+  tiles: number;
+  /**
    * `"visual"` when a hero capture was used, `"text_only"` when capture was
    * unavailable and the user accepted a degraded run.
    */
@@ -90,11 +104,21 @@ export class RunDesignError extends Error {
   }
 }
 
+function tilesAsArtifacts(visual: VisualResult): ScreenshotArtifact[] {
+  if (visual.status !== "captured") return [];
+  return visual.tiles.map((tile) => ({
+    imageBase64: tile.pngBase64,
+    width: tile.width,
+    height: tile.height,
+    format: "png",
+  }));
+}
+
 /**
- * Imperative one-shot driver: crawl -> capture -> extract -> synthesize ->
- * render. Hosted callers should pass `credentials` with the authenticated
- * user's Daytona/OpenAI keys; CLI direct mode should leave credentials
- * empty so the env-based fallback applies.
+ * Imperative one-shot driver: crawl -> capture -> describe -> extract ->
+ * synthesize -> render. Hosted callers should pass `credentials` with the
+ * authenticated user's Daytona/OpenAI keys; CLI direct mode should leave
+ * credentials empty so the env-based fallback applies.
  */
 export async function runDesign(
   url: string,
@@ -136,16 +160,42 @@ export async function runDesign(
         ? "visual"
         : "text_only";
 
+  const tileArtifacts = tilesAsArtifacts(visual);
+
+  let visualDescription: string | null = null;
+  if (visual.status === "captured" && tileArtifacts.length > 0) {
+    await options.onPhase?.({
+      phase: "describe",
+      status: "start",
+      detail: `${tileArtifacts.length} tile${tileArtifacts.length === 1 ? "" : "s"}`,
+    });
+    const describe = await runDescribe({
+      sourceUrl: crawl.sourceUrl,
+      siteName: crawl.siteName,
+      tiles: tileArtifacts,
+      documentHeight: visual.documentHeight,
+      documentWidth: visual.documentWidth,
+      viewport: visual.viewport,
+      model,
+    });
+    visualDescription = describe.description;
+    const wordCount = visualDescription.split(/\s+/).filter(Boolean).length;
+    await options.onPhase?.({
+      phase: "describe",
+      status: "ok",
+      detail: `${wordCount} words`,
+    });
+  }
+
   const tokens = runExtractTokens(crawl);
   await options.onPhase?.({ phase: "extract", tokens });
-
-  const hero = visual.status === "captured" ? visual.hero : undefined;
 
   const { doc } = await runSynthesize({
     sourceUrl: crawl.sourceUrl,
     siteName: crawl.siteName,
     tokens,
-    hero,
+    tiles: tileArtifacts.length > 0 ? tileArtifacts : undefined,
+    visualDescription: visualDescription ?? undefined,
     crawlNotes: crawl.notes,
     model,
   });
@@ -163,6 +213,8 @@ export async function runDesign(
     tokens,
     crawl,
     visual,
+    visualDescription,
+    tiles: tileArtifacts.length,
     mode,
   };
 }

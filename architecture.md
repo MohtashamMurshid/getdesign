@@ -116,10 +116,13 @@ flowchart TD
     User["User URL + BYOK credentials"] --> Coordinator["CoordinatorAgent (ToolLoopAgent, OpenAI model)"]
     Coordinator -->|delegate| Crawler["CrawlerAgent"]
     Coordinator -->|delegate| Visual["VisualAgent (Daytona computer-use)"]
+    Coordinator -->|delegate| Describe["VisualDescriberAgent"]
     Coordinator -->|delegate| Tokens["TokenExtractorAgent"]
     Coordinator -->|delegate| Synth["SynthesizerAgent"]
     Crawler -->|"html, css text, fonts"| Coordinator
-    Visual -->|"capture tiles + synthesis subset"| Coordinator
+    Visual -->|"full tile sequence"| Describe
+    Visual -->|"full tile sequence"| Synth
+    Describe -->|"long-form visual description (markdown)"| Synth
     Tokens -->|"DesignTokens JSON"| Coordinator
     Synth -->|"DesignDoc JSON"| Renderer["Markdown Renderer"]
     Renderer --> DesignMd["design.md"]
@@ -141,7 +144,8 @@ Each sub-agent is itself a `ToolLoopAgent` exposed to the coordinator as a singl
 
   Full landing page capture policy: every run must capture the actual rendered landing page from top to document bottom. Capture tiles plus metadata are canonical; the stitched full-page image is derived. The capture tool performs three total attempts with fresh Daytona sandboxes before returning final failure to the coordinator.
 - **TokenExtractorAgent** — pure deterministic tools (no LLM calls unless ambiguous): `extractColors` (walk computed styles, cluster by frequency/role), `extractTypography`, `extractSpacing`, `extractRadii`, `extractShadows`, `extractBorders`. Emits a `DesignTokens` [Zod v4](https://zod.dev) object.
-- **SynthesizerAgent** — takes `DesignTokens` + the visual synthesis subset + crawl notes, returns a `DesignDoc` conforming to a Zod schema with exactly the 9 sections from the reference example. Then a deterministic renderer in [packages/ui/src/renderDesignMd.ts](packages/ui/src/renderDesignMd.ts) converts `DesignDoc` → markdown. This guarantees the exact template ("exact_template" choice).
+- **VisualDescriberAgent** — single LLM call (`runDescribe` in [packages/agent/src/agents/describe.ts](packages/agent/src/agents/describe.ts)) that takes the FULL ordered tile sequence (top→bottom) and produces a long-form designer-grade markdown walkthrough of the page using fixed section headings. The description is a first-class run output (`RunDesignResult.visualDescription`) AND is fed to the Synthesizer as the primary visual context.
+- **SynthesizerAgent** — takes `DesignTokens` + the VisualDescriber's long-form description + the page tiles (capped at `MAX_SYNTHESIS_TILES = 12`) + crawl notes, returns a `DesignDoc` conforming to a Zod schema with exactly the 9 sections from the reference example. Then a deterministic renderer in [packages/ui/src/renderDesignMd.ts](packages/ui/src/renderDesignMd.ts) converts `DesignDoc` → markdown. This guarantees the exact template ("exact_template" choice). The two-step LLM pipeline (describe → synthesize) keeps below-the-fold content honestly represented in the structured doc; the Describer takes the full tile sequence so nothing is lost upstream of the cap.
 
 ## 5. 9-section schema (exact template)
 

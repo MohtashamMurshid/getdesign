@@ -24,8 +24,11 @@ export type { VisualInput, VisualResult, VisualRunOptions } from "./agents/visua
 export { runExtractTokens, summarizeTokens } from "./agents/tokenExtractor";
 export type { TokenExtractorInput } from "./agents/tokenExtractor";
 
-export { runSynthesize } from "./agents/synthesizer";
+export { runSynthesize, MAX_SYNTHESIS_TILES } from "./agents/synthesizer";
 export type { SynthesizerInput, SynthesizerResult } from "./agents/synthesizer";
+
+export { runDescribe } from "./agents/describe";
+export type { DescribeInput, DescribeResult } from "./agents/describe";
 
 export { resolveModel, getDefaultModelId } from "./model";
 export type { ResolveModelOptions } from "./model";

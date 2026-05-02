@@ -2,14 +2,15 @@
 /**
  * End-to-end smoke for the Daytona Computer Use capture pipeline.
  *
- * Runs the full runDesign pipeline (crawl + capture + extract + synthesize +
- * render) against a target URL and prints phase events, capture summary,
- * and a markdown excerpt. Reads OPENAI_API_KEY and DAYTONA_API_KEY from
- * the repo-root .env.local without pulling in dotenv.
+ * Runs the full runDesign pipeline (crawl + capture + describe + extract +
+ * synthesize + render) against a target URL and prints phase events, the
+ * full visual description (the headline output now), and a markdown
+ * excerpt. Reads OPENAI_API_KEY and DAYTONA_API_KEY from the repo-root
+ * .env.local without pulling in dotenv.
  *
  *   bun run packages/agent/smoke-pipeline.ts <url> [--measurement cdp|visual|auto]
  */
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { runDesign, RunDesignError } from "./src/runDesign";
@@ -45,6 +46,18 @@ function maskKey(key: string | undefined): string {
   if (!key) return "<missing>";
   if (key.length < 8) return "***";
   return `${key.slice(0, 4)}…${key.slice(-4)}`;
+}
+
+function slugForUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "example.com") return "example";
+    if (host.endsWith("ycombinator.com")) return "hn";
+    return host.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  } catch {
+    return "page";
+  }
 }
 
 async function main(): Promise<void> {
@@ -95,6 +108,13 @@ async function main(): Promise<void> {
           case "visual":
             console.error(`[${elapsed}s] visual: ${event.visual.status}`);
             break;
+          case "describe":
+            console.error(
+              `[${elapsed}s] describe: ${event.status}${
+                event.detail ? ` — ${event.detail}` : ""
+              }`,
+            );
+            break;
           case "extract":
             console.error(
               `[${elapsed}s] extract: ${event.tokens.typography.fontFamilies.length} font families`,
@@ -127,7 +147,30 @@ async function main(): Promise<void> {
       console.error(`  visual.status: ${result.visual.status}`);
     }
 
+    if (result.visualDescription) {
+      const wordCount = result.visualDescription
+        .split(/\s+/)
+        .filter(Boolean).length;
+      console.error(
+        `\n[smoke] visualDescription: ${wordCount} words, ${result.visualDescription.length} chars`,
+      );
+      try {
+        const dir = "/tmp/getdesign-smoke";
+        mkdirSync(dir, { recursive: true });
+        const path = `${dir}/${slugForUrl(url)}-description.md`;
+        writeFileSync(path, result.visualDescription, "utf8");
+        console.error(`[smoke] description written to ${path}`);
+      } catch (err) {
+        console.error(`[smoke] failed to write description: ${err}`);
+      }
+      console.error("\n[smoke] visualDescription (full):\n");
+      console.error(result.visualDescription);
+    } else {
+      console.error("\n[smoke] visualDescription: <none>");
+    }
+
     console.error(`\n[smoke] mode: ${result.mode}`);
+    console.error(`[smoke] tiles: ${result.tiles}`);
     console.error(`[smoke] total elapsed: ${((Date.now() - start) / 1000).toFixed(1)}s`);
     console.error("\n[smoke] markdown excerpt:");
     const lines = result.markdown.split("\n").slice(0, 12);

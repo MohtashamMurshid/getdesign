@@ -27,6 +27,8 @@ The capture pipeline must:
 - retry transient Daytona or browser failures inside the capture tool, with three total attempts and a fresh sandbox for each attempt;
 - send only a curated visual synthesis subset of tiles to the synthesizer while retaining the complete capture for preview and export.
 
+Tiles are not just the canonical visual artifact — they are also the LLM input. Both the VisualDescriber and Synthesizer sub-agents receive the full ordered tile sequence (capped defensively at 12 tiles per call in the Synthesizer; the Describer takes the full sequence so nothing below the fold is lost). The Describer produces a long-form markdown description that is consumed by the Synthesizer alongside the deterministic CSS tokens, so the structured DesignDoc is grounded in what the page actually shows rather than tokens alone.
+
 Headless Chromium full-page screenshots may be used as a fallback, but not as the primary path, because they can differ from the visible desktop session and do not exercise the same future interaction path for hover/click states.
 
 ## Consequences

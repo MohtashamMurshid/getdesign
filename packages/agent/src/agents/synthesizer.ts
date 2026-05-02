@@ -34,12 +34,23 @@ const synthesisSchema = designDocSchema.extend({
 import type { ScreenshotArtifact } from "@getdesign/tools/daytona";
 import { resolveModel } from "../model";
 
-const SYSTEM_INSTRUCTIONS = `You are the Synthesizer sub-agent for getdesign. Your job is to turn deterministic design tokens (extracted from a live website's CSS) plus an optional hero screenshot into a validated 9-section DesignDoc.
+/**
+ * Defensive cap on the number of tile images sent to the synthesizer in a
+ * single call. The deterministic CSS tokens plus the long visual description
+ * carry the bulk of the signal; tiles beyond this cap quickly hit
+ * provider-side image-count limits and balloon token cost without
+ * proportional benefit. The describe pass receives the FULL ordered tile
+ * sequence (no cap) so nothing is lost upstream.
+ */
+export const MAX_SYNTHESIS_TILES = 12;
+
+const SYSTEM_INSTRUCTIONS = `You are the Synthesizer sub-agent for getdesign. Your job is to turn deterministic design tokens (extracted from a live website's CSS), a long-form visual description from the VisualDescriber sub-agent, and the actual rendered page tiles into a validated 9-section DesignDoc.
 
 Rules:
 - The DesignDoc schema is strictly enforced. Fill every required field; do not omit sections.
 - Every hex color you reference in the palette MUST appear in the provided tokens.colors list. Do not invent colors.
-- Match the tone of the brand: use the site name, the screenshot, and token roles to describe the visual theme, atmosphere, and typography voice.
+- You have a long visual description AND the actual page tiles to ground your DesignDoc — use them, do not paraphrase generic design clichés. When the description and the tokens disagree, prefer what the tiles actually show.
+- Match the tone of the brand: use the site name, the description, the tiles, and token roles to describe the visual theme, atmosphere, and typography voice.
 - Keep prose concise, concrete, and prescriptive so downstream AI coding agents can replicate the system.
 - The 9 sections, in order, are: visualTheme, palette, typography, components, layout, depth, interaction, responsive, agentPromptGuide.`;
 
@@ -47,7 +58,10 @@ export type SynthesizerInput = {
   sourceUrl: string;
   siteName: string;
   tokens: DesignTokens;
-  hero?: ScreenshotArtifact;
+  /** Full ordered tile sequence (top → bottom). Capped at MAX_SYNTHESIS_TILES. */
+  tiles?: ScreenshotArtifact[];
+  /** Long-form markdown produced by the VisualDescriber sub-agent. */
+  visualDescription?: string;
   crawlNotes?: string[];
   model?: LanguageModel;
 };
@@ -57,24 +71,26 @@ export type SynthesizerResult = {
 };
 
 /**
- * Single LLM call that converts DesignTokens + optional hero screenshot into a
- * Zod-validated DesignDoc using AI SDK structured output.
+ * Single LLM call that converts DesignTokens + the visual description + the
+ * page tiles into a Zod-validated DesignDoc using AI SDK structured output.
  */
 export async function runSynthesize(
   input: SynthesizerInput,
 ): Promise<SynthesizerResult> {
   const model = input.model ?? resolveModel();
 
-  const userText = buildUserPrompt(input);
+  const allTiles = input.tiles ?? [];
+  const tiles = allTiles.slice(0, MAX_SYNTHESIS_TILES);
+  const omitted = Math.max(0, allTiles.length - tiles.length);
+
+  const userText = buildUserPrompt(input, tiles.length, omitted);
   const content: UserContent = [{ type: "text", text: userText }];
 
-  if (input.hero) {
+  for (const tile of tiles) {
     content.push({
       type: "image",
-      image: Buffer.from(input.hero.imageBase64, "base64"),
-      mediaType: input.hero.format
-        ? `image/${input.hero.format}`
-        : "image/png",
+      image: Buffer.from(tile.imageBase64, "base64"),
+      mediaType: tile.format ? `image/${tile.format}` : "image/png",
     });
   }
 
@@ -103,7 +119,11 @@ export async function runSynthesize(
   return { doc };
 }
 
-function buildUserPrompt(input: SynthesizerInput): string {
+function buildUserPrompt(
+  input: SynthesizerInput,
+  attachedTileCount: number,
+  omittedTileCount: number,
+): string {
   const tokensJson = JSON.stringify(input.tokens, null, 2);
   const trimmedTokens =
     tokensJson.length > 60_000
@@ -114,14 +134,30 @@ function buildUserPrompt(input: SynthesizerInput): string {
     ? input.crawlNotes.map((note) => `- ${note}`).join("\n")
     : "(no crawl notes)";
 
-  const heroLine = input.hero
-    ? `A hero screenshot is attached (${input.hero.width ?? "?"}x${input.hero.height ?? "?"}).`
-    : "No screenshot is available; rely on the extracted tokens alone.";
+  const tilesLine =
+    attachedTileCount > 0
+      ? `${attachedTileCount} page tile${attachedTileCount === 1 ? "" : "s"} attached below in document order (tile 1 = top).${
+          omittedTileCount > 0
+            ? ` [tiles ${attachedTileCount + 1}..${attachedTileCount + omittedTileCount} omitted to bound token cost; the visual description above already covers them.]`
+            : ""
+        }`
+      : "No page tiles available; rely on the extracted tokens and visual description alone.";
+
+  const descriptionBlock = input.visualDescription
+    ? `Visual description (from the VisualDescriber sub-agent):
+
+\`\`\`markdown
+${input.visualDescription}
+\`\`\`
+`
+    : "No visual description available for this run.";
 
   return `Site: ${input.siteName}
 Source URL: ${input.sourceUrl}
 
-${heroLine}
+${descriptionBlock}
+
+${tilesLine}
 
 Crawl notes:
 ${notes}

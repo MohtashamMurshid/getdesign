@@ -63,14 +63,21 @@ export function createCoordinator(options: CreateCoordinatorOptions = {}) {
         );
       }
 
-      const hero =
-        context.visual?.status === "captured" ? context.visual.hero : undefined;
+      const tiles =
+        context.visual?.status === "captured"
+          ? context.visual.tiles.map((t) => ({
+              imageBase64: t.pngBase64,
+              width: t.width,
+              height: t.height,
+              format: "png" as const,
+            }))
+          : undefined;
 
       const { doc } = await runSynthesize({
         sourceUrl,
         siteName: context.crawl.siteName,
         tokens: context.tokens,
-        hero,
+        tiles,
         crawlNotes: context.crawl.notes,
         model,
       });
