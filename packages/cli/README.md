@@ -33,6 +33,10 @@ Progress is streamed to stderr as concise phase updates (`crawl`, `capture`,
 `visual`, `describe`, `extract`, `synthesize`, `render`) so stdout and generated
 files stay clean.
 
+For tests or embedding, import `runGetdesignCli` from `./runGetdesign.ts` and
+pass `argv`, `env`, `cwd`, or `now` instead of relying on global `process`
+defaults.
+
 - Web · [getdesign.app](https://getdesign.app)
 - API · `api.getdesign.app`
 - CLI · `@getdesign/cli`

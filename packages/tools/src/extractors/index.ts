@@ -426,10 +426,12 @@ function inferTypeRole(rule: Rule, decl: Declaration): string {
   if (selector.includes("code") || selector.includes("mono")) return "Mono";
   if (selector.includes("hero") || selector.includes("display")) return "Display";
 
-  const sizeMatch = decl.value.match(/(\d+(?:\.\d+)?)px/);
-  if (!sizeMatch) return "Body";
+  // For clamp(min, preferred, max) and similar, prefer the largest px value
+  // we can find — this is the upper-bound visual size that drives role.
+  const pxMatches = [...decl.value.matchAll(/(\d+(?:\.\d+)?)px/g)];
+  if (pxMatches.length === 0) return "Body";
 
-  const size = Number(sizeMatch[1]);
+  const size = Math.max(...pxMatches.map((m) => Number(m[1])));
   if (size >= 48) return "Display";
   if (size >= 36) return "H1";
   if (size >= 28) return "H2";

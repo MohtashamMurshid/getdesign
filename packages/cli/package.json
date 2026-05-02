@@ -29,6 +29,7 @@
   "main": "./src/getdesign.ts",
   "scripts": {
     "smoke": "bun ./src/getdesign.ts --help",
+    "test": "bun test",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "files": [
@@ -43,7 +44,8 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@getdesign/agent": "workspace:*"
+    "@getdesign/agent": "workspace:*",
+    "unicode-animations": "^1.0.3"
   },
   "devDependencies": {
     "@types/bun": "^1.3.13"
