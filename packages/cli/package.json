@@ -1,7 +1,7 @@
 {
   "name": "@getdesign/cli",
   "version": "0.0.1",
-  "description": "getdesign — the design system for any URL (CLI). Coming soon.",
+  "description": "Generate a design.md from any public URL.",
   "keywords": [
     "design-system",
     "design.md",
@@ -24,11 +24,15 @@
   "author": "getdesign",
   "type": "module",
   "bin": {
-    "getdesign": "./bin/getdesign.mjs"
+    "getdesign": "./src/getdesign.ts"
   },
-  "main": "./bin/getdesign.mjs",
+  "main": "./src/getdesign.ts",
+  "scripts": {
+    "smoke": "bun ./src/getdesign.ts --help",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
   "files": [
-    "bin",
+    "src",
     "README.md",
     "LICENSE"
   ],
@@ -37,5 +41,11 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@getdesign/agent": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.13"
   }
 }

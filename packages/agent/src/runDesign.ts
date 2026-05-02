@@ -25,13 +25,18 @@ export type RunDesignPhase =
   | "render";
 
 export type RunDesignEvent =
-  | { phase: "crawl"; crawl: CrawlSiteResult }
+  | { phase: "crawl"; status: "start" }
+  | { phase: "crawl"; status: "ok"; crawl: CrawlSiteResult }
   | { phase: "capture"; event: CapturePhaseEvent }
-  | { phase: "visual"; visual: VisualResult }
+  | { phase: "visual"; status: "start" }
+  | { phase: "visual"; status: "ok"; visual: VisualResult }
   | { phase: "describe"; status: "start" | "ok"; detail?: string }
-  | { phase: "extract"; tokens: DesignTokens }
-  | { phase: "synthesize"; doc: DesignDoc }
-  | { phase: "render"; markdown: string };
+  | { phase: "extract"; status: "start" }
+  | { phase: "extract"; status: "ok"; tokens: DesignTokens }
+  | { phase: "synthesize"; status: "start" }
+  | { phase: "synthesize"; status: "ok"; doc: DesignDoc }
+  | { phase: "render"; status: "start" }
+  | { phase: "render"; status: "ok"; markdown: string };
 
 /**
  * How the run should react when the visual capture path is unavailable
@@ -57,6 +62,7 @@ export type RunDesignCredentials = {
 
 export type RunDesignOptions = {
   model?: LanguageModel;
+  siteName?: string;
   visualRequirement?: VisualRequirement;
   credentials?: RunDesignCredentials;
   /** Force or disable the i18n font install. Auto-detected from URL TLD when omitted. */
@@ -129,9 +135,14 @@ export async function runDesign(
   const model =
     options.model ?? resolveModel({ apiKey: credentials?.openaiApiKey });
 
-  const crawl = await runCrawl({ url });
-  await options.onPhase?.({ phase: "crawl", crawl });
+  await options.onPhase?.({ phase: "crawl", status: "start" });
+  const crawled = await runCrawl({ url });
+  const crawl = options.siteName?.trim()
+    ? { ...crawled, siteName: options.siteName.trim() }
+    : crawled;
+  await options.onPhase?.({ phase: "crawl", status: "ok", crawl });
 
+  await options.onPhase?.({ phase: "visual", status: "start" });
   const visual = await runVisual(
     {
       url: crawl.sourceUrl,
@@ -145,7 +156,7 @@ export async function runDesign(
       },
     },
   );
-  await options.onPhase?.({ phase: "visual", visual });
+  await options.onPhase?.({ phase: "visual", status: "ok", visual });
 
   if (visual.status === "failed") {
     if (visualRequirement === "require") {
@@ -187,9 +198,11 @@ export async function runDesign(
     });
   }
 
+  await options.onPhase?.({ phase: "extract", status: "start" });
   const tokens = runExtractTokens(crawl);
-  await options.onPhase?.({ phase: "extract", tokens });
+  await options.onPhase?.({ phase: "extract", status: "ok", tokens });
 
+  await options.onPhase?.({ phase: "synthesize", status: "start" });
   const { doc } = await runSynthesize({
     sourceUrl: crawl.sourceUrl,
     siteName: crawl.siteName,
@@ -199,12 +212,13 @@ export async function runDesign(
     crawlNotes: crawl.notes,
     model,
   });
-  await options.onPhase?.({ phase: "synthesize", doc });
+  await options.onPhase?.({ phase: "synthesize", status: "ok", doc });
 
+  await options.onPhase?.({ phase: "render", status: "start" });
   const baseMarkdown = renderDesignMd(doc);
   const markdown =
     mode === "text_only" ? prependTextOnlyBanner(baseMarkdown) : baseMarkdown;
-  await options.onPhase?.({ phase: "render", markdown });
+  await options.onPhase?.({ phase: "render", status: "ok", markdown });
 
   return {
     url: crawl.sourceUrl,

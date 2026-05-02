@@ -39,9 +39,13 @@ async function main() {
         const elapsed = ((Date.now() - start) / 1000).toFixed(1);
         switch (event.phase) {
           case "crawl":
-            process.stderr.write(
-              `[${elapsed}s] crawl: ${event.crawl.stylesheets.length} stylesheets from ${event.crawl.siteName}\n`,
-            );
+            if (event.status === "start") {
+              process.stderr.write(`[${elapsed}s] crawl: reading site\n`);
+            } else {
+              process.stderr.write(
+                `[${elapsed}s] crawl: ${event.crawl.stylesheets.length} stylesheets from ${event.crawl.siteName}\n`,
+              );
+            }
             break;
           case "capture":
             process.stderr.write(
@@ -51,28 +55,44 @@ async function main() {
             );
             break;
           case "visual":
-            process.stderr.write(
-              `[${elapsed}s] visual: ${event.visual.status}${
-                event.visual.status !== "captured" && "reason" in event.visual
-                  ? ` (${event.visual.reason})`
-                  : ""
-              }\n`,
-            );
+            if (event.status === "start") {
+              process.stderr.write(`[${elapsed}s] visual: capturing page\n`);
+            } else {
+              process.stderr.write(
+                `[${elapsed}s] visual: ${event.visual.status}${
+                  event.visual.status !== "captured" && "reason" in event.visual
+                    ? ` (${event.visual.reason})`
+                    : ""
+                }\n`,
+              );
+            }
             break;
           case "extract":
-            process.stderr.write(
-              `[${elapsed}s] extract: ${event.tokens.typography.fontFamilies.length} font families, ${event.tokens.spacing.length} spacing steps\n`,
-            );
+            if (event.status === "start") {
+              process.stderr.write(`[${elapsed}s] extract: deriving tokens\n`);
+            } else {
+              process.stderr.write(
+                `[${elapsed}s] extract: ${event.tokens.typography.fontFamilies.length} font families, ${event.tokens.spacing.length} spacing steps\n`,
+              );
+            }
             break;
           case "synthesize":
-            process.stderr.write(
-              `[${elapsed}s] synthesize: DesignDoc validated (${event.doc.palette.groups.length} palette groups)\n`,
-            );
+            if (event.status === "start") {
+              process.stderr.write(`[${elapsed}s] synthesize: drafting design.md\n`);
+            } else {
+              process.stderr.write(
+                `[${elapsed}s] synthesize: DesignDoc validated (${event.doc.palette.groups.length} palette groups)\n`,
+              );
+            }
             break;
           case "render":
-            process.stderr.write(
-              `[${elapsed}s] render: ${event.markdown.length} chars of markdown\n`,
-            );
+            if (event.status === "start") {
+              process.stderr.write(`[${elapsed}s] render: formatting markdown\n`);
+            } else {
+              process.stderr.write(
+                `[${elapsed}s] render: ${event.markdown.length} chars of markdown\n`,
+              );
+            }
             break;
         }
       },

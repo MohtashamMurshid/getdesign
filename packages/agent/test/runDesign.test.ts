@@ -107,18 +107,20 @@ afterEach(() => {
 
 test("runDesign end-to-end with stubbed fetch and mocked LLM (text-only)", async () => {
   const mockModel = makeMockModel();
-  const phases: string[] = [];
+  const completedPhases: string[] = [];
 
   const result = await runDesign("https://example.com", {
     model: mockModel,
     visualRequirement: "skip_silently",
     onPhase: (event) => {
-      phases.push(event.phase);
+      if ("status" in event && event.status === "ok") {
+        completedPhases.push(event.phase);
+      }
     },
   });
 
   // No describe phase when capture is skipped.
-  expect(phases).toEqual(["crawl", "visual", "extract", "synthesize", "render"]);
+  expect(completedPhases).toEqual(["crawl", "visual", "extract", "synthesize", "render"]);
   expect(result.visual.status).toBe("skipped");
   expect(result.visualDescription).toBeNull();
   expect(result.tiles).toBe(0);
