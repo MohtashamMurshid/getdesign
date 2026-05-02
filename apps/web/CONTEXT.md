@@ -2,4 +2,19 @@
 
 Terms and naming for the main product web workspace (`apps/web`). Expand as the domain stabilizes.
 
-*Terms: TBD*
+## Terms
+
+- **Full landing page capture** — the required visual capture for a submitted site URL. It means the product must collect the actual rendered landing page from top to document bottom, not just the initially visible hero viewport or a preset number of viewport slices.
+- **Rendered page measurement** — page-side measurement used to determine the capture height and scroll positions for a full landing page capture. It may use a small script in the rendered browser page while Daytona remains the isolated rendering and screenshot environment.
+- **Stable rendered height** — the document height used for a full landing page capture after lazy-loaded content has stopped increasing the page height. If the page keeps growing and no stable height can be reached within the capture guardrails, the capture should fail rather than silently truncate.
+- **Overlay cleanup** — the pre-capture step that dismisses or hides common visual blockers such as cookie banners, newsletter modals, and chat widgets when possible. It must be recorded in capture metadata and must not perform login or account flows.
+- **Fixed element deduplication** — the capture behavior that keeps sticky or fixed navigation in the first tile, then suppresses repeated fixed elements in later tiles so the stitched full-page preview reads as one page. The action must be recorded in capture metadata.
+- **Capture tiles** — the canonical visual artifact for a full landing page capture. Each tile records a viewport-sized slice of the rendered page plus metadata such as scroll offset and dimensions.
+- **Stitched full-page preview** — a derived image assembled from capture tiles for UI preview, download, or export. It is not the canonical capture record.
+- **Visual synthesis subset** — the curated subset of capture tiles sent to the synthesizer. It represents the landing page without sending every tile, while the complete capture remains available for preview and export.
+- **Capture retry** — a repeated attempt inside the capture tool to complete a required full landing page capture after a transient Daytona or browser failure. V1 allows three total attempts, each with a fresh Daytona sandbox. A run should not degrade to text-only output while retry budget remains; the coordinator should receive either a completed capture or a final failure.
+- **User-funded run** — a run whose variable infrastructure costs are paid by the user rather than subsidized by getdesign. V1 must require both a user-provided Daytona key and a user-provided LLM key before starting a run.
+- **Stored user credentials** — user-provided Daytona and LLM credentials saved for reuse after authentication. V1 uses an auth provider for user identity and Convex for credential persistence, with one active Daytona credential and one active LLM credential per user, so runs can use the authenticated user's own keys instead of getdesign-funded capacity.
+- **Request-scoped credentials** — user-provided Daytona and OpenAI credentials sent with a single API, SDK, or CLI run. They are used only for that run, must be sent over authenticated HTTPS outside query parameters, and are not persisted unless the user explicitly saves them as stored user credentials.
+- **LLM provider** — the model provider used for synthesis. V1 supports OpenAI credentials only, but the credential and agent architecture should keep a provider field so additional providers can be added without changing the user-funded run model.
+- **BYOK-only pricing** — the v1 pricing model where getdesign does not bill users and does not subsidize variable run costs. Users authenticate, provide their own Daytona and OpenAI credentials as stored or request-scoped credentials, and pay those providers directly.

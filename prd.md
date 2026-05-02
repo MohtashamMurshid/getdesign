@@ -20,7 +20,7 @@ This is slow, error-prone, and produces inconsistent output. No one wants to do 
 
 **Paste a URL, get a production-grade `design.md`.**
 
-`getdesign` is an agent that opens the URL in a real browser (inside a Daytona sandbox), screenshots the UI, extracts CSS tokens deterministically, and synthesizes a structured 9-section design specification matching the reference Cursor-style template. Delivered through four surfaces sharing one agent core:
+`getdesign` is an agent that opens the URL in a real browser (inside a Daytona sandbox), captures the actual rendered landing page, extracts CSS tokens deterministically, and synthesizes a structured 9-section design specification matching the reference Cursor-style template. Delivered through four surfaces sharing one agent core:
 
 1. **Chat UI** at `getdesign.app` — paste a URL, watch the agent work live, read the resulting `design.md`.
 2. **HTTP API** at `api.getdesign.app/?url=...` — returns raw markdown for scripts, CI, and other agents.
@@ -38,16 +38,17 @@ This is slow, error-prone, and produces inconsistent output. No one wants to do 
 
 - **G1**: Given any public marketing or product URL, return a `design.md` that follows the 9-section template exactly (see [architecture.md §5](architecture.md#5-9-section-schema-exact-template)).
 - **G2**: Output palette values that are grounded in the site's actual computed styles, not hallucinated.
-- **G3**: Include at least one hero screenshot of the real page (always_hero policy).
+- **G3**: Capture the actual rendered landing page from top to document bottom, with canonical capture tiles and a derived stitched full-page preview.
 - **G4**: Four surfaces (web chat, HTTP API, CLI, TypeScript SDK) share the same agent package; no per-surface drift.
 - **G5**: Cold-start an end-to-end run in ≤ 5 s of Daytona boot time; complete a full run in ≤ 90 s on a typical marketing site.
+- **G6**: V1 is BYOK-only: authenticated users provide their own Daytona and OpenAI credentials, either stored in Convex for web reuse or sent with an API/SDK/CLI run, and getdesign does not bill or subsidize variable run costs.
 
 ### Non-goals (v1)
 
 - No follow-up chat / refinement ("make the palette warmer"). Read-only generation.
 - No compare-brands / diff mode.
-- No auth, no rate limiting, no per-user history UI.
-- No interactive states (hover, open menu). Hero + full-page screenshots only.
+- No getdesign billing, subscriptions, or platform-funded run credits.
+- No interactive states (hover, open menu). Full landing page capture only.
 - No generation of runnable code (React components, Tailwind config). Output is a spec doc.
 - No PDF / Figma / Sketch export. Markdown only.
 
@@ -55,11 +56,11 @@ This is slow, error-prone, and produces inconsistent output. No one wants to do 
 
 ### P0 — AI coding agents
 
-An agent (Cursor, Claude Code, v0, Devin, etc.) is asked "make this landing page look like cursor.com". Today it hallucinates. Tomorrow it runs `curl api.getdesign.app/?url=https://cursor.com` — or imports `@getdesign/sdk` — and feeds the resulting `design.md` into its own context. This is the highest-leverage user.
+An agent (Cursor, Claude Code, v0, Devin, etc.) is asked "make this landing page look like cursor.com". Today it hallucinates. Tomorrow it calls the authenticated `api.getdesign.app/?url=https://cursor.com` endpoint — or imports `@getdesign/sdk` — sending Daytona and OpenAI keys with the run request, then feeds the resulting `design.md` into its own context. This is the highest-leverage user.
 
 ### P0b — Developers embedding `getdesign` in other apps
 
-A developer building a design tool, an onboarding flow, or an AI product wants to programmatically pull a brand spec. They `npm i @getdesign/sdk`, call `await getDesign(url)`, and get back a Zod-typed `DesignDoc` they can render, diff, or persist however they like. This is why the SDK ships alongside the hosted API.
+A developer building a design tool, an onboarding flow, or an AI product wants to programmatically pull a brand spec. They `npm i @getdesign/sdk`, authenticate against their getdesign account, call `await getDesign(url, { credentials })`, and get back a Zod-typed `DesignDoc` they can render, diff, or persist however they like. This is why the SDK ships alongside the hosted API.
 
 ### P1 — Designers evaluating a brand
 
@@ -67,7 +68,7 @@ A designer wants to quickly spec out a style guide inspired by a reference. They
 
 ### P2 — Developers building style systems
 
-A developer needs to match an existing brand in a new repo. They run `npx @getdesign/cli https://linear.app > design.md`, commit it, and feed it to their team's chosen AI tool.
+A developer needs to match an existing brand in a new repo. They run `DAYTONA_API_KEY=... OPENAI_API_KEY=... npx @getdesign/cli https://linear.app > design.md`, commit it, and feed it to their team's chosen AI tool.
 
 ## 5. Functional requirements
 
@@ -81,15 +82,29 @@ A developer needs to match an existing brand in a new repo. They run `npx @getde
 
 Every run executes, in order:
 
-1. **Crawl** — fetch HTML, all linked stylesheets, `@import` chains, and `@font-face` sources over HTTPS. Runs in Bun on the API server; does not require the sandbox.
-2. **Spawn sandbox** — `daytona.create({ snapshot: 'getdesign-<sha>' })` + `sandbox.computerUse.start()`.
-3. **Open URL** — launch Chromium kiosk inside the sandbox's Xvfb display via `sandbox.process.executeCommand`.
-4. **Screenshot** — always capture one viewport screenshot and one full-page (scroll-and-stitch) screenshot via `sandbox.computerUse.screenshot.takeCompressed`.
-5. **Extract tokens** — deterministic CSS parsing → `DesignTokens` Zod object (colors, typography, spacing, radii, shadows, borders, breakpoints).
-6. **Synthesize** — LLM call (OpenAI GPT-5.5 class via Vercel AI Gateway) produces a structured `DesignDoc` conforming to the 9-section Zod schema. Vision input = hero screenshot + tokens JSON + crawl notes.
-7. **Render** — deterministic markdown renderer converts `DesignDoc` → final `design.md`.
-8. **Persist** — write run, tokens, screenshots, and final doc to Convex.
-9. **Teardown** — `sandbox.delete()`.
+1. **Authorize** — require an authenticated user plus Daytona and OpenAI credentials, either request-scoped for the current API/SDK/CLI run or stored in Convex for web reuse.
+2. **Crawl** — fetch HTML, all linked stylesheets, `@import` chains, and `@font-face` sources over HTTPS. Runs in Bun on the API server; does not require the sandbox.
+3. **Spawn sandbox** — use the authenticated user's Daytona credential with `daytona.create({ snapshot: 'getdesign-<sha>' })` + `sandbox.computerUse.start()`.
+4. **Open URL** — launch Chromium kiosk inside the sandbox's Xvfb display via `sandbox.process.executeCommand`.
+5. **Capture rendered page** — measure the actual rendered document height in Chromium, dismiss or hide common visual blockers when possible, capture viewport-sized tiles via `sandbox.computerUse.screenshot.takeCompressed`, dedupe repeated fixed/sticky elements after the first tile, and derive a stitched full-page preview from the tiles.
+6. **Extract tokens** — deterministic CSS parsing → `DesignTokens` Zod object (colors, typography, spacing, radii, shadows, borders, breakpoints).
+7. **Synthesize** — LLM call using the authenticated user's OpenAI credential produces a structured `DesignDoc` conforming to the 9-section Zod schema. Vision input = curated visual synthesis subset + tokens JSON + crawl notes.
+8. **Render** — deterministic markdown renderer converts `DesignDoc` → final `design.md`.
+9. **Persist** — write run, tokens, capture tiles, stitched preview, capture metadata, and final doc to Convex.
+10. **Teardown** — `sandbox.delete()`.
+
+### F2a — Auth, credentials, and pricing
+
+- V1 uses Clerk for authentication.
+- V1 is BYOK-only. Users must provide one Daytona key and one OpenAI key before starting a run.
+- Web runs use Convex-stored credentials by default after setup.
+- API, SDK, and CLI runs may send request-scoped Daytona and OpenAI credentials with the run request instead of relying on stored credentials.
+- Convex stores user identity, optional credential metadata, encrypted credential payloads, runs, captures, and artifacts.
+- getdesign does not bill users in v1 and does not provide shared Daytona or OpenAI credits.
+- Users pay Daytona and OpenAI directly according to those providers' pricing.
+- The credential model includes a provider field so additional LLM providers can be added later without changing the user-funded run model. V1 only supports OpenAI for synthesis.
+- Request-scoped credentials must be sent over authenticated HTTPS in headers or request body fields, never in query parameters, and must not be persisted or logged unless the user explicitly saves them.
+- Raw stored credentials are never displayed after save; the UI may show masked suffixes and last-updated timestamps.
 
 ### F3 — Output: `design.md`
 
@@ -113,15 +128,17 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 - Each tool call and phase is surfaced as an ai-elements component:
   - `Task` / `Tool` for crawl, screenshot, extract steps.
   - `Reasoning` for model thinking when the provider exposes it.
-  - `Image` renders the hero screenshot inline as it arrives.
+  - `Image` renders capture progress and the stitched full-page preview when ready.
   - `Sources` lists the CSS source URLs consulted.
   - `Artifact` side panel shows the growing `design.md` as markdown.
 - Read-only. No follow-up messages.
 
 ### F5 — API behavior
 
-- `GET https://api.getdesign.app/?url=<encoded-url>` → `200 text/markdown; charset=utf-8` with the final `design.md`.
+- `GET https://api.getdesign.app/?url=<encoded-url>` → `200 text/markdown; charset=utf-8` with the final `design.md` for authenticated users who either have stored Daytona/OpenAI credentials or send request-scoped credentials with the request.
 - `400` on missing/invalid URL.
+- `401` when unauthenticated.
+- `402` or `409` when required BYOK credentials are missing or invalid.
 - `502` if the target URL cannot be reached.
 - `504` on agent timeout (> 120 s).
 - No streaming in v1. No JSON endpoint in v1.
@@ -131,7 +148,7 @@ Enforced via Zod schema on the LLM's structured output; a deterministic renderer
 - `npx @getdesign/cli <url>` — one-shot. Prints streaming progress to stderr (phases + partial markdown). Writes final `design.md` to stdout or to `--out <path>`.
 - `npx @getdesign/cli` (no URL) — interactive REPL via [OpenTUI](https://github.com/openturn/opentui); same transport as the web chat.
 - `npx @getdesign/cli --version`, `--help`.
-- When `DAYTONA_API_KEY` + AI Gateway / OpenAI creds are set locally, the CLI calls the agent directly (no hosted-API dependency). Otherwise, falls back to `api.getdesign.app`.
+- When `DAYTONA_API_KEY` + `OPENAI_API_KEY` are set locally, the CLI either calls the agent directly or forwards those keys as request-scoped credentials to the hosted API. Without local keys, it calls the hosted API using the authenticated account's stored BYOK credentials.
 - Internally implemented on top of the TypeScript SDK (F7) so we keep one transport layer.
 
 ### F7 — TypeScript SDK behavior
@@ -146,7 +163,7 @@ Requirements:
 - **Runtimes**: Node ≥ 20, Bun ≥ 1.2, Deno, Cloudflare Workers, Vercel Edge. Web Fetch + Web Streams only.
 - **Typing**: all events and results are fully typed. `DesignDoc` and `DesignTokens` types are re-exported from the package root.
 - **Bundle**: ESM-only, `zod@^4` as the single peer dep, tree-shakeable (`streamDesign` code split from `getDesign`).
-- **Options**: `{ baseUrl?: string; fetch?: typeof fetch; signal?: AbortSignal; apiKey?: string }`. `baseUrl` overrides the default `https://api.getdesign.app`; `fetch` and `signal` enable custom transports and cancellation; `apiKey` is reserved for v1.1 and ignored in v1.
+- **Options**: `{ baseUrl?: string; fetch?: typeof fetch; signal?: AbortSignal; accessToken?: string; credentials?: { daytonaApiKey: string; openaiApiKey: string } }`. `baseUrl` overrides the default `https://api.getdesign.app`; `fetch` and `signal` enable custom transports and cancellation; `accessToken` authenticates hosted API calls; `credentials` sends request-scoped BYOK credentials for the run.
 - **Versioning**: SemVer; major bumps of the SDK cannot silently change `DesignDoc` shape without a major bump of [@getdesign/types](packages/types).
 
 ```ts
@@ -164,11 +181,12 @@ console.log(doc.palette.primary[0]); // typed ColorEntry
 |---|---|
 | End-to-end latency | ≤ 90 s on a typical marketing site (measured P50) |
 | Sandbox cold start | ≤ 5 s (pre-baked snapshot) |
-| Hero screenshot | PNG, 1440×900 viewport, plus full-page scroll-and-stitch |
+| Full landing page capture | Canonical viewport-sized capture tiles from actual rendered document height, plus derived stitched preview |
 | Output token grounding | 100% of color values in `palette` must appear somewhere in the crawled CSS |
 | Determinism | Re-running on the same URL within 24 h produces the same palette and typography (section 9 prose may vary) |
 | Availability | Best-effort in v1; no SLA |
-| Cost per run | Target ≤ $0.05 (Daytona compute + LLM tokens) |
+| Pricing | BYOK-only; users pay Daytona and OpenAI directly, with no getdesign billing in v1 |
+| Cost visibility | Show estimated Daytona/LLM usage per run when provider data is available |
 
 ## 7. Success metrics
 
@@ -187,21 +205,24 @@ console.log(doc.palette.primary[0]); // typed ColorEntry
 | Single-page snapshot | Multi-page crawl / sitemap extraction |
 | Chat, API, CLI, TypeScript SDK | Figma plugin, VSCode extension, Raycast extension |
 | `design.md` markdown output | JSON API, design-token JSON (W3C DTCG), CSS/Tailwind/Panda export |
-| Hero + full-page screenshots | Interactive state captures (hover, menu open) |
-| OpenAI GPT-5.5 class via AI Gateway | Multi-provider selection, self-hosted model |
+| Actual rendered full landing page capture | Interactive state captures (hover, menu open) |
+| OpenAI via user-provided key | Multi-provider selection, self-hosted model |
 | Convex persistence of runs | Public history browse UI |
 | Read-only chat | Follow-up refinement, compare-brands, A/B diff |
-| IP-based soft limits via Convex | API keys, billing, usage dashboards |
+| Clerk auth + BYOK credentials, stored or request-scoped | getdesign billing, subscriptions, shared credits |
 
 ## 9. Risks
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | LLM fabricates palette values not present in CSS | M | H | Deterministic token extraction feeds structured output; validator rejects colors not in the crawled set |
-| Chromium in Daytona needs `--no-sandbox` / fails on some sites | M | M | Pre-bake snapshot and smoke-test on top 20 brands; fallback to `chromium --headless=new --screenshot` for full-page |
+| Chromium in Daytona needs `--no-sandbox` / fails on some sites | M | M | Pre-bake snapshot, launch via `getdesign-chromium`, and smoke-test on top 20 brands; fallback to `chromium --headless=new --screenshot` only after primary Daytona capture fails |
 | Daytona snapshot cold-start > 5 s | M | M | Pre-baked snapshot + optional warm pool in v1.1 |
-| OpenAI GPT-5.5 id unstable via AI Gateway | L | L | Resolve model id at startup via Gateway `/v1/models`; config-driven |
-| Scroll-and-stitch artifacts on sticky headers | H | M | Inject stylesheet to hide `position: fixed` on non-first tiles, or fall back to headless full-page |
+| Default OpenAI model choice changes | L | L | Keep the model id config-driven and record the model used on each run |
+| Tile stitching artifacts on sticky headers or overlays | H | M | Browser-side overlay cleanup, fixed-element dedupe after the first tile, capture metadata, and visual smoke tests on common landing-page patterns |
+| Lazy-loaded or infinite pages never reach stable height | M | M | Continue measuring while height grows; fail with a clear capture error if stable rendered height is not reached within guardrails |
+| Users are uncomfortable storing provider keys | M | H | Support request-scoped API/SDK/CLI credentials, encrypt stored credential payloads, show masked metadata only, and document local env-var direct mode |
+| Provider key is missing, invalid, or quota-limited | H | M | Block runs until credentials are provided for the request or configured on the account; surface provider-specific errors without logging raw secrets |
 | Large sites' CSS blow up context window | M | M | Truncate each CSS source to the first 200 KB, prefer variables and `:root`/selector-scoped rules |
 | Users submit malicious URLs | M | M | URL sanitization, no sandbox network egress to private IPs, auto-delete sandbox after run |
 | Convex free tier limits | L | L | Monitor; upgrade when necessary |
@@ -210,7 +231,8 @@ console.log(doc.palette.primary[0]); // typed ColorEntry
 
 - [Daytona](https://www.daytona.io/docs/en/computer-use/) — sandbox + computer-use APIs (mouse, screenshot).
 - [Vercel AI SDK v6](https://ai-sdk.dev) — `ToolLoopAgent`, `streamText`, `InferAgentUIMessage`, structured output.
-- [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) — model routing (OpenAI GPT-5.5 class).
+- OpenAI — v1 synthesis provider through user-provided credentials.
+- Clerk — user authentication.
 - [ai-elements](https://ai-sdk.dev/elements) on [shadcn/ui](https://ui.shadcn.com) — chat primitives.
 - [Next.js 16](https://nextjs.org/docs) — web app.
 - [Convex](https://docs.convex.dev) — persistence + file storage.
@@ -226,25 +248,26 @@ console.log(doc.palette.primary[0]); // typed ColorEntry
 | M0 | Scaffold + architecture + PRD | This doc, [architecture.md](architecture.md), Turborepo with Bun workspaces ✓ |
 | M1 | Schemas | `DesignTokens` and `DesignDoc` Zod schemas in `@getdesign/types` |
 | M2 | Tools | `crawler`, `extractors`, `daytona`, `render` in `@getdesign/tools` |
-| M3 | Snapshot | Custom Daytona snapshot published; `daytonaOpenUrl` + screenshot round-trip verified |
+| M3 | Snapshot + capture | Custom Daytona snapshot published; `daytonaOpenUrl` + actual rendered full landing page tile capture verified |
 | M4 | Agents | CoordinatorAgent + 4 sub-agents in `@getdesign/agent`; end-to-end `bun run smoke.ts <url>` produces a valid `design.md` |
-| M5 | Convex | Schema, actions, file storage wired |
-| M6 | Web | `getdesign.app` with chat, Artifact panel, live timeline |
-| M7 | API | `api.getdesign.app/?url=...` returns markdown |
-| M8 | SDK | `@getdesign/sdk` published on npm — `getDesign(url)` + `streamDesign(url)` typed |
-| M9 | CLI | `npx @getdesign/cli <url>` one-shot + `npx @getdesign/cli` REPL, built on the SDK |
-| M10 | Launch | Smoke run on top 20 brands passes M3 quality bar; web + api deployed, SDK + CLI published on npm |
+| M5 | Auth + credentials | Clerk auth wired; Convex stores encrypted Daytona/OpenAI credentials with one active credential of each type per user; API/SDK/CLI accept request-scoped credentials |
+| M6 | Convex | Schema, actions, file storage wired |
+| M7 | Web | `getdesign.app` with sign-in, credential setup, chat, Artifact panel, live timeline |
+| M8 | API | `api.getdesign.app/?url=...` requires auth + stored or request-scoped BYOK credentials and returns markdown |
+| M9 | SDK | `@getdesign/sdk` published on npm — `getDesign(url)` + `streamDesign(url)` typed |
+| M10 | CLI | `npx @getdesign/cli <url>` one-shot + `npx @getdesign/cli` REPL, built on the SDK |
+| M11 | Launch | Smoke run on top 20 brands passes M3 quality bar; web + api deployed, SDK + CLI published on npm |
 
 ## 12. Future (post-v1)
 
-- **v1.1**: Follow-up chat ("make the palette warmer", "regenerate section 3"), IP-based rate limits via Upstash/Convex, compare-brands diff.
+- **v1.1**: Follow-up chat ("make the palette warmer", "regenerate section 3"), compare-brands diff, additional LLM providers.
 - **v1.2**: W3C DTCG token JSON export, Tailwind config export, Panda preset export.
 - **v1.3**: VSCode extension, Raycast extension, Figma plugin.
 - **v2**: Multi-page crawl, authenticated pages via user-provided cookies/Browserbase, interactive state captures.
 
 ## 13. Open questions
 
-- Which exact OpenAI model id via AI Gateway? Resolve at implementation time.
-- Do we gate the API endpoint on a soft daily limit per IP even in v1? Leaning yes (Convex-based), pending Daytona cost observation.
-- Do we store raw HTML on Convex, or only extracted tokens + screenshots? Leaning tokens + screenshots + rendered markdown only (HTML is large and re-fetchable).
+- Which exact OpenAI model id should v1 default to when using the user's OpenAI key? Resolve at implementation time.
+- Which encryption approach should protect Convex-stored provider credentials?
+- Do we store raw HTML on Convex, or only extracted tokens + capture artifacts + rendered markdown? Leaning tokens + capture artifacts + rendered markdown only (HTML is large and re-fetchable).
 - Does the chat UI show a shareable permalink per run? Nice to have for v1.1 once history UI exists.

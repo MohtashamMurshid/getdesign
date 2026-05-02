@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatProviderDisplayName } from "@/lib/format-provider-label";
 import { toErrorMessage } from "@/lib/to-error-message";
+import {
+  buildStudioModelOptions,
+  getCursorAuthError,
+  getDisplayedModels,
+  getPreferredModelId,
+  getSelectedDeckId,
+  isCursorModel,
+  readVisibleModelIds,
+  sanitizeConversation,
+  writeVisibleModelIds,
+} from "@/hooks/studio-app-state-helpers";
 import {
   BYOK_PROVIDER_OPTIONS,
   CUSTOM_PROVIDER_API_OPTIONS,
@@ -48,18 +58,9 @@ export function useStudioAppState() {
   const [cursorApiKeyDraft, setCursorApiKeyDraft] = useState("");
   const [cursorBusy, setCursorBusy] = useState(false);
   const [cursorError, setCursorError] = useState<string | undefined>();
-  const [visibleModelIds, setVisibleModelIds] = useState<string[]>(() => {
-    const raw = localStorage.getItem("studio.visibleModelIds");
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      return Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === "string")
-        : [];
-    } catch {
-      return [];
-    }
-  });
+  const [visibleModelIds, setVisibleModelIds] = useState<string[]>(
+    readVisibleModelIds,
+  );
 
   const oauthProviderCards = useMemo(
     () => buildOauthProviderCards(authStatus?.oauthProviders),
@@ -80,22 +81,13 @@ export function useStudioAppState() {
       ]);
       setAuthStatus(nextAuth);
       setAuthLoaded(true);
-      const stalePiCursorMiss =
-        nextConversation.error &&
-        /Pi model not found: cursor\//i.test(nextConversation.error);
-      setConversation(
-        stalePiCursorMiss
-          ? { ...nextConversation, error: undefined }
-          : nextConversation,
-      );
+      setConversation(sanitizeConversation(nextConversation));
       setDecks(nextDecks);
       setChatSessions(nextSessions);
       setUserSelectedDeckId(undefined);
       setSelectedModelId((current) => current || nextAuth.selectedModelId || "");
       setCursorAuth(nextCursorAuth);
-      setCursorError(
-        nextCursorAuth.status === "error" ? nextCursorAuth.error : undefined,
-      );
+      setCursorError(getCursorAuthError(nextCursorAuth));
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     } finally {
@@ -105,41 +97,35 @@ export function useStudioAppState() {
 
   useEffect(() => {
     const unsubscribe = window.api.onStudioEvent((event) => {
-      if (event.type === "auth") {
-        setAuthStatus(event.payload);
-        setAuthLoaded(true);
-        setSelectedModelId(
-          (current) => current || event.payload.selectedModelId || "",
-        );
-      }
-      if (event.type === "conversation") {
-        const payload = event.payload;
-        const stalePiCursorMiss =
-          payload.error && /Pi model not found: cursor\//i.test(payload.error);
-        const sanitized = stalePiCursorMiss
-          ? { ...payload, error: undefined }
-          : payload;
-        setConversation(sanitized);
-        setError(sanitized.error);
-      }
-      if (event.type === "decks") {
-        setDecks(event.payload);
-        setUserSelectedDeckId((current) =>
-          current && event.payload.some((deck) => deck.id === current)
-            ? current
-            : undefined,
-        );
-      }
-      if (event.type === "sessions") {
-        setChatSessions(event.payload);
-      }
-      if (event.type === "cursor-auth") {
-        setCursorAuth(event.payload);
-        if (event.payload.status === "ready") {
-          setCursorError(undefined);
-        } else if (event.payload.status === "error") {
-          setCursorError(event.payload.error);
+      switch (event.type) {
+        case "auth":
+          setAuthStatus(event.payload);
+          setAuthLoaded(true);
+          setSelectedModelId(
+            (current) => current || event.payload.selectedModelId || "",
+          );
+          break;
+        case "conversation": {
+          const sanitized = sanitizeConversation(event.payload);
+          setConversation(sanitized);
+          setError(sanitized.error);
+          break;
         }
+        case "decks":
+          setDecks(event.payload);
+          setUserSelectedDeckId((current) =>
+            current && event.payload.some((deck) => deck.id === current)
+              ? current
+              : undefined,
+          );
+          break;
+        case "sessions":
+          setChatSessions(event.payload);
+          break;
+        case "cursor-auth":
+          setCursorAuth(event.payload);
+          setCursorError(getCursorAuthError(event.payload));
+          break;
       }
     });
 
@@ -147,61 +133,37 @@ export function useStudioAppState() {
     return unsubscribe;
   }, [refresh]);
 
-  const models = useMemo(() => {
-    const piModels =
-      authStatus?.availableModels.map((model) => ({
-        id: model.id,
-        name: model.label,
-        provider: model.provider,
-        providerLabel: formatProviderDisplayName(
-          model.provider,
-          authStatus.oauthProviders,
-        ),
-      })) ?? [];
-    const cursorModels = cursorAuth.signedIn
-      ? (cursorAuth.models ?? []).map((model) => ({
-          id: `cursor/${model.id}`,
-          name: model.displayName || model.id,
-          provider: "cursor",
-          providerLabel: "Cursor",
-        }))
-      : [];
-    return [...piModels, ...cursorModels];
-  }, [authStatus, cursorAuth.signedIn, cursorAuth.models]);
+  const models = useMemo(
+    () => buildStudioModelOptions(authStatus, cursorAuth),
+    [authStatus, cursorAuth],
+  );
 
-  const displayedModels = useMemo(() => {
-    if (models.length === 0) return [];
-    if (visibleModelIds.length === 0) return models;
-    const allowed = new Set(visibleModelIds);
-    const filtered = models.filter((model) => allowed.has(model.id));
-    return filtered.length > 0 ? filtered : models;
-  }, [models, visibleModelIds]);
+  const displayedModels = useMemo(
+    () => getDisplayedModels(models, visibleModelIds),
+    [models, visibleModelIds],
+  );
 
   const isAuthed =
     Boolean(authStatus?.hasAvailableModels) ||
     (cursorAuth.signedIn && (cursorAuth.models?.length ?? 0) > 0);
 
-  const selectedDeckId = useMemo(() => {
-    if (
-      userSelectedDeckId &&
-      decks.some((deck) => deck.id === userSelectedDeckId)
-    ) {
-      return userSelectedDeckId;
-    }
-    return decks.find((deck) => deck.id === conversation.currentArtifactId)
-      ?.id;
-  }, [decks, conversation.currentArtifactId, userSelectedDeckId]);
+  const selectedDeckId = useMemo(
+    () =>
+      getSelectedDeckId({
+        decks,
+        currentArtifactId: conversation.currentArtifactId,
+        userSelectedDeckId,
+      }),
+    [decks, conversation.currentArtifactId, userSelectedDeckId],
+  );
 
   useEffect(() => {
-    localStorage.setItem(
-      "studio.visibleModelIds",
-      JSON.stringify(visibleModelIds),
-    );
+    writeVisibleModelIds(visibleModelIds);
   }, [visibleModelIds]);
 
   useEffect(() => {
     const syncRuntime = (id: string) => {
-      if (id.startsWith("cursor/")) return;
+      if (isCursorModel(id)) return;
       void window.api.selectModel({ modelId: id });
     };
     if (!selectedModelId && displayedModels[0]) {
@@ -241,9 +203,7 @@ export function useStudioAppState() {
       const nextAuth = await window.api.setRuntimeApiKey({ provider, apiKey });
       setAuthStatus(nextAuth);
       setApiKey("");
-      setSelectedModelId(
-        nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-      );
+      setSelectedModelId(getPreferredModelId(nextAuth));
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -283,9 +243,7 @@ export function useStudioAppState() {
         setError(undefined);
         const nextAuth = await window.api.disconnectProvider({ providerId });
         setAuthStatus(nextAuth);
-        setSelectedModelId(
-          nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-        );
+        setSelectedModelId(getPreferredModelId(nextAuth));
       } catch (nextError) {
         setError(toErrorMessage(nextError));
       }
@@ -299,9 +257,7 @@ export function useStudioAppState() {
         setError(undefined);
         const nextAuth = await window.api.addCustomProvider(input);
         setAuthStatus(nextAuth);
-        setSelectedModelId(
-          nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-        );
+        setSelectedModelId(getPreferredModelId(nextAuth));
       } catch (nextError) {
         setError(toErrorMessage(nextError));
         throw nextError;
@@ -341,9 +297,7 @@ export function useStudioAppState() {
           modelId,
         });
         setAuthStatus(nextAuth);
-        setSelectedModelId(
-          nextAuth.selectedModelId ?? nextAuth.availableModels[0]?.id ?? "",
-        );
+        setSelectedModelId(getPreferredModelId(nextAuth));
       } catch (nextError) {
         setError(toErrorMessage(nextError));
         throw nextError;
@@ -359,7 +313,7 @@ export function useStudioAppState() {
       // Cursor models live outside the Pi model registry; selecting them in
       // the Pi runtime would throw. The renderer just tracks the selection
       // locally until Cursor-side inference is wired up.
-      if (modelId.startsWith("cursor/")) {
+      if (isCursorModel(modelId)) {
         setConversation((current) =>
           current.error ? { ...current, error: undefined } : current,
         );
@@ -381,7 +335,7 @@ export function useStudioAppState() {
           content: message.content,
           modelId: selectedModelId || undefined,
         });
-        setConversation(nextConversation);
+        setConversation(sanitizeConversation(nextConversation));
       } catch (nextError) {
         setError(toErrorMessage(nextError));
       }
@@ -391,7 +345,9 @@ export function useStudioAppState() {
 
   const handleStop = useCallback(async () => {
     try {
-      setConversation(await window.api.stop());
+      const nextConversation = sanitizeConversation(await window.api.stop());
+      setConversation(nextConversation);
+      setError(nextConversation.error);
     } catch (nextError) {
       setError(toErrorMessage(nextError));
     }
@@ -402,7 +358,7 @@ export function useStudioAppState() {
       setError(undefined);
       const next = await window.api.newConversation();
       const nextDecks = await window.api.listDecks();
-      setConversation(next);
+      setConversation(sanitizeConversation(next));
       setDecks(nextDecks);
       setUserSelectedDeckId(undefined);
       setIsChatOpen(true);
@@ -428,7 +384,7 @@ export function useStudioAppState() {
     try {
       setError(undefined);
       const next = await window.api.deleteChatSession({ sessionId });
-      setConversation(next);
+      setConversation(sanitizeConversation(next));
       const [nextSessions, nextDecks] = await Promise.all([
         window.api.listChatSessions(),
         window.api.listDecks(),
@@ -448,7 +404,7 @@ export function useStudioAppState() {
         setError(undefined);
         const nextConversation = await window.api.openChatSession(sessionId);
         const nextDecks = await window.api.listDecks();
-        setConversation(nextConversation);
+        setConversation(sanitizeConversation(nextConversation));
         setDecks(nextDecks);
         setUserSelectedDeckId(undefined);
         setIsChatOpen(true);
