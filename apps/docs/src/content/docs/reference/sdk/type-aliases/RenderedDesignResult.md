@@ -7,4 +7,4 @@ title: "RenderedDesignResult"
 
 > **RenderedDesignResult** = `z.infer`\<*typeof* `renderedDesignResultSchema`\>
 
-Defined in: types/dist/design-doc.d.ts:358
+Defined in: packages/types/dist/design-doc.d.ts:358

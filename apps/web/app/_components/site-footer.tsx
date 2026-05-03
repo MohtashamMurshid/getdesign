@@ -1,4 +1,9 @@
-import { SITE_COPYRIGHT, SITE_GITHUB_URL, SITE_TAGLINE } from "../_lib/site";
+import {
+  SITE_COPYRIGHT,
+  SITE_DOCS_URL,
+  SITE_GITHUB_URL,
+  SITE_TAGLINE,
+} from "../_lib/site";
 import { Logo } from "./logo";
 
 type SiteFooterProps = {
@@ -19,10 +24,25 @@ export function SiteFooter({ variant = "marketing" }: SiteFooterProps) {
         </div>
 
         {isDesign ? (
-          <span className="text-[var(--subtle)]">{SITE_COPYRIGHT}</span>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[var(--subtle)]">
+            <a
+              href={SITE_DOCS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-foreground"
+            >
+              Docs
+            </a>
+            <span>{SITE_COPYRIGHT}</span>
+          </div>
         ) : (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <a href="#how" className="hover:text-foreground">
+            <a
+              href={SITE_DOCS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-foreground"
+            >
               Docs
             </a>
             <a href="#surfaces" className="hover:text-foreground">

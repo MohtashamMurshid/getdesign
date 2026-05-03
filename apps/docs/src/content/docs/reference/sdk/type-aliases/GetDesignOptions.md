@@ -7,24 +7,79 @@ title: "GetDesignOptions"
 
 > **GetDesignOptions** = `object`
 
-Defined in: [sdk/src/index.ts:13](https://github.com/MohtashamMurshid/getdesign/blob/df80b21de18dcdb08f6d29fe504cda46292775aa/packages/sdk/src/index.ts#L13)
+Defined in: [packages/sdk/src/index.ts:20](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L20)
 
 ## Properties
 
-### apiKey?
+### credentials?
 
-> `optional` **apiKey?**: `string`
+> `optional` **credentials?**: [`GetDesignCredentials`](/reference/sdk/type-aliases/getdesigncredentials/)
 
-Defined in: [sdk/src/index.ts:17](https://github.com/MohtashamMurshid/getdesign/blob/df80b21de18dcdb08f6d29fe504cda46292775aa/packages/sdk/src/index.ts#L17)
+Defined in: [packages/sdk/src/index.ts:24](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L24)
 
-Optional API key (not required during preview).
+Request-scoped credentials for BYOK runs.
 
 ***
 
-### viewport?
+### installI18nFonts?
 
-> `optional` **viewport?**: `` `${number}x${number}` ``
+> `optional` **installI18nFonts?**: `boolean`
 
-Defined in: [sdk/src/index.ts:15](https://github.com/MohtashamMurshid/getdesign/blob/df80b21de18dcdb08f6d29fe504cda46292775aa/packages/sdk/src/index.ts#L15)
+Defined in: [packages/sdk/src/index.ts:28](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L28)
 
-Target viewport width for the screenshot pass.
+Force or skip i18n font install. Auto-detected from URL TLD when omitted.
+
+***
+
+### measurementMode?
+
+> `optional` **measurementMode?**: `"cdp"` \| `"visual"` \| `"auto"`
+
+Defined in: [packages/sdk/src/index.ts:30](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L30)
+
+Override measurement strategy. `auto` tries CDP first, then visual-stability.
+
+***
+
+### runDesign?
+
+> `optional` **runDesign?**: (`url`, `options?`) => `Promise`\<`RunDesignResult`\>
+
+Defined in: [packages/sdk/src/index.ts:35](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L35)
+
+Internal/testing seam. Defaults to the real local agent pipeline.
+Most callers should not pass this.
+
+#### Parameters
+
+##### url
+
+`string`
+
+##### options?
+
+`RunDesignOptions`
+
+#### Returns
+
+`Promise`\<`RunDesignResult`\>
+
+***
+
+### siteName?
+
+> `optional` **siteName?**: `string`
+
+Defined in: [packages/sdk/src/index.ts:22](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L22)
+
+Override the detected site name.
+
+***
+
+### visualRequirement?
+
+> `optional` **visualRequirement?**: [`VisualRequirement`](/reference/sdk/type-aliases/visualrequirement/)
+
+Defined in: [packages/sdk/src/index.ts:26](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L26)
+
+Continue with text-only output if visual capture is unavailable.

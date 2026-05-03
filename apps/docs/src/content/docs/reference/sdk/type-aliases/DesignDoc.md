@@ -7,4 +7,4 @@ title: "DesignDoc"
 
 > **DesignDoc** = `z.infer`\<*typeof* `designDocSchema`\>
 
-Defined in: types/dist/design-doc.d.ts:357
+Defined in: packages/types/dist/design-doc.d.ts:357

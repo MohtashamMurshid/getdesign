@@ -7,4 +7,4 @@ title: "DesignTokens"
 
 > **DesignTokens** = `z.infer`\<*typeof* `designTokensSchema`\>
 
-Defined in: types/dist/design-tokens.d.ts:190
+Defined in: packages/types/dist/design-tokens.d.ts:190

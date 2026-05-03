@@ -21,6 +21,7 @@ const FPS = 30;
 const SCENE_DURATIONS_MS = {
   intro: 2600,
   terminal: 7400,
+  sdk: 6800,
   output: 6800,
   cta: 3600,
 } as const;
@@ -28,6 +29,7 @@ const SCENE_DURATIONS_MS = {
 const SCENE_FRAMES = {
   intro: msToFrames(SCENE_DURATIONS_MS.intro, FPS),
   terminal: msToFrames(SCENE_DURATIONS_MS.terminal, FPS),
+  sdk: msToFrames(SCENE_DURATIONS_MS.sdk, FPS),
   output: msToFrames(SCENE_DURATIONS_MS.output, FPS),
   cta: msToFrames(SCENE_DURATIONS_MS.cta, FPS),
 };
@@ -35,14 +37,20 @@ const SCENE_FRAMES = {
 export const CLI_VIDEO_TOTAL_FRAMES =
   SCENE_FRAMES.intro +
   SCENE_FRAMES.terminal +
+  SCENE_FRAMES.sdk +
   SCENE_FRAMES.output +
   SCENE_FRAMES.cta;
 
 const SCENE_FROM = {
   intro: 0,
   terminal: SCENE_FRAMES.intro,
-  output: SCENE_FRAMES.intro + SCENE_FRAMES.terminal,
-  cta: SCENE_FRAMES.intro + SCENE_FRAMES.terminal + SCENE_FRAMES.output,
+  sdk: SCENE_FRAMES.intro + SCENE_FRAMES.terminal,
+  output: SCENE_FRAMES.intro + SCENE_FRAMES.terminal + SCENE_FRAMES.sdk,
+  cta:
+    SCENE_FRAMES.intro +
+    SCENE_FRAMES.terminal +
+    SCENE_FRAMES.sdk +
+    SCENE_FRAMES.output,
 };
 
 // ────────────────────────────────────────────────────────────────────
@@ -117,6 +125,17 @@ function SceneIntro() {
           >
             @getdesign/cli
           </span>
+          <span style={{ color: colors.subtle, fontFamily: fontMono }}>·</span>
+          <span
+            style={{
+              fontFamily: fontMono,
+              fontSize: 18,
+              color: colors.foreground,
+              letterSpacing: "0.02em",
+            }}
+          >
+            @getdesign/sdk
+          </span>
           <span
             style={{
               fontFamily: fontSans,
@@ -124,7 +143,7 @@ function SceneIntro() {
               color: colors.muted,
             }}
           >
-            URL → design.md, in your terminal
+            URL → design.md
           </span>
         </div>
       </AbsoluteFill>
@@ -382,7 +401,355 @@ function SceneTerminal() {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Scene 3 — design.md output reveal (split: terminal log + file)
+// Scene 3 — SDK: TypeScript code reveal (programmatic usage)
+// ────────────────────────────────────────────────────────────────────
+type Tok = { t: string; c?: string };
+
+const SDK_CODE_LINES: Tok[][] = [
+  [
+    { t: "import", c: "#c084fc" },
+    { t: " { " },
+    { t: "streamDesign", c: "#a3e635" },
+    { t: " } " },
+    { t: "from", c: "#c084fc" },
+    { t: " " },
+    { t: '"@getdesign/sdk"', c: "#fbbf24" },
+    { t: ";" },
+  ],
+  [{ t: "" }],
+  [
+    { t: "for", c: "#c084fc" },
+    { t: " " },
+    { t: "await", c: "#c084fc" },
+    { t: " (" },
+    { t: "const", c: "#c084fc" },
+    { t: " event " },
+    { t: "of", c: "#c084fc" },
+    { t: " " },
+    { t: "streamDesign", c: "#a3e635" },
+    { t: "(" },
+  ],
+  [
+    { t: "  " },
+    { t: '"https://linear.app"', c: "#fbbf24" },
+    { t: "," },
+  ],
+  [{ t: "  { credentials }," }],
+  [{ t: ")) {" }],
+  [
+    { t: "  " },
+    { t: "if", c: "#c084fc" },
+    { t: " (event.type " },
+    { t: "===", c: "#f472b6" },
+    { t: " " },
+    { t: '"progress"', c: "#fbbf24" },
+    { t: ") " },
+  ],
+  [
+    { t: "    console." },
+    { t: "log", c: "#a3e635" },
+    { t: "(event.event);" },
+  ],
+  [
+    { t: "  " },
+    { t: "if", c: "#c084fc" },
+    { t: " (event.type " },
+    { t: "===", c: "#f472b6" },
+    { t: " " },
+    { t: '"result"', c: "#fbbf24" },
+    { t: ")" },
+  ],
+  [
+    { t: "    save(event.result." },
+    { t: "markdown", c: "#a3e635" },
+    { t: ");" },
+  ],
+  [{ t: "}" }],
+];
+
+const SDK_EVENT_LOG: { phase: string; t: string; accent?: boolean }[] = [
+  { phase: "crawl", t: "1.2s" },
+  { phase: "capture", t: "2.4s" },
+  { phase: "visual", t: "4.8s" },
+  { phase: "synthesize", t: "3.1s" },
+  { phase: "result", t: "design.md", accent: true },
+];
+
+function SceneSdk() {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+
+  const introOp = interpolate(frame, [0, msToFrames(420, fps)], [0, 1], {
+    easing: standardEase,
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const codeStart = msToFrames(500, fps);
+  const linePer = 9;
+  const eventsStart = msToFrames(2800, fps);
+  const eventPer = msToFrames(520, fps);
+
+  return (
+    <SceneBackdrop>
+      <AbsoluteFill
+        style={{
+          padding: "60px 80px",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 24,
+          opacity: introOp,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            width: 1180,
+          }}
+        >
+          <p
+            style={{
+              fontFamily: fontMono,
+              fontSize: 13,
+              color: colors.accent,
+              margin: 0,
+            }}
+          >
+            ✦ Programmatic
+          </p>
+          <span
+            style={{
+              fontFamily: fontSans,
+              fontSize: 16,
+              color: colors.muted,
+            }}
+          >
+            same engine, in your own code
+          </span>
+          <span
+            style={{
+              marginLeft: "auto",
+              fontFamily: fontMono,
+              fontSize: 13,
+              color: colors.subtle,
+            }}
+          >
+            bun add @getdesign/sdk
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.3fr 0.7fr",
+            gap: 20,
+            width: 1180,
+          }}
+        >
+          {/* code editor */}
+          <div
+            style={{
+              borderRadius: 14,
+              overflow: "hidden",
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface100,
+              boxShadow: `0 32px 80px rgba(0,0,0,0.45)`,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "12px 16px",
+                backgroundColor: colors.surface200,
+                borderBottom: `1px solid ${colors.border}`,
+              }}
+            >
+              {["#ff5f57", "#febc2e", "#28c840"].map((c) => (
+                <span
+                  key={c}
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: "50%",
+                    backgroundColor: c,
+                  }}
+                />
+              ))}
+              <span
+                style={{
+                  marginLeft: 12,
+                  fontFamily: fontMono,
+                  fontSize: 12,
+                  color: colors.subtle,
+                }}
+              >
+                generate.ts
+              </span>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  fontFamily: fontMono,
+                  fontSize: 11,
+                  color: colors.subtle,
+                }}
+              >
+                TypeScript · Bun
+              </span>
+            </div>
+            <div
+              style={{
+                padding: "26px 28px",
+                backgroundColor: colors.background,
+                minHeight: 540,
+                fontFamily: fontMono,
+                fontSize: 16,
+                lineHeight: 1.7,
+              }}
+            >
+              {SDK_CODE_LINES.map((line, i) => {
+                const op = interpolate(
+                  frame,
+                  [codeStart + i * linePer, codeStart + i * linePer + 12],
+                  [0, 1],
+                  {
+                    easing: standardEase,
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  },
+                );
+                const tx = interpolate(
+                  frame,
+                  [codeStart + i * linePer, codeStart + i * linePer + 12],
+                  [6, 0],
+                  {
+                    easing: standardEase,
+                    extrapolateLeft: "clamp",
+                    extrapolateRight: "clamp",
+                  },
+                );
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      opacity: op,
+                      transform: `translateY(${tx}px)`,
+                      minHeight: 26,
+                      color: colors.foreground,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 28,
+                        color: colors.subtle,
+                        fontSize: 13,
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    {line.map((tok, j) => (
+                      <span key={j} style={{ color: tok.c ?? colors.foreground }}>
+                        {tok.t}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* live event stream */}
+          <div
+            style={{
+              borderRadius: 14,
+              overflow: "hidden",
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface100,
+            }}
+          >
+            <div
+              style={{
+                padding: "12px 16px",
+                backgroundColor: colors.surface200,
+                borderBottom: `1px solid ${colors.border}`,
+                fontFamily: fontMono,
+                fontSize: 12,
+                color: colors.subtle,
+              }}
+            >
+              event stream
+            </div>
+            <div
+              style={{
+                padding: "22px 22px",
+                backgroundColor: colors.background,
+                fontFamily: fontMono,
+                fontSize: 14,
+                lineHeight: 1.8,
+                minHeight: 540,
+              }}
+            >
+              {SDK_EVENT_LOG.map((ev, i) => {
+                const start = eventsStart + i * eventPer;
+                const op = interpolate(frame, [start, start + 10], [0, 1], {
+                  easing: standardEase,
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                });
+                const tx = interpolate(frame, [start, start + 10], [8, 0], {
+                  easing: standardEase,
+                  extrapolateLeft: "clamp",
+                  extrapolateRight: "clamp",
+                });
+                return (
+                  <div
+                    key={ev.phase}
+                    style={{
+                      opacity: op,
+                      transform: `translateY(${tx}px)`,
+                      display: "flex",
+                      alignItems: "baseline",
+                      gap: 10,
+                      paddingBottom: 4,
+                    }}
+                  >
+                    <span style={{ color: colors.accent }}>
+                      {ev.accent ? "→" : "·"}
+                    </span>
+                    <span
+                      style={{
+                        color: ev.accent ? colors.accent : colors.foreground,
+                      }}
+                    >
+                      {ev.phase}
+                    </span>
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        color: colors.subtle,
+                        fontSize: 12,
+                      }}
+                    >
+                      {ev.t}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </AbsoluteFill>
+    </SceneBackdrop>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Scene 4 — design.md output reveal (split: terminal log + file)
 // ────────────────────────────────────────────────────────────────────
 const DESIGN_MD_LINES: { kind: "h1" | "h2" | "p" | "kv" | "blank"; text: string }[] = [
   { kind: "h1", text: "# Linear" },
@@ -715,6 +1082,62 @@ function SceneCta() {
 
         <div
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            opacity: interpolate(
+              frame,
+              [msToFrames(550, fps), msToFrames(1000, fps)],
+              [0, 1],
+              {
+                easing: standardEase,
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              },
+            ),
+            transform: `translateY(${interpolate(
+              frame,
+              [msToFrames(550, fps), msToFrames(1000, fps)],
+              [10, 0],
+              {
+                easing: standardEase,
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              },
+            )}px)`,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: fontMono,
+              fontSize: 13,
+              color: colors.subtle,
+            }}
+          >
+            or
+          </span>
+          <span
+            style={{
+              fontFamily: fontMono,
+              fontSize: 18,
+              padding: "12px 18px",
+              borderRadius: 12,
+              border: `1px solid ${colors.borderStrong}`,
+              backgroundColor: colors.surface100,
+              color: colors.foreground,
+            }}
+          >
+            <span style={{ color: "#c084fc" }}>import</span>
+            <span> {"{ "}</span>
+            <span style={{ color: colors.accent }}>getDesign</span>
+            <span>{" } "}</span>
+            <span style={{ color: "#c084fc" }}>from</span>
+            <span style={{ color: "#fbbf24" }}> "@getdesign/sdk"</span>
+          </span>
+        </div>
+
+        <div
+          style={{
             marginTop: 6,
             display: "flex",
             gap: 12,
@@ -730,7 +1153,7 @@ function SceneCta() {
             ),
           }}
         >
-          {["--out", "--site-name", "--text-only-fallback"].map((flag) => (
+          {["CLI", "SDK", "streaming", "Bun · Node"].map((flag) => (
             <span
               key={flag}
               style={{
@@ -787,6 +1210,9 @@ export const CliVideo: React.FC = () => {
         durationInFrames={SCENE_FRAMES.terminal}
       >
         <SceneTerminal />
+      </Sequence>
+      <Sequence from={SCENE_FROM.sdk} durationInFrames={SCENE_FRAMES.sdk}>
+        <SceneSdk />
       </Sequence>
       <Sequence
         from={SCENE_FROM.output}

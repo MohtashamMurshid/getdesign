@@ -7,4 +7,4 @@ title: "version"
 
 > `const` **version**: `"0.0.1"` = `"0.0.1"`
 
-Defined in: [sdk/src/index.ts:10](https://github.com/MohtashamMurshid/getdesign/blob/df80b21de18dcdb08f6d29fe504cda46292775aa/packages/sdk/src/index.ts#L10)
+Defined in: [packages/sdk/src/index.ts:10](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L10)

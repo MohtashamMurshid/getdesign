@@ -117,6 +117,7 @@ export default defineConfig({
         {
           label: "Resources",
           items: [
+            { slug: "resources/official-urls" },
             { slug: "resources/changelog" },
             { slug: "resources/faq" },
             { slug: "resources/llms" },

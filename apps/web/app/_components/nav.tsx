@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { SITE_GITHUB_URL } from "../_lib/site";
+import { SITE_DOCS_URL, SITE_GITHUB_URL } from "../_lib/site";
 import { Logo } from "./logo";
 
 type NavLink = {
@@ -16,6 +16,12 @@ type NavLink = {
 const LINKS: NavLink[] = [
   { id: "how", label: "HOW IT WORKS" },
   { id: "surfaces", label: "SURFACES" },
+  {
+    id: "docs",
+    label: "DOCS",
+    href: SITE_DOCS_URL,
+    external: true,
+  },
   { id: "design", label: "DESIGN", href: "/design", external: true },
   { id: "cta", label: "WAITLIST" },
 ];
@@ -68,10 +74,16 @@ export default function Nav() {
               ? pathname === link.href
               : pathname === "/" && activeSection === link.id;
 
+            const href = link.external ? link.href : `/#${link.id}`;
+            const openInNewTab = link.href?.startsWith("http") === true;
+
             return (
               <a
                 key={link.id}
-                href={link.external ? link.href : `/#${link.id}`}
+                href={href}
+                {...(openInNewTab
+                  ? { target: "_blank", rel: "noreferrer" }
+                  : {})}
                 className={`nav-link pb-[18px] ${isActive ? "is-active" : ""}`}
               >
                 {link.label}

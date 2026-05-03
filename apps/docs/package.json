@@ -14,6 +14,7 @@
     "clean": "rm -rf dist .astro node_modules/.astro"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.9",
     "@astrojs/sitemap": "^3.2.1",
     "@astrojs/starlight": "^0.36.0",
     "@fontsource-variable/geist": "^5.2.0",
@@ -30,6 +31,6 @@
   "devDependencies": {
     "@getdesign/config": "workspace:*",
     "@types/node": "^25.6.0",
-    "typescript": "^5.6.3"
+    "typescript": "^6.0.3"
   }
 }
