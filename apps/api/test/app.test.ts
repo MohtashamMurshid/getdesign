@@ -12,6 +12,8 @@ function stubResult(markdown: string): RunDesignResult {
     tokens: {} as RunDesignResult["tokens"],
     crawl: {} as RunDesignResult["crawl"],
     visual: {} as RunDesignResult["visual"],
+    visualDescription: null,
+    tiles: 0,
     mode: "visual",
   };
 }
@@ -63,6 +65,41 @@ test("GET /?url=https://example.com returns 200 markdown from stub", async () =>
   expect(res.headers.get("cache-control")).toBe("no-store");
   expect(await res.text()).toBe(markdown);
   expect(calledWith).toBe("https://example.com");
+});
+
+test("GET /v1/design?format=json returns structured result", async () => {
+  const app = createApp({
+    runDesign: async () => stubResult("# hi"),
+  });
+
+  const res = await app.fetch(
+    new Request("http://localhost/v1/design?url=https://example.com&format=json"),
+  );
+  expect(res.status).toBe(200);
+  expect(res.headers.get("cache-control")).toBe("no-store");
+  const body = (await res.json()) as { markdown: string; mode: string; tiles: number };
+  expect(body.markdown).toBe("# hi");
+  expect(body.mode).toBe("visual");
+  expect(body.tiles).toBe(0);
+});
+
+test("GET /v1/design/stream returns progress and result events", async () => {
+  const app = createApp({
+    runDesign: async (_url, options) => {
+      await options?.onPhase?.({ phase: "crawl", status: "start" });
+      return stubResult("# streamed");
+    },
+  });
+
+  const res = await app.fetch(
+    new Request("http://localhost/v1/design/stream?url=https://example.com"),
+  );
+  expect(res.status).toBe(200);
+  const text = await res.text();
+  expect(text).toContain("event: progress");
+  expect(text).toContain("\"phase\":\"crawl\"");
+  expect(text).toContain("event: result");
+  expect(text).toContain("\"markdown\":\"# streamed\"");
 });
 
 test("GET / returns 409 when capture fails", async () => {

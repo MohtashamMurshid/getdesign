@@ -1,4 +1,4 @@
-import type { RunDesignEvent } from "@getdesign/agent";
+import type { DesignProgressEvent } from "@getdesign/sdk";
 import spinners from "unicode-animations";
 import type { Spinner } from "unicode-animations";
 
@@ -9,21 +9,21 @@ function elapsedSeconds(start: number, now: () => number): string {
   return `${((now() - start) / 1000).toFixed(1)}s`;
 }
 
-export function summarizeDesignEvent(event: RunDesignEvent): string {
+export function summarizeDesignEvent(event: DesignProgressEvent): string {
   if (event.phase === "crawl") {
     return event.status === "start"
       ? "crawl: reading site"
-      : `crawl: ${event.crawl.stylesheets.length} stylesheets from ${event.crawl.siteName}`;
+      : `crawl: ${event.stylesheets ?? 0} stylesheets from ${event.siteName ?? "site"}`;
   }
 
   if (event.phase === "capture") {
-    return `capture.${event.event.phase}: ${event.event.status}${
-      event.event.detail ? ` — ${event.event.detail}` : ""
-    }${event.event.durationMs ? ` (${event.event.durationMs}ms)` : ""}`;
+    return `capture.${event.capturePhase}: ${event.status}${
+      event.detail ? ` — ${event.detail}` : ""
+    }${event.durationMs ? ` (${event.durationMs}ms)` : ""}`;
   }
 
   if (event.phase === "visual") {
-    return event.status === "start" ? "visual: capturing page" : `visual: ${event.visual.status}`;
+    return event.status === "start" ? "visual: capturing page" : `visual: ${event.visualStatus}`;
   }
 
   if (event.phase === "describe") {
@@ -33,30 +33,29 @@ export function summarizeDesignEvent(event: RunDesignEvent): string {
   if (event.phase === "extract") {
     return event.status === "start"
       ? "extract: deriving tokens"
-      : `extract: ${event.tokens.typography.fontFamilies.length} font families`;
+      : `extract: ${event.fontFamilies ?? 0} font families`;
   }
 
   if (event.phase === "synthesize") {
     return event.status === "start"
       ? "synthesize: drafting design.md"
-      : `synthesize: doc validated (${event.doc.palette.groups.length} palette groups)`;
+      : `synthesize: doc validated (${event.paletteGroups ?? 0} palette groups)`;
   }
 
   if (event.phase === "render") {
     return event.status === "start"
       ? "render: formatting markdown"
-      : `render: ${event.markdown.length} chars`;
+      : `render: ${event.markdownLength ?? 0} chars`;
   }
 
   return "run: working";
 }
 
-function isActiveEvent(event: RunDesignEvent): boolean {
-  if (event.phase === "capture") return event.event.status === "start";
-  return "status" in event && event.status === "start";
+function isActiveEvent(event: DesignProgressEvent): boolean {
+  return event.status === "start";
 }
 
-function logProgressLine(event: RunDesignEvent, start: number, now: () => number): void {
+function logProgressLine(event: DesignProgressEvent, start: number, now: () => number): void {
   console.error(`${DIM}[${elapsedSeconds(start, now)}] ${summarizeDesignEvent(event)}${RESET}`);
 }
 
@@ -79,7 +78,7 @@ export class ProgressDisplay {
     this.enabled = isTTY;
   }
 
-  event(event: RunDesignEvent): void {
+  event(event: DesignProgressEvent): void {
     this.clearLiveLine();
     logProgressLine(event, this.start, this.now);
 

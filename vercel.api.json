@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "bun install",
+  "buildCommand": "bun run --cwd apps/api build",
+  "ignoreCommand": "npx turbo-ignore apps/api",
+  "functions": {
+    "apps/api/api/index.ts": {
+      "maxDuration": 300
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/apps/api/api/index" }
+  ]
+}

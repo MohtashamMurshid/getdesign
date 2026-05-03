@@ -24,16 +24,18 @@
   "author": "getdesign",
   "type": "module",
   "bin": {
-    "getdesign": "./src/getdesign.ts"
+    "getdesign": "./dist/getdesign.js"
   },
-  "main": "./src/getdesign.ts",
+  "main": "./dist/getdesign.js",
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "smoke": "bun ./src/getdesign.ts --help",
     "test": "bun test",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "bun run build"
   },
   "files": [
-    "src",
+    "dist",
     "README.md",
     "LICENSE"
   ],
@@ -41,10 +43,10 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18"
+    "bun": ">=1.3.0"
   },
   "dependencies": {
-    "@getdesign/agent": "workspace:*",
+    "@getdesign/sdk": "workspace:*",
     "unicode-animations": "^1.0.3"
   },
   "devDependencies": {

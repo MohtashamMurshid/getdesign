@@ -1,8 +1,10 @@
 {
   "extends": "../config/tsconfig.base.json",
   "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts"],
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "types": ["bun"]
   }
 }

@@ -192,7 +192,7 @@
         "getdesign": "./src/getdesign.ts",
       },
       "dependencies": {
-        "@getdesign/agent": "workspace:*",
+        "@getdesign/sdk": "workspace:*",
         "unicode-animations": "^1.0.3",
       },
       "devDependencies": {
@@ -210,6 +210,7 @@
         "@getdesign/types": "workspace:*",
       },
       "devDependencies": {
+        "@types/bun": "^1.3.13",
         "typescript": "^6.0.3",
       },
     },

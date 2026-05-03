@@ -4,6 +4,7 @@ export type CliOptions = {
   url?: string;
   siteName?: string;
   out?: string;
+  apiUrl?: string;
   daytonaApiKey?: string;
   openaiApiKey?: string;
   visualRequirement: "require" | "text_only_fallback";
@@ -20,6 +21,7 @@ Options:
   --url <url>                 Source URL to analyze
   --site-name <name>          Override the detected site name
   --out <path>                Output file or directory (default: ./getdesign-runs/<slug>/design.md)
+  --api-url <url>             getdesign API base URL (or GETDESIGN_API_URL)
   --daytona-api-key <key>     Daytona key for this run (or DAYTONA_API_KEY)
   --openai-api-key <key>      OpenAI key for this run (or OPENAI_API_KEY)
   --text-only-fallback        Continue if visual capture is unavailable
@@ -28,6 +30,7 @@ Options:
 
 Examples:
   getdesign https://linear.app
+  getdesign https://linear.app --api-url http://localhost:3001
   getdesign https://linear.app --out design.md
   getdesign --url https://cursor.com --site-name Cursor --out ./designs
   DAYTONA_API_KEY=... OPENAI_API_KEY=... getdesign https://example.com
@@ -66,6 +69,9 @@ export function parseArgs(tokens: string[]): CliOptions {
       i += 1;
     } else if (token === "--out") {
       options.out = takeValue(tokens, i, token);
+      i += 1;
+    } else if (token === "--api-url") {
+      options.apiUrl = takeValue(tokens, i, token);
       i += 1;
     } else if (token === "--daytona-api-key") {
       options.daytonaApiKey = takeValue(tokens, i, token);

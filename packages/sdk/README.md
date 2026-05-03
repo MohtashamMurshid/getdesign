@@ -2,14 +2,28 @@
 
 > The design system for any URL — TypeScript SDK.
 
-**Coming soon.** Private beta — join the waitlist at [getdesign.app](https://getdesign.app).
+Remote-first TypeScript client for the getdesign HTTP API.
+
+## Install
+
+```bash
+bun add @getdesign/sdk
+```
+
+The SDK uses the platform `fetch` API and works in modern Node, Bun, Deno, and
+edge runtimes.
 
 ## Preview
 
 ```ts
 import { getDesign } from "@getdesign/sdk";
 
-const system = await getDesign("cursor.com");
+const system = await getDesign("https://cursor.com", {
+  credentials: {
+    daytonaApiKey: process.env.DAYTONA_API_KEY,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+  },
+});
 console.log(system.markdown);
 ```
 
@@ -18,8 +32,14 @@ console.log(system.markdown);
 ```ts
 import { streamDesign } from "@getdesign/sdk";
 
-for await (const chunk of streamDesign("linear.app")) {
-  process.stdout.write(chunk);
+for await (const event of streamDesign("https://linear.app", {
+  credentials: {
+    daytonaApiKey: process.env.DAYTONA_API_KEY,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+  },
+})) {
+  if (event.type === "progress") console.log(event.event);
+  if (event.type === "result") console.log(event.result.markdown);
 }
 ```
 

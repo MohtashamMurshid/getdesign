@@ -1,7 +1,7 @@
 {
   "name": "@getdesign/types",
   "version": "0.1.0",
-  "description": "Shared placeholder types and schemas for getdesign packages.",
+  "description": "Shared Zod schemas and TypeScript types for getdesign packages.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,13 +20,16 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "dependencies": {
     "zod": "^4.3.6"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "bun run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "bun test"
   },

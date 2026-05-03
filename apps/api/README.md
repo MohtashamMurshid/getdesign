@@ -1,17 +1,30 @@
 # @getdesign/api
 
-HTTP API for [getdesign](../../README.md). A minimal [Hono](https://hono.dev) app with a single endpoint:
+HTTP API for [getdesign](../../README.md). A minimal [Hono](https://hono.dev) app with versioned design endpoints:
 
 ```
-GET /?url=<absolute-url>
+GET /v1/design?url=<absolute-url>&format=json
+GET /v1/design/stream?url=<absolute-url>
 ```
 
-Returns `text/markdown; charset=utf-8` — the final `design.md` produced by `@getdesign/agent`'s `runDesign` driver. Read-only, no auth, no streaming in v1 (see [`architecture.md`](../../architecture.md) §1, §7, §10).
+`GET /?url=<absolute-url>` remains as a markdown compatibility route.
+
+`/v1/design` returns either `text/markdown; charset=utf-8` or JSON when `format=json`.
+`/v1/design/stream` returns Server-Sent Events: `progress`, then `result` or `error`.
+Request-scoped BYOK credentials are accepted via headers:
+
+- `x-daytona-api-key`
+- `x-openai-api-key`
+- `x-getdesign-mode: text_only` to accept text-only fallback
+- `x-getdesign-site-name` to override site naming
 
 ## Responses
 
 - `200 text/markdown` — the rendered `design.md`.
+- `200 application/json` — structured result for SDK clients.
+- `200 text/event-stream` — progress stream for SDK/CLI clients.
 - `400 application/json` — `{ "error": string }` when `url` is missing or not a valid absolute URL.
+- `409 application/json` — capture failed; retry with `x-getdesign-mode: text_only` if the user accepts degraded output.
 - `500 application/json` — `{ "error": "internal" }` when the agent run fails. Stack traces are logged, never returned.
 
 ## Local development
@@ -20,9 +33,12 @@ Returns `text/markdown; charset=utf-8` — the final `design.md` produced by `@g
 bun install                    # from repo root
 bun run --cwd apps/api dev     # boots Bun.serve on :3001
 curl 'http://localhost:3001/?url=https://example.com'
+curl 'http://localhost:3001/v1/design?url=https://example.com&format=json'
 ```
 
 `dev` uses Bun with `--hot`. The dev server shares the exact Hono app used in production (`src/app.ts`); only the transport differs.
+Long capture runs can exceed Bun's default 10s idle timeout, so local dev sets
+`idleTimeout=255`. Override with `IDLE_TIMEOUT_SECONDS=<seconds>` if needed.
 
 ## Tests
 
@@ -48,16 +64,16 @@ No `.env` file is committed. Copy from `vercel env pull` if you want a local `.e
 ## Deploy
 
 This app is a separate Vercel project, rooted at `apps/api/`.
+Deploy from the monorepo root so Vercel can install Bun workspace dependencies.
 
 ```bash
-cd apps/api
-vercel link
-vercel env add AI_GATEWAY_API_KEY
-vercel env add DAYTONA_API_KEY
-vercel deploy --prod
+vercel link --scope mohtashams-projects --project api
+vercel deploy --prod --scope mohtashams-projects --local-config vercel.api.json
 ```
 
-`vercel.json` pins the handler to the Node runtime with `maxDuration: 300` so crawl + screenshot + synthesis has enough headroom on cold paths.
+`api/index.ts` exports `config.runtime = "nodejs"` and `vercel.json` sets
+`maxDuration: 300` so crawl + screenshot + synthesis has enough headroom on
+cold paths.
 
 ## Layout
 

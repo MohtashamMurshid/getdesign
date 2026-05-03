@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { RunDesignError, runDesign } from "@getdesign/agent";
+import { GetDesignError, streamDesign } from "@getdesign/sdk";
 
 import { parseArgs, usage } from "./lib/parseArgs";
 import { normalizeUrl, resolveOutputPath } from "./lib/outputPath";
@@ -51,6 +51,7 @@ export async function runGetdesignCli(input: RunGetdesignCliInput = {}): Promise
     throw new Error("Missing source URL. Run `getdesign --help` for usage.");
   }
 
+  const apiUrl = options.apiUrl ?? env.GETDESIGN_API_URL;
   const daytonaApiKey = options.daytonaApiKey ?? env.DAYTONA_API_KEY;
   const openaiApiKey = options.openaiApiKey ?? env.OPENAI_API_KEY;
   if (!daytonaApiKey) {
@@ -62,21 +63,36 @@ export async function runGetdesignCli(input: RunGetdesignCliInput = {}): Promise
 
   const target = resolveOutputPath(cwd, options.out, url, options.siteName);
   console.error(`${DIM}getdesign: running ${url}${RESET}`);
+  console.error(`${DIM}getdesign: api ${apiUrl ?? "https://api.getdesign.app"}${RESET}`);
   console.error(`${DIM}getdesign: output ${target}${RESET}`);
 
   const start = now();
   const progress = new ProgressDisplay(start, now);
-  const result = await runDesign(url, {
+  let markdown: string | undefined;
+
+  for await (const event of streamDesign(url, {
+    apiUrl,
     siteName: options.siteName,
     visualRequirement: options.visualRequirement,
     credentials: { daytonaApiKey, openaiApiKey },
-    onPhase: (event) => progress.event(event),
-  });
+  })) {
+    if (event.type === "progress") progress.event(event.event);
+    if (event.type === "error") {
+      throw new GetDesignError(200, event.error);
+    }
+    if (event.type === "result") {
+      markdown = event.result.markdown;
+    }
+  }
   progress.stop();
 
+  if (!markdown) {
+    throw new Error("API stream ended without a design result.");
+  }
+
   await mkdir(dirname(target), { recursive: true });
-  await writeFile(target, result.markdown, "utf8");
+  await writeFile(target, markdown, "utf8");
   console.error(`${GREEN}[${elapsed(start, now)}] getdesign: wrote ${target}${RESET}`);
 }
 
-export { RunDesignError };
+export { GetDesignError };
