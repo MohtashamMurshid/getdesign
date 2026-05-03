@@ -102,18 +102,77 @@ export async function* streamDesign(
   url: string,
   options: GetDesignOptions = {},
 ): AsyncGenerator<DesignStreamEvent, void, void> {
-  const events: DesignStreamEvent[] = [];
-  const result = await executeDesign(url, {
+  const queue = new AsyncEventQueue<DesignStreamEvent>();
+  const run = executeDesign(url, {
     ...options,
     onProgress: (event) => {
-      events.push({ type: "progress", event: publicEvent(event) });
+      queue.push({ type: "progress", event: publicEvent(event) });
     },
-  });
+  })
+    .then((result) => {
+      queue.push({ type: "result", result: toGetDesignResult(result) });
+    })
+    .catch((error: unknown) => {
+      if (error instanceof GetDesignError) {
+        queue.push({ type: "error", error: error.payload });
+      } else {
+        queue.reject(error);
+      }
+    })
+    .finally(() => queue.close());
 
-  for (const event of events) {
+  for await (const event of queue) {
     yield event;
   }
-  yield { type: "result", result: toGetDesignResult(result) };
+  await run;
+}
+
+class AsyncEventQueue<T> implements AsyncIterable<T> {
+  private readonly values: T[] = [];
+  private readonly waiters: Array<(result: IteratorResult<T>) => void> = [];
+  private error: unknown;
+  private closed = false;
+
+  push(value: T): void {
+    const waiter = this.waiters.shift();
+    if (waiter) {
+      waiter({ value, done: false });
+      return;
+    }
+    this.values.push(value);
+  }
+
+  reject(error: unknown): void {
+    this.error = error;
+    this.close();
+  }
+
+  close(): void {
+    this.closed = true;
+    while (this.waiters.length > 0) {
+      this.waiters.shift()?.({ value: undefined, done: true });
+    }
+  }
+
+  async *[Symbol.asyncIterator](): AsyncIterator<T> {
+    while (true) {
+      if (this.values.length > 0) {
+        yield this.values.shift()!;
+        continue;
+      }
+      if (this.error) throw this.error;
+      if (this.closed) return;
+
+      const next = await new Promise<IteratorResult<T>>((resolve) => {
+        this.waiters.push(resolve);
+      });
+      if (next.done) {
+        if (this.error) throw this.error;
+        return;
+      }
+      yield next.value;
+    }
+  }
 }
 
 type ExecuteDesignOptions = GetDesignOptions & {

@@ -1,6 +1,6 @@
 {
   "name": "@getdesign/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generate production-ready design.md specs from live websites with full-page visual capture.",
   "keywords": [
     "design-system",

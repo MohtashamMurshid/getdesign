@@ -76,4 +76,27 @@ describe("streamDesign", () => {
     expect(result.type).toBe("result");
     expect(result.result.markdown).toBe("# streamed");
   });
+
+  test("yields progress before the local agent resolves", async () => {
+    let finishRun!: () => void;
+    const iterator = streamDesign("https://example.com", {
+      runDesign: async (_url, options) => {
+        await options?.onPhase?.({ phase: "crawl", status: "start" });
+        await new Promise<void>((resolve) => {
+          finishRun = resolve;
+        });
+        return stubResult("# after progress");
+      },
+    })[Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { type: "progress", event: { phase: "crawl", status: "start" } },
+    });
+
+    finishRun();
+    const result = await iterator.next();
+    expect(result.done).toBe(false);
+    expect(result.value?.type).toBe("result");
+  });
 });
