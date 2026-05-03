@@ -5,7 +5,7 @@ prev: false
 title: "GetDesignError"
 ---
 
-Defined in: [packages/sdk/src/index.ts:81](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L81)
+Defined in: [packages/sdk/src/index.ts:81](https://github.com/MohtashamMurshid/getdesign/blob/8c362a81d62456a600b98da64a1b0f3e7a11049e/packages/sdk/src/index.ts#L81)
 
 ## Extends
 
@@ -17,7 +17,7 @@ Defined in: [packages/sdk/src/index.ts:81](https://github.com/MohtashamMurshid/g
 
 > **new GetDesignError**(`status`, `payload`): `GetDesignError`
 
-Defined in: [packages/sdk/src/index.ts:85](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L85)
+Defined in: [packages/sdk/src/index.ts:85](https://github.com/MohtashamMurshid/getdesign/blob/8c362a81d62456a600b98da64a1b0f3e7a11049e/packages/sdk/src/index.ts#L85)
 
 #### Parameters
 
@@ -81,7 +81,7 @@ Defined in: node\_modules/.bun/typescript@6.0.3/node\_modules/typescript/lib/lib
 
 > `readonly` **payload**: [`GetDesignErrorPayload`](/reference/sdk/type-aliases/getdesignerrorpayload/)
 
-Defined in: [packages/sdk/src/index.ts:83](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L83)
+Defined in: [packages/sdk/src/index.ts:83](https://github.com/MohtashamMurshid/getdesign/blob/8c362a81d62456a600b98da64a1b0f3e7a11049e/packages/sdk/src/index.ts#L83)
 
 ***
 
@@ -101,7 +101,7 @@ Defined in: node\_modules/.bun/typescript@6.0.3/node\_modules/typescript/lib/lib
 
 > `readonly` **status**: `number`
 
-Defined in: [packages/sdk/src/index.ts:82](https://github.com/MohtashamMurshid/getdesign/blob/99123753389cd9cf98dae10f9817641a73bd7383/packages/sdk/src/index.ts#L82)
+Defined in: [packages/sdk/src/index.ts:82](https://github.com/MohtashamMurshid/getdesign/blob/8c362a81d62456a600b98da64a1b0f3e7a11049e/packages/sdk/src/index.ts#L82)
 
 ***
 

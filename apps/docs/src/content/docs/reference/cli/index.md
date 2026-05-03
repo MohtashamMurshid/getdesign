@@ -9,6 +9,5 @@ editUrl: false
 > Extracted from `@getdesign/cli --help`.
 
 ```text
-Run `bun run reference:cli` from apps/docs to populate this page
-with the real CLI help output.
+The CLI entry at /Users/mohtashammurshidmadani/Desktop/getdesign/packages/cli/bin/getdesign.mjs was not found. This placeholder will be replaced once the CLI ships.
 ```

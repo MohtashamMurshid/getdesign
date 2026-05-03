@@ -63,7 +63,9 @@ export default defineConfig({
       plugins: [
         sdkTypeDoc({
           entryPoints: ["../../packages/sdk/src/index.ts"],
-          tsconfig: "../../packages/sdk/tsconfig.json",
+          // Use tsconfig.typedoc.json so TypeDoc does not traverse @getdesign/agent (Daytona, etc.),
+          // which can break `astro build` in CI with “Browser APIs are not available on the server”.
+          tsconfig: "../../packages/sdk/tsconfig.typedoc.json",
           output: "reference/sdk",
           sidebar: {
             label: "SDK",

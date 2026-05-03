@@ -1,7 +1,7 @@
 {
   "extends": "../config/tsconfig.base.json",
   "include": ["src/**/*", "../tools/src/postcss-safe-parser.d.ts"],
-  "exclude": ["src/**/*.test.ts"],
+  "exclude": ["src/**/*.test.ts", "src/typedoc-agent-shim.ts"],
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",

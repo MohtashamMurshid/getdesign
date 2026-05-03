@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["src/**/*.test.ts"],
+  "compilerOptions": {
+    "paths": {
+      "@getdesign/agent": ["./src/typedoc-agent-shim.ts"]
+    }
+  }
+}
