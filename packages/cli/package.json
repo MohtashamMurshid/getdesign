@@ -1,11 +1,16 @@
 {
   "name": "@getdesign/cli",
-  "version": "0.0.1",
-  "description": "Generate a design.md from any public URL.",
+  "version": "0.1.0",
+  "description": "Generate production-ready design.md specs from live websites in your terminal.",
   "keywords": [
     "design-system",
+    "design-system-generator",
     "design.md",
+    "design-spec",
     "design-tokens",
+    "website-analysis",
+    "visual-capture",
+    "landing-page",
     "css",
     "scraper",
     "cli",

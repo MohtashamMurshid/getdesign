@@ -1,9 +1,9 @@
 {
   "extends": "@getdesign/config/tsconfig.base.json",
-  "include": ["src/**/*", "smoke.ts", "test/**/*"],
+  "include": ["src/**/*"],
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "src",
     "types": ["node", "bun"]
   }
 }

@@ -17,8 +17,8 @@ Current implementation status:
 - `apps/web/app/api/waitlist/route.ts` is the only shipped API route in this repo today.
 - `apps/studio` is a separate Electron desktop Studio project, not one of the hosted getdesign URL-to-`design.md` surfaces.
 - `apps/studio-site` is a separate Studio marketing/web project, not the main `getdesign.app` product surface.
-- `packages/sdk` is now the remote-first TypeScript client over the versioned API contract.
-- `packages/cli` is now a Bun CLI adapter over `@getdesign/sdk`; it can target the hosted API or a local API via `--api-url`.
+- `packages/sdk` is now the Bun-first local execution SDK over the agent pipeline.
+- `packages/cli` is now a Bun CLI adapter over `@getdesign/sdk`; it runs on the user's machine/server with request-scoped BYOK credentials.
 - `skills/getdesign` is the implemented portable skill surface.
 
 Four consumer surfaces, one agent core.
@@ -26,7 +26,7 @@ Four consumer surfaces, one agent core.
 - **Landing + chat UI** — [apps/web](apps/web) (Next.js 16, App Router, deployed on Vercel). Streaming chat built with [ai-elements](https://www.npmjs.com/package/ai-elements): `Conversation`, `Message`, `PromptInput`, `Task`, `Tool`, `Reasoning`, `Response`, `Sources`, `Image`, and an `Artifact` side panel that renders the growing `design.md`.
 - **HTTP API** — [apps/api](apps/api) (Bun + [Hono](https://hono.dev) on Vercel Functions, Node runtime). Single endpoint: authenticated `GET /?url=https://cursor.com` returns `text/markdown; charset=utf-8` (the final `design.md`) when the request provides Daytona and OpenAI credentials or the user has stored credentials.
 - **CLI** — [packages/cli](packages/cli) (`@getdesign/cli` on npm). Bun binary adapter over `@getdesign/sdk`. One-shot mode is implemented; an interactive REPL remains a future surface.
-- **TypeScript SDK** — [packages/sdk](packages/sdk) (`@getdesign/sdk` on npm). A remote-first typed client library for Node, Bun, Deno, and edge runtimes. Two entry points: `getDesign(url)` calls `GET /v1/design?format=json` and returns the final `design.md` + structured `DesignDoc`; `streamDesign(url)` calls `GET /v1/design/stream` and returns an async iterator of sanitized progress events for custom UIs. Used by the CLI internally, by AI coding tools programmatically, and by third-party integrations.
+- **TypeScript SDK** — [packages/sdk](packages/sdk) (`@getdesign/sdk` on npm). A Bun-first local execution SDK for machines/servers with enough runtime for browser capture and LLM generation. Two entry points: `getDesign(url)` runs the agent in-process and returns the final `design.md` + structured `DesignDoc`; `streamDesign(url)` runs the same pipeline and returns an async iterator of sanitized progress events for custom UIs. Used by the CLI internally, by AI coding tools programmatically, and by third-party integrations.
 
 All four surfaces call the same agent package; only the transport differs.
 

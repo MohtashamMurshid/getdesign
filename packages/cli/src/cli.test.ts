@@ -10,10 +10,9 @@ describe("parseArgs", () => {
   });
 
   test("--url and flags", () => {
-    const o = parseArgs(["--url", "linear.app", "--out", "out.md", "--api-url", "http://localhost:3001"]);
+    const o = parseArgs(["--url", "linear.app", "--out", "out.md"]);
     expect(o.url).toBe("linear.app");
     expect(o.out).toBe("out.md");
-    expect(o.apiUrl).toBe("http://localhost:3001");
   });
 
   test("rejects unknown option", () => {

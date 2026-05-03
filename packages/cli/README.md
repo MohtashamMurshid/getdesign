@@ -1,15 +1,15 @@
 # @getdesign/cli
 
-> The design system for any URL.
+> Generate production-ready `design.md` specs from live websites in your terminal.
 
-Generate a production-grade `design.md` from a public site using the
-getdesign API through `@getdesign/sdk`.
+`@getdesign/cli` captures a rendered landing page, analyzes its visual system,
+and writes a Cursor-ready `design.md` with colors, typography, layout,
+components, motion, and implementation guidance.
 
 ## Usage
 
 ```bash
 DAYTONA_API_KEY=... OPENAI_API_KEY=... bunx @getdesign/cli https://cursor.com
-bunx @getdesign/cli https://linear.app --api-url http://localhost:3001
 bunx @getdesign/cli https://linear.app --out design.md
 bunx @getdesign/cli --url https://example.com --site-name Example --out ./designs
 ```
@@ -25,8 +25,6 @@ Options:
 
 - `--url <url>` or positional `<url>`: source URL to analyze.
 - `--site-name <name>`: override the detected site name.
-- `--api-url <url>` / `GETDESIGN_API_URL`: getdesign API base URL. Defaults to
-  `https://api.getdesign.app`; use `http://localhost:3001` for local dogfooding.
 - `--out <path>`: write markdown to a file or directory. File paths are written
   exactly; existing directories or paths ending in `/` receive `design.md`.
   Without `--out`, output is written to `./getdesign-runs/<slug>/design.md`.

@@ -51,7 +51,6 @@ export async function runGetdesignCli(input: RunGetdesignCliInput = {}): Promise
     throw new Error("Missing source URL. Run `getdesign --help` for usage.");
   }
 
-  const apiUrl = options.apiUrl ?? env.GETDESIGN_API_URL;
   const daytonaApiKey = options.daytonaApiKey ?? env.DAYTONA_API_KEY;
   const openaiApiKey = options.openaiApiKey ?? env.OPENAI_API_KEY;
   if (!daytonaApiKey) {
@@ -63,7 +62,6 @@ export async function runGetdesignCli(input: RunGetdesignCliInput = {}): Promise
 
   const target = resolveOutputPath(cwd, options.out, url, options.siteName);
   console.error(`${DIM}getdesign: running ${url}${RESET}`);
-  console.error(`${DIM}getdesign: api ${apiUrl ?? "https://api.getdesign.app"}${RESET}`);
   console.error(`${DIM}getdesign: output ${target}${RESET}`);
 
   const start = now();
@@ -71,7 +69,6 @@ export async function runGetdesignCli(input: RunGetdesignCliInput = {}): Promise
   let markdown: string | undefined;
 
   for await (const event of streamDesign(url, {
-    apiUrl,
     siteName: options.siteName,
     visualRequirement: options.visualRequirement,
     credentials: { daytonaApiKey, openaiApiKey },

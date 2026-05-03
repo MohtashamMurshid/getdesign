@@ -1,8 +1,11 @@
 # @getdesign/sdk
 
-> The design system for any URL — TypeScript SDK.
+> Generate production-ready `design.md` specs from live websites.
 
-Remote-first TypeScript client for the getdesign HTTP API.
+`@getdesign/sdk` captures a rendered landing page, analyzes visual style and CSS
+tokens, and returns a structured design system plus ready-to-save markdown. It
+runs on your own machine or server with request-scoped Daytona and OpenAI
+credentials, so your keys stay under your control.
 
 ## Install
 
@@ -10,8 +13,9 @@ Remote-first TypeScript client for the getdesign HTTP API.
 bun add @getdesign/sdk
 ```
 
-The SDK uses the platform `fetch` API and works in modern Node, Bun, Deno, and
-edge runtimes.
+Runtime note: the SDK currently targets Bun/server environments with enough time
+for browser capture and LLM generation. It is not a browser or edge-runtime
+client.
 
 ## Preview
 

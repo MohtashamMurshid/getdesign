@@ -1,9 +1,14 @@
 import type { DesignDoc, DesignTokens, RenderedDesignResult } from "@getdesign/types";
+import {
+  RunDesignError,
+  runDesign,
+  type RunDesignEvent,
+  type RunDesignOptions,
+  type RunDesignResult,
+} from "@getdesign/agent";
 
 export const version = "0.0.1";
 export type { DesignDoc, DesignTokens, RenderedDesignResult } from "@getdesign/types";
-
-const DEFAULT_API_URL = "https://api.getdesign.app";
 
 export type GetDesignCredentials = {
   daytonaApiKey?: string;
@@ -11,22 +16,26 @@ export type GetDesignCredentials = {
 };
 
 export type VisualRequirement = "require" | "text_only_fallback";
-export type FetchAdapter = (
-  input: string | URL | Request,
-  init?: RequestInit,
-) => Promise<Response>;
 
 export type GetDesignOptions = {
-  /** Base URL for the getdesign API. Defaults to https://api.getdesign.app. */
-  apiUrl?: string;
   /** Override the detected site name. */
   siteName?: string;
   /** Request-scoped credentials for BYOK runs. */
   credentials?: GetDesignCredentials;
   /** Continue with text-only output if visual capture is unavailable. */
   visualRequirement?: VisualRequirement;
-  /** Injectable fetch for tests or custom runtimes. */
-  fetch?: FetchAdapter;
+  /** Force or skip i18n font install. Auto-detected from URL TLD when omitted. */
+  installI18nFonts?: boolean;
+  /** Override measurement strategy. `auto` tries CDP first, then visual-stability. */
+  measurementMode?: "cdp" | "visual" | "auto";
+  /**
+   * Internal/testing seam. Defaults to the real local agent pipeline.
+   * Most callers should not pass this.
+   */
+  runDesign?: (
+    url: string,
+    options?: RunDesignOptions,
+  ) => Promise<RunDesignResult>;
 };
 
 export type GetDesignResult = {
@@ -81,117 +90,133 @@ export class GetDesignError extends Error {
   }
 }
 
-function apiUrl(baseUrl: string | undefined, path: string): URL {
-  return new URL(path, baseUrl ?? DEFAULT_API_URL);
-}
-
-function headers(options: GetDesignOptions): Headers {
-  const headers = new Headers();
-  const { credentials } = options;
-  if (credentials?.daytonaApiKey) {
-    headers.set("x-daytona-api-key", credentials.daytonaApiKey);
-  }
-  if (credentials?.openaiApiKey) {
-    headers.set("x-openai-api-key", credentials.openaiApiKey);
-  }
-  if (options.siteName) {
-    headers.set("x-getdesign-site-name", options.siteName);
-  }
-  if (options.visualRequirement === "text_only_fallback") {
-    headers.set("x-getdesign-mode", "text_only");
-  }
-  return headers;
-}
-
-function addCommonParams(target: URL, url: string, options: GetDesignOptions): void {
-  target.searchParams.set("url", url);
-  if (options.siteName) target.searchParams.set("siteName", options.siteName);
-}
-
-async function parseError(res: Response): Promise<GetDesignError> {
-  let payload: GetDesignErrorPayload;
-  try {
-    payload = (await res.json()) as GetDesignErrorPayload;
-  } catch {
-    payload = { error: res.statusText || "request_failed" };
-  }
-  return new GetDesignError(res.status, payload);
-}
-
 export async function getDesign(
   url: string,
   options: GetDesignOptions = {},
 ): Promise<GetDesignResult> {
-  const fetchImpl = options.fetch ?? fetch;
-  const target = apiUrl(options.apiUrl, "/v1/design");
-  addCommonParams(target, url, options);
-  target.searchParams.set("format", "json");
-
-  const res = await fetchImpl(target, {
-    method: "GET",
-    headers: headers(options),
-  });
-
-  if (!res.ok) throw await parseError(res);
-  return (await res.json()) as GetDesignResult;
+  const result = await executeDesign(url, options);
+  return toGetDesignResult(result);
 }
 
 export async function* streamDesign(
   url: string,
   options: GetDesignOptions = {},
 ): AsyncGenerator<DesignStreamEvent, void, void> {
-  const fetchImpl = options.fetch ?? fetch;
-  const target = apiUrl(options.apiUrl, "/v1/design/stream");
-  addCommonParams(target, url, options);
-
-  const res = await fetchImpl(target, {
-    method: "GET",
-    headers: headers(options),
+  const events: DesignStreamEvent[] = [];
+  const result = await executeDesign(url, {
+    ...options,
+    onProgress: (event) => {
+      events.push({ type: "progress", event: publicEvent(event) });
+    },
   });
 
-  if (!res.ok || !res.body) throw await parseError(res);
+  for (const event of events) {
+    yield event;
+  }
+  yield { type: "result", result: toGetDesignResult(result) };
+}
 
-  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
+type ExecuteDesignOptions = GetDesignOptions & {
+  onProgress?: (event: RunDesignEvent) => void;
+};
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += value;
-
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary >= 0) {
-      const rawEvent = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      const event = parseSseEvent(rawEvent);
-      if (event) yield event;
-      boundary = buffer.indexOf("\n\n");
+async function executeDesign(
+  url: string,
+  options: ExecuteDesignOptions,
+): Promise<RunDesignResult> {
+  const run = options.runDesign ?? runDesign;
+  try {
+    return await run(url, {
+      siteName: options.siteName,
+      credentials: options.credentials,
+      visualRequirement: options.visualRequirement,
+      installI18nFonts: options.installI18nFonts,
+      measurementMode: options.measurementMode,
+      onPhase: (event) => options.onProgress?.(event),
+    });
+  } catch (error) {
+    if (error instanceof RunDesignError) {
+      throw new GetDesignError(409, {
+        error: "capture_failed",
+        code: error.code,
+        reason: error.message,
+        retryWith: {
+          header: "x-getdesign-mode",
+          value: "text_only",
+        },
+      });
     }
+    throw error;
   }
 }
 
-function parseSseEvent(raw: string): DesignStreamEvent | null {
-  let eventName = "message";
-  const data: string[] = [];
+function toGetDesignResult(result: RunDesignResult): GetDesignResult {
+  return {
+    url: result.url,
+    markdown: result.markdown,
+    doc: result.doc,
+    tokens: result.tokens,
+    visualDescription: result.visualDescription,
+    tiles: result.tiles,
+    mode: result.mode,
+  };
+}
 
-  for (const line of raw.split(/\r?\n/)) {
-    if (line.startsWith("event:")) eventName = line.slice("event:".length).trim();
-    if (line.startsWith("data:")) data.push(line.slice("data:".length).trimStart());
+function publicEvent(event: RunDesignEvent): DesignProgressEvent {
+  if (event.phase === "capture") {
+    return {
+      phase: "capture",
+      capturePhase: event.event.phase,
+      status: event.event.status,
+      detail: event.event.detail,
+      durationMs: event.event.durationMs,
+    };
   }
 
-  if (data.length === 0) return null;
-  const parsed = JSON.parse(data.join("\n")) as unknown;
+  if (event.phase === "crawl") {
+    return event.status === "start"
+      ? { phase: "crawl", status: "start" }
+      : {
+          phase: "crawl",
+          status: "ok",
+          siteName: event.crawl.siteName,
+          stylesheets: event.crawl.stylesheets.length,
+        };
+  }
 
-  if (eventName === "progress") {
-    return { type: "progress", event: parsed as DesignProgressEvent };
+  if (event.phase === "visual") {
+    return event.status === "start"
+      ? { phase: "visual", status: "start" }
+      : { phase: "visual", status: "ok", visualStatus: event.visual.status };
   }
-  if (eventName === "result") {
-    return { type: "result", result: parsed as GetDesignResult };
+
+  if (event.phase === "describe") {
+    return { phase: "describe", status: event.status, detail: event.detail };
   }
-  if (eventName === "error") {
-    return { type: "error", error: parsed as GetDesignErrorPayload };
+
+  if (event.phase === "extract") {
+    return event.status === "start"
+      ? { phase: "extract", status: "start" }
+      : {
+          phase: "extract",
+          status: "ok",
+          fontFamilies: event.tokens.typography.fontFamilies.length,
+        };
   }
-  return null;
+
+  if (event.phase === "synthesize") {
+    return event.status === "start"
+      ? { phase: "synthesize", status: "start" }
+      : {
+          phase: "synthesize",
+          status: "ok",
+          paletteGroups: event.doc.palette.groups.length,
+        };
+  }
+
+  return event.status === "start"
+    ? { phase: "render", status: "start" }
+    : { phase: "render", status: "ok", markdownLength: event.markdown.length };
 }
 
 export default { getDesign, streamDesign, version };

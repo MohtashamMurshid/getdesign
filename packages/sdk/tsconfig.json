@@ -1,6 +1,6 @@
 {
   "extends": "../config/tsconfig.base.json",
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../tools/src/postcss-safe-parser.d.ts"],
   "exclude": ["src/**/*.test.ts"],
   "compilerOptions": {
     "outDir": "dist",

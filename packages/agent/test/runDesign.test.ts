@@ -9,6 +9,7 @@ import { SAMPLE_CSS, SAMPLE_DESIGN_DOC, SAMPLE_HTML } from "./fixtures";
 import type { ScreenshotArtifact } from "@getdesign/tools/daytona";
 
 const originalFetch = globalThis.fetch;
+const originalDaytonaApiKey = process.env.DAYTONA_API_KEY;
 
 const SAMPLE_DESCRIPTION = `## Overall composition & rhythm
 A single hero band stacked above a modest content well; vertical rhythm is generous.
@@ -99,10 +100,16 @@ function makeMockModel() {
 
 beforeEach(() => {
   installStubFetch();
+  delete process.env.DAYTONA_API_KEY;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  if (originalDaytonaApiKey) {
+    process.env.DAYTONA_API_KEY = originalDaytonaApiKey;
+  } else {
+    delete process.env.DAYTONA_API_KEY;
+  }
 });
 
 test("runDesign end-to-end with stubbed fetch and mocked LLM (text-only)", async () => {
