@@ -1,16 +1,22 @@
 import { BrowserWindow, shell } from "electron";
 import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 import type {
   StudioCreateDeckInput,
   StudioDeckMode,
+  StudioDeckPlan,
+  StudioDeckPlanInput,
   StudioDeckProject,
   StudioDeckSlide,
   StudioDeckSlideContent,
+  StudioDeckTweaks,
+  StudioDeckVerificationIssue,
+  StudioDeckVerificationResult,
   StudioExportDeckInput,
   StudioExportDeckResult,
 } from "../shared/studio-api";
+import { findDeckTemplate, listDeckTemplates } from "./deck-templates";
 import {
   exportStudioDeckPptx,
   validateStudioPptxDeck,
@@ -19,9 +25,17 @@ import {
 const DECK_WIDTH = 1920;
 const DECK_HEIGHT = 1080;
 const TEMP_INDEX_MARKER = "studio-generated-temporary-index";
+const DECK_PLAN_FILE = "deck-plan.json";
+const VALID_EXPORT_PATHS = new Set(["html", "html-pdf", "pptx"]);
+const VALID_PLAN_STATUSES = new Set(["pending", "confirmed"]);
+const VALID_THEMES = new Set(["default", "light", "dark", "warm", "cool"]);
+const VALID_DENSITIES = new Set(["comfortable", "compact", "spacious"]);
+const VALID_IMAGE_STYLES = new Set(["default", "muted", "vivid"]);
 
 type StoredDeckManifest = Omit<StudioDeckProject, "previewUrl">;
 type DeckDimensions = { width: number; height: number };
+
+export { listDeckTemplates };
 
 export class StudioDeckService {
   constructor(private readonly rootDir: string) {}
@@ -56,11 +70,17 @@ export class StudioDeckService {
 
   async createDeck(input: StudioCreateDeckInput = {}): Promise<StudioDeckProject> {
     await mkdir(this.rootDir, { recursive: true });
+    const template = input.templateId ? findDeckTemplate(input.templateId) : undefined;
+    if (input.templateId && !template) {
+      throw new Error(`Unknown deck template: ${input.templateId}`);
+    }
     const now = Date.now();
-    const title = sanitizeTitle(input.title || "Untitled launch deck");
+    const title = sanitizeTitle(input.title || template?.title || "Untitled launch deck");
     const id = `${slugify(title)}-${now.toString(36)}`;
-    const mode = input.mode ?? "freeform";
-    const slideContents = normalizeSlideContents(input);
+    const mode = input.mode ?? template?.mode ?? "freeform";
+    const slideContents = normalizeSlideContents(
+      template ? { ...input, slides: template.slides } : input,
+    );
     const slideCount = slideContents.length;
     const deckPath = join(this.rootDir, id);
     const slidesPath = join(deckPath, "slides");
@@ -108,11 +128,19 @@ export class StudioDeckService {
     return withPreviewUrl(manifest);
   }
 
+  async createDeckFromTemplate(input: {
+    templateId: string;
+    title?: string;
+  }): Promise<StudioDeckProject> {
+    return this.createDeck({ templateId: input.templateId, title: input.title });
+  }
+
   async readDeck(deckId: string): Promise<StudioDeckProject> {
     const deckPath = join(this.rootDir, safeDeckId(deckId));
     const raw = await readFile(join(deckPath, "deck.json"), "utf8");
     const manifest = JSON.parse(raw) as StoredDeckManifest;
-    return withPreviewUrl(manifest);
+    const plan = await readPlanFile(deckPath);
+    return withPreviewUrl({ ...manifest, plan });
   }
 
   async readArtifactDeck(artifactId: string): Promise<StudioDeckProject | undefined> {
@@ -120,27 +148,68 @@ export class StudioDeckService {
     const indexFile = join(artifactPath, "index.html");
     const slides = await discoverSlides(artifactPath);
     const hasSlideFiles = slides.some((slide) => slide.file.startsWith("slides/"));
-    if (!hasSlideFiles) return undefined;
+    const plan = await readPlanFile(artifactPath);
+
+    // Plan-only "in planning" state: the agent wrote deck-plan.json but no
+    // slides exist yet. We return a deck so the renderer can show the Plan
+    // Gate Card (and its Confirm button) before the agent generates slides.
+    // This is the explicit hand-off the planning gate is built around.
+    if (!hasSlideFiles) {
+      if (!plan) return undefined;
+      const now = Date.now();
+      return withPreviewUrl({
+        id: artifactId,
+        title: titleFromArtifactId(artifactId),
+        mode: plan.mode,
+        path: artifactPath,
+        indexFile,
+        createdAt: plan.createdAt ?? now,
+        updatedAt: now,
+        slides: [],
+        plan,
+        tweaks: {},
+      });
+    }
+
     const dimensions = await inferDeckDimensions(artifactPath, slides);
+    // Studio owns index.html. Always regenerate from the slide list so that:
+    //   1. the preview iframe shows a real slide runner (scaled stage,
+    //      keyboard nav) instead of whatever shell the agent invented,
+    //   2. PDF export's printToPDF prints the actual slides via the print
+    //      stack rather than e.g. a card grid the agent wrote, and
+    //   3. adding/removing a slide file is reflected in the runner without
+    //      the agent having to touch index.html.
+    // Agents are instructed via STUDIO_SYSTEM_PROMPT to write slides/*.html
+    // only — but we enforce here so a misbehaving (or older) agent run can't
+    // leave a broken index.html on disk.
+    const nextIndexHtml = renderDeckIndex(slides, dimensions);
     let indexUpdatedAt = 0;
     try {
-      indexUpdatedAt = (await stat(indexFile)).mtimeMs;
-      const html = await readFile(indexFile, "utf8");
-      if (isStudioTemporaryIndex(html)) {
-        await writeFile(indexFile, renderDeckIndex(slides, dimensions), "utf8");
+      const existingHtml = await readFile(indexFile, "utf8");
+      if (existingHtml === nextIndexHtml) {
+        indexUpdatedAt = (await stat(indexFile)).mtimeMs;
+      } else {
+        await writeFile(indexFile, nextIndexHtml, "utf8");
         indexUpdatedAt = Date.now();
       }
     } catch {
-      await writeFile(indexFile, renderDeckIndex(slides, dimensions), "utf8");
+      await writeFile(indexFile, nextIndexHtml, "utf8");
       indexUpdatedAt = Date.now();
     }
 
     const manifest = await readArtifactManifest(artifactPath, artifactId);
+    // Plan is the source of truth for `mode` until the agent (or applyDeckTweaks)
+    // writes a deck.json. Without this fallback, decks built without a manifest
+    // always reported `freeform` and the PPTX export button stayed disabled
+    // even when deck-plan.json explicitly said `pptx-safe`.
+    const effectiveMode = plan?.mode ?? manifest.mode;
     return withPreviewUrl({
       ...manifest,
+      mode: effectiveMode,
       path: artifactPath,
       indexFile,
       updatedAt: Math.max(manifest.updatedAt, indexUpdatedAt),
+      plan,
     });
   }
 
@@ -149,12 +218,103 @@ export class StudioDeckService {
     await shell.openPath(deck.path);
   }
 
+  async loadDeck(deckId: string): Promise<StudioDeckProject> {
+    return (
+      (await this.readArtifactDeck(deckId)) ?? (await this.readDeck(deckId))
+    );
+  }
+
+  async saveDeckPlan(
+    deckId: string,
+    planInput: StudioDeckPlanInput,
+  ): Promise<StudioDeckProject> {
+    const deck = await this.loadDeck(deckId);
+    const existing = await readPlanFile(deck.path);
+    const sanitized = sanitizePlanInput(planInput);
+    const plan: StudioDeckPlan = {
+      ...sanitized,
+      status: sanitized.status ?? existing?.status ?? "pending",
+      createdAt: existing?.createdAt ?? Date.now(),
+      confirmedAt:
+        sanitized.status === "confirmed" || existing?.status === "confirmed"
+          ? existing?.confirmedAt ?? Date.now()
+          : undefined,
+    };
+    await writePlanFile(deck.path, plan);
+    return this.loadDeck(deckId);
+  }
+
+  async confirmDeckPlan(deckId: string): Promise<StudioDeckProject> {
+    const deck = await this.loadDeck(deckId);
+    const existing = await readPlanFile(deck.path);
+    if (!existing) {
+      throw new Error(
+        "No deck plan found. Ask the agent to write deck-plan.json first, then confirm.",
+      );
+    }
+    const next: StudioDeckPlan = {
+      ...existing,
+      status: "confirmed",
+      confirmedAt: Date.now(),
+    };
+    await writePlanFile(deck.path, next);
+    return this.loadDeck(deckId);
+  }
+
+  async applyDeckTweaks(
+    deckId: string,
+    tweaks: StudioDeckTweaks,
+  ): Promise<StudioDeckProject> {
+    const deck = await this.loadDeck(deckId);
+    const sanitized = sanitizeTweaks(tweaks);
+    const manifestPath = join(deck.path, "deck.json");
+    let stored: Partial<StoredDeckManifest> = {};
+    try {
+      stored = JSON.parse(await readFile(manifestPath, "utf8")) as Partial<StoredDeckManifest>;
+    } catch {
+      // Artifact-style decks may not have a deck.json yet; we'll create one.
+    }
+    const next: StoredDeckManifest = {
+      id: deck.id,
+      title: stored.title ?? deck.title,
+      mode: stored.mode ?? deck.mode,
+      path: deck.path,
+      indexFile: deck.indexFile,
+      createdAt: stored.createdAt ?? deck.createdAt,
+      updatedAt: Date.now(),
+      slides: stored.slides ?? deck.slides,
+      tweaks: sanitized,
+    };
+    await writeManifest(deck.path, next);
+    await writeTweaksCss(deck.path, sanitized);
+    return this.loadDeck(deckId);
+  }
+
+  async verifyDeck(deckId: string): Promise<StudioDeckVerificationResult> {
+    const deck = await this.loadDeck(deckId);
+    return verifyDeckArtifact(deck);
+  }
+
   async exportDeck(
     input: StudioExportDeckInput,
     parentWindow?: BrowserWindow,
   ): Promise<StudioExportDeckResult> {
-    const deck = (await this.readArtifactDeck(input.deckId)) ?? (await this.readDeck(input.deckId));
+    const deck = await this.loadDeck(input.deckId);
     await validateDeck(deck);
+    requireConfirmedPlan(deck);
+    // Only enforce pptx-safe authoring rules when the user is actually exporting
+    // pptx. PDF and the "open HTML folder" path don't care about <p>-with-border
+    // or 16:9 body sizing.
+    const enforcePptxSafe = input.format === "pptx" && deck.mode === "pptx-safe";
+    const verification = await verifyDeckArtifact(deck, { enforcePptxSafe });
+    const blockingErrors = verification.issues.filter((issue) => issue.level === "error");
+    if (blockingErrors.length > 0) {
+      throw new Error(
+        `Deck verification failed:\n${blockingErrors
+          .map((issue) => `${issue.slide ? `${issue.slide}: ` : ""}${issue.message}`)
+          .join("\n")}`,
+      );
+    }
     const outputDir = join(deck.path, "output");
     await mkdir(outputDir, { recursive: true });
 
@@ -177,7 +337,6 @@ export class StudioDeckService {
       };
     }
 
-    await validatePptxSafe(deck, parentWindow);
     const path = join(outputDir, `${slugify(deck.title)}.pptx`);
     await exportStudioDeckPptx(deck, path, parentWindow);
     return {
@@ -204,89 +363,131 @@ async function validateDeck(deck: StudioDeckProject): Promise<void> {
   }
 }
 
-async function validatePptxSafe(
-  deck: StudioDeckProject,
-  parentWindow?: BrowserWindow,
-): Promise<void> {
-  const banned = [
-    ["linear-gradient", "CSS gradients are not PPTX-safe."],
-    ["<deck-stage", "Web components are not PPTX-safe."],
-    ["background-image", "Use <img> tags instead of CSS background-image."],
-  ] as const;
-  for (const slide of deck.slides) {
-    if (!slide.file.startsWith("slides/")) continue;
-    const html = await readFile(join(deck.path, slide.file), "utf8");
-    const violation = banned.find(([needle]) => html.includes(needle));
-    if (violation) throw new Error(`${slide.file}: ${violation[1]}`);
-  }
-
-  const result = await validateStudioPptxDeck(deck, parentWindow);
-  if (!result.ok) {
-    throw new Error(`PPTX validation failed:\n${result.errors.join("\n")}`);
-  }
-}
+/**
+ * Static substring bans for pptx-safe mode. The renderer-side
+ * `validateStudioPptxDeck` catches the same violations via computed style, but
+ * substring bans add a fast pre-check that catches content the headless render
+ * may strip (commented-out templates, web component definitions, etc.). Kept in
+ * sync with the documented four pptx-safe rules.
+ */
+const PPTX_SAFE_BANNED_SUBSTRINGS: ReadonlyArray<readonly [string, string]> = [
+  ["linear-gradient", "CSS gradients are not PPTX-safe."],
+  ["<deck-stage", "Web components are not PPTX-safe."],
+  ["background-image", "Use <img> tags instead of CSS background-image."],
+];
 
 async function readArtifactManifest(
   artifactPath: string,
   artifactId: string,
 ): Promise<StoredDeckManifest> {
   const deckJsonPath = join(artifactPath, "deck.json");
+  let parsed: Partial<StoredDeckManifest> = {};
   try {
     const raw = await readFile(deckJsonPath, "utf8");
-    const parsed = JSON.parse(raw) as Partial<StoredDeckManifest>;
-    return {
-      id: artifactId,
-      title: parsed.title || titleFromArtifactId(artifactId),
-      mode: parsed.mode === "pptx-safe" ? "pptx-safe" : "freeform",
-      path: artifactPath,
-      indexFile: join(artifactPath, "index.html"),
-      createdAt: parsed.createdAt || Date.now(),
-      updatedAt: Date.now(),
-      slides: parsed.slides || (await discoverSlides(artifactPath)),
-    };
+    parsed = JSON.parse(raw) as Partial<StoredDeckManifest>;
   } catch {
-    const stats = await discoverSlides(artifactPath);
-    return {
-      id: artifactId,
-      title: titleFromArtifactId(artifactId),
-      mode: "freeform",
-      path: artifactPath,
-      indexFile: join(artifactPath, "index.html"),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      slides: stats,
-    };
+    // Artifact deck without explicit manifest — derive from filesystem.
   }
+
+  const discovered = await discoverSlides(artifactPath);
+  const baseSlides =
+    parsed.slides && parsed.slides.length > 0 ? parsed.slides : discovered;
+  const slides = await hydrateSlideNotes(artifactPath, baseSlides);
+
+  return {
+    id: artifactId,
+    title: parsed.title || titleFromArtifactId(artifactId),
+    mode: parsed.mode === "pptx-safe" ? "pptx-safe" : "freeform",
+    path: artifactPath,
+    indexFile: join(artifactPath, "index.html"),
+    createdAt: parsed.createdAt || Date.now(),
+    updatedAt: Date.now(),
+    slides,
+    tweaks: sanitizeTweaks(parsed.tweaks ?? {}),
+  };
 }
 
 async function discoverSlides(artifactPath: string): Promise<StudioDeckSlide[]> {
   const slidesDir = join(artifactPath, "slides");
   try {
     const entries = await readdir(slidesDir, { withFileTypes: true });
-    return entries
+    const html = entries
       .filter((entry) => entry.isFile() && entry.name.endsWith(".html"))
-      .map((entry, index) => {
-        const label = entry.name
-          .replace(/\.html$/i, "")
-          .replace(/^\d+-/, "")
-          .replace(/-/g, " ");
-        return {
-          id: `slide-${String(index + 1).padStart(2, "0")}`,
-          file: `slides/${entry.name}`,
-          label,
-          title: label,
-        };
-      });
+      .map((entry) => entry.name)
+      .sort(naturalCompare);
+    if (html.length === 0) {
+      return fallbackSingleSlide();
+    }
+    return html.map((name, index) => {
+      const label = name
+        .replace(/\.html$/i, "")
+        .replace(/^\d+[-_]?/, "")
+        .replace(/[-_]/g, " ")
+        .trim() || `Slide ${index + 1}`;
+      return {
+        id: `slide-${String(index + 1).padStart(2, "0")}`,
+        file: `slides/${name}`,
+        label,
+        title: label,
+      };
+    });
   } catch {
-    return [
-      {
-        id: "slide-01",
-        file: "index.html",
-        label: "Single page",
-        title: "Single page",
-      },
-    ];
+    return fallbackSingleSlide();
   }
+}
+
+function fallbackSingleSlide(): StudioDeckSlide[] {
+  return [
+    {
+      id: "slide-01",
+      file: "index.html",
+      label: "Single page",
+      title: "Single page",
+    },
+  ];
+}
+
+/** Order strings the way humans read slide files: 01, 02, ... 10. */
+function naturalCompare(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
+/**
+ * Manifest-level notes are the source of truth. If a slide has no notes
+ * recorded yet, look for `<aside class="notes" hidden>...</aside>` inside the
+ * slide HTML so authors can write notes inline without re-editing deck.json.
+ */
+async function hydrateSlideNotes(
+  artifactPath: string,
+  slides: StudioDeckSlide[],
+): Promise<StudioDeckSlide[]> {
+  return Promise.all(
+    slides.map(async (slide) => {
+      if (slide.notes && slide.notes.trim().length > 0) return slide;
+      if (!slide.file.startsWith("slides/")) return slide;
+      try {
+        const html = await readFile(join(artifactPath, slide.file), "utf8");
+        const imported = extractAsideNotes(html);
+        if (imported) return { ...slide, notes: imported };
+      } catch {
+        // Missing slide files surface in verifyDeck instead.
+      }
+      return slide;
+    }),
+  );
+}
+
+function extractAsideNotes(html: string): string | undefined {
+  const match = html.match(
+    /<aside\b[^>]*class=["'][^"']*\bnotes\b[^"']*["'][^>]*>([\s\S]*?)<\/aside>/i,
+  );
+  if (!match) return undefined;
+  const text = match[1]!
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 0 ? text : undefined;
 }
 
 function titleFromArtifactId(artifactId: string) {
@@ -346,21 +547,18 @@ function readViewportValue(content: string, property: string): number | undefine
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
-function isStudioTemporaryIndex(html: string): boolean {
-  return (
-    html.includes(TEMP_INDEX_MARKER) ||
-    (html.includes("window.DECK_MANIFEST") && html.includes("<title>Studio Deck</title>"))
-  );
-}
-
 async function exportDeckPdf(
   deck: StudioDeckProject,
   outputPath: string,
   parentWindow?: BrowserWindow,
 ) {
+  const dimensions = await inferDeckDimensions(deck.path, deck.slides);
   const win = new BrowserWindow({
-    width: DECK_WIDTH,
-    height: DECK_HEIGHT,
+    // Match the BrowserWindow viewport to deck dimensions so the runner's
+    // fit() call doesn't downscale the stage in the headless window.
+    width: dimensions.width,
+    height: dimensions.height,
+    useContentSize: true,
     show: false,
     parent: parentWindow,
     webPreferences: {
@@ -373,14 +571,23 @@ async function exportDeckPdf(
   try {
     await win.loadFile(deck.indexFile);
     await waitForDeckLoad(win);
+    // Electron's printToPDF expects pageSize in MICRONS (not inches), and
+    // silently ignores non-integer values (electron/electron#9361). Passing
+    // `{ width: 13.333, height: 7.5 }` made Chromium fall back to the default
+    // Letter portrait page, which is why exported PDFs came out portrait with
+    // 16:9 slides clipped on the side.
+    //
+    // We map deck CSS pixels → microns at the standard CSS DPI of 96, so a
+    // 1280×720 deck prints exactly 1280×720 CSS px landscape with no scaling.
+    const pageSize = pxToMicronPageSize(dimensions);
     const data = await win.webContents.printToPDF({
-      landscape: true,
+      // Orientation comes from width > height. `landscape: true` would swap
+      // the page dimensions on top of our explicit pageSize and re-introduce
+      // the same clipping bug.
+      landscape: false,
       printBackground: true,
       margins: { marginType: "none" },
-      pageSize: {
-        width: 13.333,
-        height: 7.5,
-      },
+      pageSize,
     });
     await writeFile(outputPath, data);
   } finally {
@@ -388,10 +595,64 @@ async function exportDeckPdf(
   }
 }
 
+/** CSS px → microns at 96 DPI (1in = 25400µm, 1in = 96 CSS px). Integers
+ * required because Electron drops floats silently. */
+function pxToMicronPageSize(dimensions: DeckDimensions): {
+  width: number;
+  height: number;
+} {
+  const MICRONS_PER_INCH = 25400;
+  const CSS_DPI = 96;
+  const toMicrons = (px: number) => Math.round((px / CSS_DPI) * MICRONS_PER_INCH);
+  return {
+    width: toMicrons(dimensions.width),
+    height: toMicrons(dimensions.height),
+  };
+}
+
+/**
+ * Wait for the page to be visually ready instead of using a fixed 900ms timer:
+ *   1. did-finish-load fires when the main frame finishes loading.
+ *   2. document.fonts.ready resolves when web fonts are available.
+ *   3. Two requestAnimationFrame ticks let the layout settle.
+ * Falls back to a 1500ms ceiling so a hung page never wedges export forever.
+ */
 function waitForDeckLoad(win: BrowserWindow): Promise<void> {
   return new Promise((resolve) => {
-    setTimeout(resolve, 900);
-    win.webContents.once("did-frame-finish-load", () => setTimeout(resolve, 250));
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const ceiling = setTimeout(finish, 1500);
+    const ready = () => {
+      win.webContents
+        .executeJavaScript(
+          `(async () => {
+            try { if (document.fonts && document.fonts.ready) { await document.fonts.ready; } } catch (_) {}
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            return true;
+          })()`,
+        )
+        .then(() => {
+          clearTimeout(ceiling);
+          finish();
+        })
+        .catch(() => {
+          clearTimeout(ceiling);
+          finish();
+        });
+    };
+    if (win.webContents.isLoading()) {
+      win.webContents.once("did-finish-load", ready);
+      win.webContents.once("did-fail-load", () => {
+        clearTimeout(ceiling);
+        finish();
+      });
+    } else {
+      ready();
+    }
   });
 }
 
@@ -679,4 +940,275 @@ function escapeHtml(value: string) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+async function readPlanFile(deckPath: string): Promise<StudioDeckPlan | undefined> {
+  try {
+    const raw = await readFile(join(deckPath, DECK_PLAN_FILE), "utf8");
+    const parsed = JSON.parse(raw) as Partial<StudioDeckPlan>;
+    if (!isPlanRecord(parsed)) return undefined;
+    return {
+      audience: String(parsed.audience),
+      keyMessage: String(parsed.keyMessage),
+      exportPath: VALID_EXPORT_PATHS.has(String(parsed.exportPath))
+        ? (parsed.exportPath as StudioDeckPlan["exportPath"])
+        : "html",
+      slideCount:
+        Number.isFinite(parsed.slideCount) && Number(parsed.slideCount) > 0
+          ? Math.max(1, Math.min(40, Math.round(Number(parsed.slideCount))))
+          : 5,
+      mode: parsed.mode === "pptx-safe" ? "pptx-safe" : "freeform",
+      notes: typeof parsed.notes === "string" ? parsed.notes : undefined,
+      status: VALID_PLAN_STATUSES.has(String(parsed.status))
+        ? (parsed.status as StudioDeckPlan["status"])
+        : "pending",
+      createdAt: Number(parsed.createdAt) || Date.now(),
+      confirmedAt:
+        typeof parsed.confirmedAt === "number" ? parsed.confirmedAt : undefined,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+async function writePlanFile(deckPath: string, plan: StudioDeckPlan): Promise<void> {
+  await mkdir(deckPath, { recursive: true });
+  await writeFile(
+    join(deckPath, DECK_PLAN_FILE),
+    JSON.stringify(plan, null, 2),
+    "utf8",
+  );
+}
+
+function isPlanRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object";
+}
+
+function sanitizePlanInput(input: StudioDeckPlanInput): StudioDeckPlanInput {
+  const audience = (input.audience ?? "").toString().trim();
+  const keyMessage = (input.keyMessage ?? "").toString().trim();
+  if (!audience) throw new Error("Plan needs an audience.");
+  if (!keyMessage) throw new Error("Plan needs a key message.");
+  if (!VALID_EXPORT_PATHS.has(input.exportPath)) {
+    throw new Error("Plan export path must be one of: html, html-pdf, pptx.");
+  }
+  if (!Number.isFinite(input.slideCount) || input.slideCount <= 0) {
+    throw new Error("Plan needs a slide count > 0.");
+  }
+  if (input.mode !== "freeform" && input.mode !== "pptx-safe") {
+    throw new Error("Plan mode must be freeform or pptx-safe.");
+  }
+  if (input.exportPath === "pptx" && input.mode !== "pptx-safe") {
+    throw new Error(
+      "Editable PPTX export requires pptx-safe mode in the plan.",
+    );
+  }
+  const status =
+    input.status && VALID_PLAN_STATUSES.has(input.status) ? input.status : "pending";
+  return {
+    audience,
+    keyMessage,
+    exportPath: input.exportPath,
+    slideCount: Math.max(1, Math.min(40, Math.round(input.slideCount))),
+    mode: input.mode,
+    notes: input.notes?.toString().trim() || undefined,
+    status,
+  };
+}
+
+function requireConfirmedPlan(deck: StudioDeckProject): void {
+  if (!deck.plan) {
+    throw new Error(
+      "Deck has no confirmed plan. Ask the agent to write deck-plan.json with audience, keyMessage, exportPath, slideCount, and mode, then confirm it from the Studio panel.",
+    );
+  }
+  if (deck.plan.status !== "confirmed") {
+    throw new Error(
+      "Deck plan is pending. Confirm the plan in the Studio panel before exporting.",
+    );
+  }
+}
+
+function sanitizeTweaks(value: unknown): StudioDeckTweaks {
+  if (!value || typeof value !== "object") return {};
+  const record = value as Record<string, unknown>;
+  const tweaks: StudioDeckTweaks = {};
+  if (
+    typeof record["theme"] === "string" &&
+    VALID_THEMES.has(record["theme"] as string)
+  ) {
+    tweaks.theme = record["theme"] as StudioDeckTweaks["theme"];
+  }
+  if (
+    typeof record["density"] === "string" &&
+    VALID_DENSITIES.has(record["density"] as string)
+  ) {
+    tweaks.density = record["density"] as StudioDeckTweaks["density"];
+  }
+  if (
+    typeof record["imageStyle"] === "string" &&
+    VALID_IMAGE_STYLES.has(record["imageStyle"] as string)
+  ) {
+    tweaks.imageStyle = record["imageStyle"] as StudioDeckTweaks["imageStyle"];
+  }
+  return tweaks;
+}
+
+/**
+ * Tweaks are applied as CSS variables in `shared/tweaks.css`. Slides opt in by
+ * linking it. We always write the file so that toggling tweaks updates the
+ * preview without slide edits.
+ */
+async function writeTweaksCss(deckPath: string, tweaks: StudioDeckTweaks): Promise<void> {
+  const sharedDir = join(deckPath, "shared");
+  await mkdir(sharedDir, { recursive: true });
+  const themeBlocks: Record<NonNullable<StudioDeckTweaks["theme"]>, string> = {
+    default: "--studio-bg: #faf8f1; --studio-fg: #171714;",
+    light: "--studio-bg: #ffffff; --studio-fg: #111111;",
+    dark: "--studio-bg: #0f1115; --studio-fg: #f5f5f0;",
+    warm: "--studio-bg: #fff4e6; --studio-fg: #2a1d10;",
+    cool: "--studio-bg: #eef4ff; --studio-fg: #0d1b2a;",
+  };
+  const densityBlocks: Record<NonNullable<StudioDeckTweaks["density"]>, string> = {
+    comfortable: "--studio-density-scale: 1; --studio-gap: 28px;",
+    compact: "--studio-density-scale: 0.88; --studio-gap: 18px;",
+    spacious: "--studio-density-scale: 1.12; --studio-gap: 38px;",
+  };
+  const imageBlocks: Record<NonNullable<StudioDeckTweaks["imageStyle"]>, string> = {
+    default: "--studio-image-filter: none;",
+    muted: "--studio-image-filter: saturate(0.7) contrast(0.95);",
+    vivid: "--studio-image-filter: saturate(1.2) contrast(1.05);",
+  };
+  const theme = tweaks.theme ?? "default";
+  const density = tweaks.density ?? "comfortable";
+  const imageStyle = tweaks.imageStyle ?? "default";
+  const css = `:root {\n  ${themeBlocks[theme]}\n  ${densityBlocks[density]}\n  ${imageBlocks[imageStyle]}\n}\nimg { filter: var(--studio-image-filter, none); }\n`;
+  await writeFile(join(sharedDir, "tweaks.css"), css, "utf8");
+}
+
+/**
+ * Verification gate. Runs for every export attempt and is also exposed via IPC
+ * so the renderer can surface issues proactively.
+ *
+ * Baseline checks (all modes):
+ *   - Slide files exist on disk.
+ *   - Asset references (img/script/link/source) resolve to files inside the deck.
+ *   - The HTML index file is present.
+ *
+ * Stricter checks (pptx-safe mode):
+ *   - Same baseline + headless validateStudioPptxDeck (computed style rules).
+ */
+async function verifyDeckArtifact(
+  deck: StudioDeckProject,
+  options: { enforcePptxSafe?: boolean } = {},
+): Promise<StudioDeckVerificationResult> {
+  // Strict pptx-safe checks default to "on whenever the deck is configured for
+  // pptx-safe", so the manual Verify deck button surfaces every issue. exportDeck
+  // narrows this to format === "pptx" so PDF/HTML exports don't get blocked.
+  const enforcePptxSafe = options.enforcePptxSafe ?? deck.mode === "pptx-safe";
+  const issues: StudioDeckVerificationIssue[] = [];
+
+  try {
+    await access(deck.indexFile);
+  } catch {
+    issues.push({ level: "error", message: "Missing deck index.html." });
+  }
+
+  if (deck.slides.length === 0) {
+    issues.push({ level: "error", message: "Deck has no slides." });
+  }
+
+  for (const slide of deck.slides) {
+    const slidePath = join(deck.path, slide.file);
+    let html = "";
+    try {
+      html = await readFile(slidePath, "utf8");
+    } catch {
+      issues.push({
+        level: "error",
+        slide: slide.file,
+        message: "Slide file is missing on disk.",
+      });
+      continue;
+    }
+    for (const asset of extractLocalAssets(html)) {
+      const assetPath = resolveDeckAsset(deck.path, slidePath, asset);
+      if (!assetPath) continue;
+      try {
+        await access(assetPath);
+      } catch {
+        issues.push({
+          level: "error",
+          slide: slide.file,
+          message: `Missing referenced asset: ${asset}`,
+        });
+      }
+    }
+  }
+
+  if (enforcePptxSafe) {
+    for (const slide of deck.slides) {
+      if (!slide.file.startsWith("slides/")) continue;
+      try {
+        const html = await readFile(join(deck.path, slide.file), "utf8");
+        for (const [needle, message] of PPTX_SAFE_BANNED_SUBSTRINGS) {
+          if (html.includes(needle)) {
+            issues.push({ level: "error", slide: slide.file, message });
+          }
+        }
+      } catch {
+        // Missing-file errors already reported above.
+      }
+    }
+    if (issues.every((issue) => issue.level !== "error")) {
+      try {
+        const pptxResult = await validateStudioPptxDeck(deck);
+        for (const message of pptxResult.errors) {
+          issues.push({ level: "error", message });
+        }
+      } catch (error) {
+        issues.push({
+          level: "error",
+          message: `PPTX validation crashed: ${(error as Error).message}`,
+        });
+      }
+    }
+  }
+
+  return {
+    ok: issues.every((issue) => issue.level !== "error"),
+    issues,
+    checkedAt: Date.now(),
+  };
+}
+
+function extractLocalAssets(html: string): string[] {
+  const assets: string[] = [];
+  const attrPattern = /(?:src|href|poster|data-src)\s*=\s*["']([^"']+)["']/gi;
+  let match: RegExpExecArray | null;
+  while ((match = attrPattern.exec(html))) {
+    const value = match[1]!.trim();
+    if (!value) continue;
+    if (/^(?:https?:|data:|blob:|mailto:|tel:|javascript:|about:|#)/i.test(value)) continue;
+    assets.push(value);
+  }
+  return assets;
+}
+
+function resolveDeckAsset(
+  deckPath: string,
+  slidePath: string,
+  asset: string,
+): string | undefined {
+  if (asset.startsWith("//")) return undefined;
+  const cleaned = asset.split(/[?#]/)[0]!;
+  if (!cleaned) return undefined;
+  const base = isAbsolute(cleaned)
+    ? join(deckPath, cleaned.replace(/^\/+/, ""))
+    : resolve(dirname(slidePath), cleaned);
+  // Constrain to deck directory to avoid noise from environment-relative paths.
+  const normalized = resolve(base);
+  const root = resolve(deckPath);
+  if (!normalized.startsWith(root + sep) && normalized !== root) return undefined;
+  return normalized;
 }

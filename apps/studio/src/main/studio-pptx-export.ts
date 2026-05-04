@@ -187,8 +187,11 @@ export async function exportStudioDeckPptx(
 
 async function captureDeck(deck: StudioDeckProject, parentWindow?: BrowserWindow) {
   const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    // 16:9 viewport so slides without an explicit body { width; height } still
+    // measure as 16:9 in the snapshot pre-flight (matches LAYOUT_WIDE 1280x720).
+    width: 1280,
+    height: 720,
+    useContentSize: true,
     show: false,
     parent: parentWindow,
     webPreferences: {
@@ -216,10 +219,48 @@ async function captureDeck(deck: StudioDeckProject, parentWindow?: BrowserWindow
   }
 }
 
+/**
+ * Wait for the slide page to be visually ready before snapshotting. Replaces
+ * the previous fixed-timer approach with real ready signals (did-finish-load +
+ * document.fonts.ready + a layout settle tick). Capped at 2000ms so hung pages
+ * surface as snapshot errors rather than silent hangs.
+ */
 function waitForSlideLoad(win: BrowserWindow): Promise<void> {
   return new Promise((resolve) => {
-    setTimeout(resolve, 1200);
-    win.webContents.once("did-frame-finish-load", () => setTimeout(resolve, 350));
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const ceiling = setTimeout(finish, 2000);
+    const ready = () => {
+      win.webContents
+        .executeJavaScript(
+          `(async () => {
+            try { if (document.fonts && document.fonts.ready) { await document.fonts.ready; } } catch (_) {}
+            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+            return true;
+          })()`,
+        )
+        .then(() => {
+          clearTimeout(ceiling);
+          finish();
+        })
+        .catch(() => {
+          clearTimeout(ceiling);
+          finish();
+        });
+    };
+    if (win.webContents.isLoading()) {
+      win.webContents.once("did-finish-load", ready);
+      win.webContents.once("did-fail-load", () => {
+        clearTimeout(ceiling);
+        finish();
+      });
+    } else {
+      ready();
+    }
   });
 }
 

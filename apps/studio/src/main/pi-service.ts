@@ -4,11 +4,16 @@ import { join } from "node:path";
 import type {
   StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
+  StudioApplyDeckTweaksInput,
   StudioAuthStatus,
+  StudioConfirmDeckPlanInput,
+  StudioCreateDeckFromTemplateInput,
   StudioCreateDeckInput,
   StudioConversationSnapshot,
   StudioCustomModelRow,
   StudioDeckProject,
+  StudioDeckTemplateSummary,
+  StudioDeckVerificationResult,
   StudioEvent,
   StudioExportDeckInput,
   StudioExportDeckResult,
@@ -17,6 +22,7 @@ import type {
   StudioDeleteChatSessionInput,
   StudioRemoveCustomModelInput,
   StudioRenameChatSessionInput,
+  StudioSaveDeckPlanInput,
   StudioSelectModelInput,
   StudioSendPromptInput,
   StudioStartLoginInput,
@@ -24,6 +30,7 @@ import type {
   StudioSubmitLoginCodeInput,
   StudioSetRuntimeKeyInput,
 } from "../shared/studio-api";
+import { STUDIO_HIDDEN_PROMPT_PART_TYPE } from "../shared/studio-api";
 import {
   addCustomModelEntry,
   addCustomProviderEntry,
@@ -32,7 +39,8 @@ import {
   removeCustomModelEntry,
   writeModelsJson,
 } from "./models-json";
-import { StudioDeckService } from "./deck-service";
+import { listDeckTemplates, StudioDeckService } from "./deck-service";
+import { DeckPlanWatcher, type DeckPlanEvent } from "./deck-plan-watcher";
 import { getCursorApiKey } from "./cursor-service";
 import { isCursorModelId } from "../shared/cursor-model-id";
 import {
@@ -70,6 +78,8 @@ let manualCodeResolver: ((code: string) => void) | undefined;
 let deckService: StudioDeckService | undefined;
 /** Conversation state, Pi streaming, session persistence. */
 let chat: StudioChatController;
+/** Watches deck-plan.json in the current artifact and reconciles chat. */
+const deckPlanWatcher = new DeckPlanWatcher();
 
 export function registerStudioIpc(window: BrowserWindow): void {
   mainWindow = window;
@@ -131,6 +141,27 @@ export function registerStudioIpc(window: BrowserWindow): void {
   ipcMain.handle("studio:export-deck", (_event, input: StudioExportDeckInput) =>
     exportDeck(input),
   );
+  ipcMain.handle("studio:save-deck-plan", (_event, input: StudioSaveDeckPlanInput) =>
+    saveDeckPlan(input),
+  );
+  ipcMain.handle(
+    "studio:confirm-deck-plan",
+    (_event, input: StudioConfirmDeckPlanInput) => confirmDeckPlan(input),
+  );
+  ipcMain.handle(
+    "studio:apply-deck-tweaks",
+    (_event, input: StudioApplyDeckTweaksInput) => applyDeckTweaks(input),
+  );
+  ipcMain.handle("studio:verify-deck", (_event, deckId: string) => verifyDeck(deckId));
+  ipcMain.handle("studio:list-deck-templates", () => getDeckTemplates());
+  ipcMain.handle(
+    "studio:create-deck-from-template",
+    (_event, input: StudioCreateDeckFromTemplateInput) => createDeckFromTemplate(input),
+  );
+
+  // Start watching deck-plan.json for the chat's initial artifact. New chat
+  // sessions and open-chat-session calls re-bind on demand.
+  void bindWatcherToCurrentArtifact();
 }
 
 async function getRuntime(): Promise<PiRuntime> {
@@ -446,7 +477,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
   const isCursorModel = isCursorModelId(input.modelId);
 
   if (isCursorModel && input.modelId) {
-    return startCursorPrompt(content, input.modelId);
+    return startCursorPrompt(content, input.modelId, input.hidden);
   }
 
   const runtime = await getRuntime();
@@ -458,7 +489,11 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
     id: createId("user"),
     role: "user",
     content,
-    parts: [{ type: "text", text: content }],
+    parts: [
+      input.hidden
+        ? { type: STUDIO_HIDDEN_PROMPT_PART_TYPE, text: content }
+        : { type: "text", text: content },
+    ],
     createdAt: Date.now(),
     status: "done",
   };
@@ -507,6 +542,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
 async function startCursorPrompt(
   content: string,
   modelId: string,
+  hidden?: boolean,
 ): Promise<StudioConversationSnapshot> {
   const apiKey = getCursorApiKey();
   if (!apiKey) {
@@ -522,7 +558,11 @@ async function startCursorPrompt(
     id: createId("user"),
     role: "user",
     content,
-    parts: [{ type: "text", text: content }],
+    parts: [
+      hidden
+        ? { type: STUDIO_HIDDEN_PROMPT_PART_TYPE, text: content }
+        : { type: "text", text: content },
+    ],
     createdAt: Date.now(),
     status: "done",
   };
@@ -629,6 +669,7 @@ async function newConversation(): Promise<StudioConversationSnapshot> {
   chat.currentSessionId = createId("session");
   chat.currentArtifactId = createId("artifact");
   await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
+  await bindWatcherToCurrentArtifact();
   chat.emitConversation();
   await emitSessions();
   await emitDecks();
@@ -648,6 +689,7 @@ async function openChatSession(sessionId: string): Promise<StudioConversationSna
   chat.messages = session.messages;
   chat.status = "ready";
   chat.lastError = undefined;
+  await bindWatcherToCurrentArtifact();
   chat.emitConversation();
   await emitSessions();
   await emitDecks();
@@ -671,6 +713,7 @@ async function deleteChatSession(
     chat.currentSessionId = createId("session");
     chat.currentArtifactId = createId("artifact");
     await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
+    await bindWatcherToCurrentArtifact();
     chat.emitConversation();
   }
 
@@ -699,6 +742,111 @@ async function revealPath(path: string): Promise<void> {
 
 async function exportDeck(input: StudioExportDeckInput): Promise<StudioExportDeckResult> {
   return getDeckService().exportDeck(input, mainWindow);
+}
+
+async function saveDeckPlan(input: StudioSaveDeckPlanInput): Promise<StudioDeckProject> {
+  const deck = await getDeckService().saveDeckPlan(input.deckId, input.plan);
+  await emitDecks();
+  return deck;
+}
+
+async function confirmDeckPlan(input: StudioConfirmDeckPlanInput): Promise<StudioDeckProject> {
+  // 1. Mutate deck-plan.json on disk → status: confirmed. The watcher will
+  //    then fire and reconcileDeckPlan() will mutate the existing chat card
+  //    in place (status-only change, same contentHash). We don't append the
+  //    "✓ Plan confirmed" note here; we do that below so it sits *after* the
+  //    card mutation in chat history.
+  const deck = await getDeckService().confirmDeckPlan(input.deckId);
+  await emitDecks();
+
+  // Give the watcher a tick to land its mutation before we append the note.
+  // If we appended first, the order would be card -> note -> mutated card,
+  // which is fine, but appending second keeps the visible flow tidy.
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  if (deck.plan?.confirmedAt && deck.id === chat.currentArtifactId) {
+    chat.appendPlanConfirmedNote(deck.id, deck.plan.confirmedAt);
+    chat.emitConversation();
+    await chat.saveCurrentChatSession();
+
+    // Auto-resume the agent (Q5 = "auto-resume"). The agent's system prompt
+    // tells it the planning gate; on this nudge it should re-read
+    // deck-plan.json, see status: confirmed, and proceed to write slides.
+    void resumeAgentAfterPlanConfirm().catch(() => {
+      // Best-effort: if no model is selected or the runtime isn't ready,
+      // we leave the user to send a follow-up message themselves.
+    });
+  }
+
+  return deck;
+}
+
+/**
+ * Auto-resume after a plan is confirmed. Sends a synthetic prompt to the
+ * agent without adding a user-bubble to chat — the agent sees a fresh user
+ * turn telling it to proceed, while the UI just shows the "✓ Plan confirmed"
+ * system note. Pi maintains its own internal conversation history so the
+ * synthetic prompt naturally extends the agent's context.
+ */
+async function resumeAgentAfterPlanConfirm(): Promise<void> {
+  if (chat.status === "streaming" || chat.status === "submitted") return;
+  // Find the model the user last picked. We re-use the same routing logic
+  // as sendPrompt: cursor model → cursor runtime, else Pi runtime.
+  const runtime = await getRuntime();
+  const modelId = runtime.selectedModelId;
+  if (!modelId) return;
+
+  const directive =
+    "The user just confirmed the deck plan in deck-plan.json. Re-read it (status is now \"confirmed\") and proceed with writing the slide HTML files per the plan.";
+
+  await sendPrompt({ content: directive, modelId, hidden: true });
+}
+
+/**
+ * Bind the deck-plan watcher to the chat controller's current artifact.
+ * Called whenever currentArtifactId changes (startup, new conversation, open
+ * chat session, delete current chat).
+ */
+async function bindWatcherToCurrentArtifact(): Promise<void> {
+  const artifactId = chat.currentArtifactId;
+  if (!artifactId) {
+    deckPlanWatcher.stop();
+    return;
+  }
+  const artifactPath = await getDeckService().ensureArtifactWorkspace(artifactId);
+  deckPlanWatcher.start(artifactId, artifactPath, handleDeckPlanWatcherEvent);
+}
+
+async function handleDeckPlanWatcherEvent(event: DeckPlanEvent): Promise<void> {
+  // Ignore events for stale artifact (user switched chats while watcher fired).
+  if (event.artifactId !== chat.currentArtifactId) return;
+  const result = chat.reconcileDeckPlan(event);
+  if (!result.mutated) return;
+  chat.emitConversation();
+  await chat.saveCurrentChatSession();
+  await emitDecks();
+}
+
+async function applyDeckTweaks(input: StudioApplyDeckTweaksInput): Promise<StudioDeckProject> {
+  const deck = await getDeckService().applyDeckTweaks(input.deckId, input.tweaks);
+  await emitDecks();
+  return deck;
+}
+
+async function verifyDeck(deckId: string): Promise<StudioDeckVerificationResult> {
+  return getDeckService().verifyDeck(deckId);
+}
+
+async function getDeckTemplates(): Promise<StudioDeckTemplateSummary[]> {
+  return listDeckTemplates();
+}
+
+async function createDeckFromTemplate(
+  input: StudioCreateDeckFromTemplateInput,
+): Promise<StudioDeckProject> {
+  const deck = await getDeckService().createDeckFromTemplate(input);
+  await emitDecks();
+  return deck;
 }
 
 async function ensureSession(runtime: PiRuntime): Promise<PiSession> {
