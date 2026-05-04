@@ -80,6 +80,8 @@ let deckService: StudioDeckService | undefined;
 let chat: StudioChatController;
 /** Watches deck-plan.json in the current artifact and reconciles chat. */
 const deckPlanWatcher = new DeckPlanWatcher();
+/** Last model actually used to send a prompt (supports cursor + pi). */
+let lastPromptModelId: string | undefined;
 
 export function registerStudioIpc(window: BrowserWindow): void {
   mainWindow = window;
@@ -462,6 +464,7 @@ async function selectModel(input: StudioSelectModelInput): Promise<StudioAuthSta
 
   runtime.selectedModel = model;
   runtime.selectedModelId = input.modelId;
+  lastPromptModelId = input.modelId;
   if (runtime.session?.setModel) {
     await runtime.session.setModel(model);
   }
@@ -473,6 +476,9 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
   const content = input.content.trim();
   if (!content) return chat.getConversationSnapshot();
   await chat.ensureChatSessionsLoaded();
+  if (input.modelId) {
+    lastPromptModelId = input.modelId;
+  }
 
   const isCursorModel = isCursorModelId(input.modelId);
 
@@ -483,6 +489,8 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
   const runtime = await getRuntime();
   if (input.modelId && !isCursorModel) {
     await selectModel({ modelId: input.modelId });
+  } else if (!input.modelId && runtime.selectedModelId) {
+    lastPromptModelId = runtime.selectedModelId;
   }
 
   const userMessage: StudioMessage = {
@@ -793,11 +801,11 @@ async function resumeAgentAfterPlanConfirm(): Promise<void> {
   // Find the model the user last picked. We re-use the same routing logic
   // as sendPrompt: cursor model → cursor runtime, else Pi runtime.
   const runtime = await getRuntime();
-  const modelId = runtime.selectedModelId;
+  const modelId = lastPromptModelId ?? runtime.selectedModelId;
   if (!modelId) return;
 
   const directive =
-    "The user just confirmed the deck plan in deck-plan.json. Re-read it (status is now \"confirmed\") and proceed with writing the slide HTML files per the plan.";
+    "Plan has been accepted. Re-read deck-plan.json (status is \"confirmed\") and continue executing the agreed deck workflow now.";
 
   await sendPrompt({ content: directive, modelId, hidden: true });
 }

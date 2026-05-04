@@ -502,19 +502,53 @@ async function inferDeckDimensions(
   slides: StudioDeckSlide[],
 ): Promise<DeckDimensions> {
   const firstSlide = slides.find((slide) => slide.file.startsWith("slides/"));
-  if (!firstSlide) return { width: DECK_WIDTH, height: DECK_HEIGHT };
+  if (!firstSlide) {
+    return (await inferSharedStylesDimensions(artifactPath)) ?? {
+      width: DECK_WIDTH,
+      height: DECK_HEIGHT,
+    };
+  }
 
   try {
     const html = await readFile(join(artifactPath, firstSlide.file), "utf8");
-    return (
+    const fromSlide =
       readCssDimensions(html, /\.slide\s*\{([\s\S]*?)\}/i) ??
       readCssDimensions(html, /body\s*\{([\s\S]*?)\}/i) ??
-      readViewportDimensions(html) ??
-      { width: DECK_WIDTH, height: DECK_HEIGHT }
-    );
+      readViewportDimensions(html);
+    if (fromSlide) return fromSlide;
+    return (await inferSharedStylesDimensions(artifactPath)) ?? {
+      width: DECK_WIDTH,
+      height: DECK_HEIGHT,
+    };
   } catch {
-    return { width: DECK_WIDTH, height: DECK_HEIGHT };
+    return (await inferSharedStylesDimensions(artifactPath)) ?? {
+      width: DECK_WIDTH,
+      height: DECK_HEIGHT,
+    };
   }
+}
+
+/**
+ * Many decks define `.slide { width/height }` in shared/tokens.css rather than
+ * each slide file. If we only inspect slide HTML we fall back to 1920x1080,
+ * which shrinks preview scale and can produce mismatched PDF sizing.
+ */
+async function inferSharedStylesDimensions(
+  artifactPath: string,
+): Promise<DeckDimensions | undefined> {
+  const candidates = [join(artifactPath, "shared", "tokens.css"), join(artifactPath, "shared", "tweaks.css")];
+  for (const path of candidates) {
+    try {
+      const css = await readFile(path, "utf8");
+      const fromSlideClass = readCssDimensions(css, /\.slide\s*\{([\s\S]*?)\}/i);
+      if (fromSlideClass) return fromSlideClass;
+      const fromBody = readCssDimensions(css, /body\s*\{([\s\S]*?)\}/i);
+      if (fromBody) return fromBody;
+    } catch {
+      // Optional file.
+    }
+  }
+  return undefined;
 }
 
 function readCssDimensions(html: string, blockPattern: RegExp): DeckDimensions | undefined {
@@ -571,6 +605,7 @@ async function exportDeckPdf(
   try {
     await win.loadFile(deck.indexFile);
     await waitForDeckLoad(win);
+    await waitForPrintFramesReady(win);
     // Electron's printToPDF expects pageSize in MICRONS (not inches), and
     // silently ignores non-integer values (electron/electron#9361). Passing
     // `{ width: 13.333, height: 7.5 }` made Chromium fall back to the default
@@ -608,6 +643,35 @@ function pxToMicronPageSize(dimensions: DeckDimensions): {
     width: toMicrons(dimensions.width),
     height: toMicrons(dimensions.height),
   };
+}
+
+/**
+ * Ensure the runner's print-stack iframes are loaded before Chromium snapshots
+ * print layout. Without this, printToPDF can race and output blank/white pages
+ * when the stack is still loading.
+ */
+async function waitForPrintFramesReady(win: BrowserWindow): Promise<void> {
+  await win.webContents.executeJavaScript(
+    `(async () => {
+      function waitFrame(frame) {
+        return new Promise((resolve) => {
+          if (!frame) return resolve();
+          const done = () => resolve();
+          try {
+            const doc = frame.contentDocument;
+            if (doc && doc.readyState === "complete") return resolve();
+          } catch (_) {}
+          frame.addEventListener("load", done, { once: true });
+          frame.addEventListener("error", done, { once: true });
+          setTimeout(done, 1200);
+        });
+      }
+      const active = document.getElementById("frame");
+      const printFrames = Array.from(document.querySelectorAll("#printStack iframe"));
+      await Promise.all([waitFrame(active), ...printFrames.map(waitFrame)]);
+      return true;
+    })()`,
+  );
 }
 
 /**
@@ -677,6 +741,9 @@ function renderDeckIndex(
   const manifest = slides
     .map((slide) => `    { file: ${JSON.stringify(slide.file)}, label: ${JSON.stringify(slide.label)} }`)
     .join(",\n");
+  const printFrames = slides
+    .map((slide) => `  <iframe src=${JSON.stringify(slide.file)} loading="eager"></iframe>`)
+    .join("\n");
   const deckWidth = dimensions.width;
   const deckHeight = dimensions.height;
 
@@ -717,7 +784,9 @@ ${manifest}
 <div class="nav-zone left" id="navL"></div>
 <div class="nav-zone right" id="navR"></div>
 <div class="counter" id="counter">1 / 1</div>
-<div class="print-stack" id="printStack" style="display:none"></div>
+<div class="print-stack" id="printStack" style="display:none">
+${printFrames}
+</div>
 <script>
 (() => {
   const W = window.DECK_WIDTH || 1920;
@@ -726,7 +795,6 @@ ${manifest}
   const stage = document.getElementById("stage");
   const frame = document.getElementById("frame");
   const counter = document.getElementById("counter");
-  const printStack = document.getElementById("printStack");
   const storageKey = "studio-deck-" + location.pathname;
   let current = 0;
   function fit() {
@@ -760,14 +828,6 @@ ${manifest}
   window.addEventListener("hashchange", () => {
     const match = location.hash.match(/^#(\\d+)$/);
     if (match) show(Number(match[1]) - 1);
-  });
-  window.addEventListener("beforeprint", () => {
-    printStack.innerHTML = "";
-    deck.forEach((item) => {
-      const iframe = document.createElement("iframe");
-      iframe.src = item.file;
-      printStack.appendChild(iframe);
-    });
   });
   const hash = location.hash.match(/^#(\\d+)$/);
   if (hash) current = Math.max(0, Math.min(Number(hash[1]) - 1, deck.length - 1));
@@ -1164,7 +1224,7 @@ async function verifyDeckArtifact(
       try {
         const pptxResult = await validateStudioPptxDeck(deck);
         for (const message of pptxResult.errors) {
-          issues.push({ level: "error", message });
+          issues.push(classifyPptxValidationIssue(message));
         }
       } catch (error) {
         issues.push({
@@ -1180,6 +1240,18 @@ async function verifyDeckArtifact(
     issues,
     checkedAt: Date.now(),
   };
+}
+
+function classifyPptxValidationIssue(message: string): StudioDeckVerificationIssue {
+  // These are useful layout heuristics but too strict to hard-block export in
+  // real decks. Keep them visible in Verify as warnings.
+  if (
+    message.includes("HTML content overflows the slide body.") ||
+    message.includes("Text ends too close to the slide bottom:")
+  ) {
+    return { level: "warning", message };
+  }
+  return { level: "error", message };
 }
 
 function extractLocalAssets(html: string): string[] {

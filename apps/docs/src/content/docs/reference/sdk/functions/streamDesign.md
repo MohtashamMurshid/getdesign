@@ -7,7 +7,7 @@ title: "streamDesign"
 
 > **streamDesign**(`url`, `options?`): `AsyncGenerator`\<[`DesignStreamEvent`](/reference/sdk/type-aliases/designstreamevent/), `void`, `void`\>
 
-Defined in: [packages/sdk/src/index.ts:101](https://github.com/MohtashamMurshid/getdesign/blob/8c362a81d62456a600b98da64a1b0f3e7a11049e/packages/sdk/src/index.ts#L101)
+Defined in: [packages/sdk/src/index.ts:101](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L101)
 
 ## Parameters
 
