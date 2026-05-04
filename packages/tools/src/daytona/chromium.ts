@@ -1,6 +1,6 @@
 import type { Sandbox } from "@daytonaio/sdk";
 
-import type { CapturePhaseHandler, Viewport } from "./types";
+import type { CapturePhaseHandler, Viewport } from "./types.js";
 
 export const CHROMIUM_WRAPPER_PATH = "/tmp/getdesign-chromium.sh";
 export const CHROMIUM_LOG_PATH = "/tmp/chromium.log";

@@ -1,26 +1,26 @@
 import sharp from "sharp";
 
-import { launchChromiumKiosk } from "./chromium";
+import { launchChromiumKiosk } from "./chromium.js";
 import {
   measurePageHeight,
   waitForReadyState,
   type MeasurementMode,
-} from "./measurement";
+} from "./measurement.js";
 import {
   createCaptureSandbox,
   disposeCaptureSandbox,
   prepareCaptureSandbox,
   type CaptureSandbox,
   type CaptureSandboxOptions,
-} from "./sandbox";
-import { shouldInstallI18nFonts } from "./fonts";
+} from "./sandbox.js";
+import { shouldInstallI18nFonts } from "./fonts.js";
 import type {
   CapturePhaseHandler,
   CaptureResult,
   CaptureTile,
   ScreenshotArtifact,
   Viewport,
-} from "./types";
+} from "./types.js";
 
 export type CaptureFullPageOptions = {
   url: string;

@@ -1,2 +1,2 @@
-export * from "./design-doc";
-export * from "./design-tokens";
+export * from "./design-doc.js";
+export * from "./design-tokens.js";

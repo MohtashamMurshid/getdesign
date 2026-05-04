@@ -1,6 +1,6 @@
 import type { InferAgentUIMessage } from "ai";
 
-import { createCoordinator } from "./agents/coordinator";
+import { createCoordinator } from "./agents/coordinator.js";
 
 type CoordinatorInstance = ReturnType<typeof createCoordinator>["agent"];
 

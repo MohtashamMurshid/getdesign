@@ -1,6 +1,6 @@
 {
   "name": "@getdesign/agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent runtime for turning live websites into structured design systems and design.md specs.",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,8 +35,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.58",
-    "@getdesign/tools": "workspace:*",
-    "@getdesign/types": "workspace:*",
+    "@getdesign/tools": "^0.1.1",
+    "@getdesign/types": "^0.1.1",
     "ai": "^6.0.174",
     "zod": "^4.4.2"
   }

@@ -11,49 +11,49 @@ export {
   CDP_PORT,
   CHROMIUM_WRAPPER_PATH,
   launchChromiumKiosk,
-} from "./chromium";
+} from "./chromium.js";
 export type {
   LaunchChromiumKioskOptions,
   LaunchChromiumKioskResult,
-} from "./chromium";
+} from "./chromium.js";
 
 export {
   measurePageHeight,
   waitForReadyState,
-} from "./measurement";
+} from "./measurement.js";
 export type {
   MeasurementMode,
   MeasurementResult,
   MeasurePageHeightOptions,
-} from "./measurement";
+} from "./measurement.js";
 
 export {
   createCaptureSandbox,
   disposeCaptureSandbox,
   prepareCaptureSandbox,
   DEFAULT_VIEWPORT,
-} from "./sandbox";
+} from "./sandbox.js";
 export type {
   CaptureSandbox,
   CaptureSandboxOptions,
   PrepareCaptureSandboxOptions,
-} from "./sandbox";
+} from "./sandbox.js";
 
 export {
   ensureI18nFonts,
   shouldInstallI18nFonts,
-} from "./fonts";
-export type { EnsureI18nFontsOptions } from "./fonts";
+} from "./fonts.js";
+export type { EnsureI18nFontsOptions } from "./fonts.js";
 
 export {
   captureFullPage,
   runCapture,
   stitchCaptureTiles,
-} from "./capture";
+} from "./capture.js";
 export type {
   CaptureFullPageOptions,
   RunCaptureOptions,
-} from "./capture";
+} from "./capture.js";
 
 export type {
   CaptureDurations,
@@ -65,4 +65,4 @@ export type {
   CaptureTile,
   ScreenshotArtifact,
   Viewport,
-} from "./types";
+} from "./types.js";

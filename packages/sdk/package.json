@@ -1,6 +1,6 @@
 {
   "name": "@getdesign/sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Generate production-ready design.md specs from live websites with full-page visual capture.",
   "keywords": [
     "design-system",
@@ -52,11 +52,11 @@
     "access": "public"
   },
   "engines": {
-    "bun": ">=1.3.0"
+    "node": ">=22"
   },
   "dependencies": {
-    "@getdesign/agent": "workspace:*",
-    "@getdesign/types": "workspace:*"
+    "@getdesign/agent": "^0.1.1",
+    "@getdesign/types": "^0.1.1"
   },
   "devDependencies": {
     "@types/bun": "^1.3.13",

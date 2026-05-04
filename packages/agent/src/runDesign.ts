@@ -7,12 +7,12 @@ import type {
 } from "@getdesign/tools/daytona";
 import type { DesignDoc, DesignTokens } from "@getdesign/types";
 
-import { runCrawl } from "./agents/crawler";
-import { runDescribe } from "./agents/describe";
-import { runExtractTokens } from "./agents/tokenExtractor";
-import { runSynthesize } from "./agents/synthesizer";
-import { runVisual, type VisualResult } from "./agents/visual";
-import { resolveModel } from "./model";
+import { runCrawl } from "./agents/crawler.js";
+import { runDescribe } from "./agents/describe.js";
+import { runExtractTokens } from "./agents/tokenExtractor.js";
+import { runSynthesize } from "./agents/synthesizer.js";
+import { runVisual, type VisualResult } from "./agents/visual.js";
+import { resolveModel } from "./model.js";
 import type { LanguageModel } from "ai";
 
 export type RunDesignPhase =

@@ -1,6 +1,6 @@
 {
   "name": "@getdesign/types",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared Zod schemas and TypeScript types for getdesign packages.",
   "type": "module",
   "main": "./dist/index.js",

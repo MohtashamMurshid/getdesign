@@ -1,7 +1,7 @@
 import { Daytona, type Sandbox } from "@daytonaio/sdk";
 
-import { ensureI18nFonts } from "./fonts";
-import type { CapturePhaseHandler, Viewport } from "./types";
+import { ensureI18nFonts } from "./fonts.js";
+import type { CapturePhaseHandler, Viewport } from "./types.js";
 
 /**
  * Daytona's default Xvfb display is locked to 1024×768 and `xrandr --size`

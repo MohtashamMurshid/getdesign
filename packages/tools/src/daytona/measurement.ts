@@ -5,7 +5,7 @@ import type {
   CaptureMeasurementMode,
   CapturePhaseHandler,
   Viewport,
-} from "./types";
+} from "./types.js";
 
 export type MeasurementMode = CaptureMeasurementMode | "auto";
 
