@@ -80,8 +80,6 @@ let deckService: StudioDeckService | undefined;
 let chat: StudioChatController;
 /** Watches deck-plan.json in the current artifact and reconciles chat. */
 const deckPlanWatcher = new DeckPlanWatcher();
-/** Last model actually used to send a prompt (supports cursor + pi). */
-let lastPromptModelId: string | undefined;
 
 export function registerStudioIpc(window: BrowserWindow): void {
   mainWindow = window;
@@ -464,7 +462,6 @@ async function selectModel(input: StudioSelectModelInput): Promise<StudioAuthSta
 
   runtime.selectedModel = model;
   runtime.selectedModelId = input.modelId;
-  lastPromptModelId = input.modelId;
   if (runtime.session?.setModel) {
     await runtime.session.setModel(model);
   }
@@ -477,7 +474,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
   if (!content) return chat.getConversationSnapshot();
   await chat.ensureChatSessionsLoaded();
   if (input.modelId) {
-    lastPromptModelId = input.modelId;
+    await chat.rememberSubmittedModel(input.modelId);
   }
 
   const isCursorModel = isCursorModelId(input.modelId);
@@ -490,7 +487,7 @@ async function sendPrompt(input: StudioSendPromptInput): Promise<StudioConversat
   if (input.modelId && !isCursorModel) {
     await selectModel({ modelId: input.modelId });
   } else if (!input.modelId && runtime.selectedModelId) {
-    lastPromptModelId = runtime.selectedModelId;
+    await chat.rememberSubmittedModel(runtime.selectedModelId);
   }
 
   const userMessage: StudioMessage = {
@@ -674,6 +671,7 @@ async function newConversation(): Promise<StudioConversationSnapshot> {
   chat.messages = [];
   chat.status = "ready";
   chat.lastError = undefined;
+  chat.lastSubmittedModelId = undefined;
   chat.currentSessionId = createId("session");
   chat.currentArtifactId = createId("artifact");
   await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
@@ -694,6 +692,7 @@ async function openChatSession(sessionId: string): Promise<StudioConversationSna
   if (!session) throw new Error("Chat session not found.");
   chat.currentSessionId = session.id;
   chat.currentArtifactId = session.artifactId;
+  chat.lastSubmittedModelId = session.lastSubmittedModelId;
   chat.messages = session.messages;
   chat.status = "ready";
   chat.lastError = undefined;
@@ -718,6 +717,7 @@ async function deleteChatSession(
     chat.messages = [];
     chat.status = "ready";
     chat.lastError = undefined;
+    chat.lastSubmittedModelId = undefined;
     chat.currentSessionId = createId("session");
     chat.currentArtifactId = createId("artifact");
     await getDeckService().ensureArtifactWorkspace(chat.currentArtifactId);
@@ -801,7 +801,7 @@ async function resumeAgentAfterPlanConfirm(): Promise<void> {
   // Find the model the user last picked. We re-use the same routing logic
   // as sendPrompt: cursor model → cursor runtime, else Pi runtime.
   const runtime = await getRuntime();
-  const modelId = lastPromptModelId ?? runtime.selectedModelId;
+  const modelId = chat.lastSubmittedModelId ?? runtime.selectedModelId;
   if (!modelId) return;
 
   const directive =

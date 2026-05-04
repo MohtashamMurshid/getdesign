@@ -89,4 +89,5 @@ export function createAssistantStreamState(): AssistantStreamState {
 export type StoredChatSession = StudioChatSessionSummary & {
   messages: StudioMessage[];
   manualTitle?: boolean;
+  lastSubmittedModelId?: string;
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   IconCheck,
   IconExternalLink,
@@ -33,6 +33,7 @@ export function ChatPlanCard({
 }) {
   const { plan, superseded } = data;
   const confirmed = plan.status === "confirmed";
+  const [confirmedLatched, setConfirmedLatched] = useState(confirmed);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
   // Confirmed cards collapse by default (we already showed the user the plan
@@ -42,13 +43,18 @@ export function ChatPlanCard({
   // Q11: disable confirm during streaming so we don't yank the agent mid-turn.
   const disabledByStream = status === "streaming" || status === "submitted";
 
+  useEffect(() => {
+    if (confirmed) setConfirmedLatched(true);
+  }, [confirmed]);
+
   async function handleConfirm() {
-    if (busy || confirmed || superseded) return;
+    if (busy || confirmedLatched || superseded) return;
     setBusy(true);
     setError(undefined);
     try {
       // Look up the deck id from the artifact id — they're aliased in Studio.
       await window.api.confirmDeckPlan({ deckId: data.artifactId });
+      setConfirmedLatched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not confirm plan.");
     } finally {
@@ -136,7 +142,7 @@ export function ChatPlanCard({
             <Button
               size="sm"
               className="h-7 text-xs"
-              disabled={busy || disabledByStream}
+              disabled={busy || confirmedLatched || disabledByStream}
               title={
                 disabledByStream ? "Waiting for agent to pause." : undefined
               }

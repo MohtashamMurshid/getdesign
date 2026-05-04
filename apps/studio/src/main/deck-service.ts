@@ -21,9 +21,15 @@ import {
   exportStudioDeckPptx,
   validateStudioPptxDeck,
 } from "./studio-pptx-export";
+import { waitForWebContentsVisualReady } from "./web-contents-ready";
+import {
+  buildSlides,
+  getDeckDimensionsForMode,
+  renderSlideHtml,
+  renderTokensCss,
+} from "./deck-template-rendering";
 
-const DECK_WIDTH = 1920;
-const DECK_HEIGHT = 1080;
+const DEFAULT_DECK_DIMENSIONS = getDeckDimensionsForMode("freeform");
 const TEMP_INDEX_MARKER = "studio-generated-temporary-index";
 const DECK_PLAN_FILE = "deck-plan.json";
 const VALID_EXPORT_PATHS = new Set(["html", "html-pdf", "pptx"]);
@@ -95,6 +101,7 @@ export class StudioDeckService {
 
     const slides = buildSlides(slideContents);
     await writeFile(join(sharedPath, "tokens.css"), renderTokensCss(mode), "utf8");
+    await writeTweaksCss(deckPath, {});
     await Promise.all(
       slides.map((slide, index) =>
         writeFile(
@@ -150,24 +157,25 @@ export class StudioDeckService {
     const hasSlideFiles = slides.some((slide) => slide.file.startsWith("slides/"));
     const plan = await readPlanFile(artifactPath);
 
-    // Plan-only "in planning" state: the agent wrote deck-plan.json but no
-    // slides exist yet. We return a deck so the renderer can show the Plan
-    // Gate Card (and its Confirm button) before the agent generates slides.
-    // This is the explicit hand-off the planning gate is built around.
     if (!hasSlideFiles) {
-      if (!plan) return undefined;
+      const stored = await readStoredManifest(artifactPath);
+      const hasIndexFile = await pathExists(indexFile);
+      if (!plan && !stored && !hasIndexFile) return undefined;
       const now = Date.now();
+      const manifest = await readArtifactManifest(artifactPath, artifactId, {
+        parsed: stored,
+        discoveredSlides: slides,
+      });
       return withPreviewUrl({
-        id: artifactId,
-        title: titleFromArtifactId(artifactId),
-        mode: plan.mode,
+        ...manifest,
+        mode: plan?.mode ?? manifest.mode,
         path: artifactPath,
         indexFile,
-        createdAt: plan.createdAt ?? now,
-        updatedAt: now,
-        slides: [],
+        createdAt: manifest.createdAt || plan?.createdAt || now,
+        updatedAt: Math.max(manifest.updatedAt || 0, now),
+        slides: stored || hasIndexFile ? manifest.slides : [],
         plan,
-        tweaks: {},
+        tweaks: manifest.tweaks,
       });
     }
 
@@ -233,12 +241,9 @@ export class StudioDeckService {
     const sanitized = sanitizePlanInput(planInput);
     const plan: StudioDeckPlan = {
       ...sanitized,
-      status: sanitized.status ?? existing?.status ?? "pending",
+      status: "pending",
       createdAt: existing?.createdAt ?? Date.now(),
-      confirmedAt:
-        sanitized.status === "confirmed" || existing?.status === "confirmed"
-          ? existing?.confirmedAt ?? Date.now()
-          : undefined,
+      confirmedAt: undefined,
     };
     await writePlanFile(deck.path, plan);
     return this.loadDeck(deckId);
@@ -282,7 +287,7 @@ export class StudioDeckService {
       indexFile: deck.indexFile,
       createdAt: stored.createdAt ?? deck.createdAt,
       updatedAt: Date.now(),
-      slides: stored.slides ?? deck.slides,
+      slides: deck.slides,
       tweaks: sanitized,
     };
     await writeManifest(deck.path, next);
@@ -379,19 +384,20 @@ const PPTX_SAFE_BANNED_SUBSTRINGS: ReadonlyArray<readonly [string, string]> = [
 async function readArtifactManifest(
   artifactPath: string,
   artifactId: string,
+  options: {
+    parsed?: Partial<StoredDeckManifest>;
+    discoveredSlides?: StudioDeckSlide[];
+  } = {},
 ): Promise<StoredDeckManifest> {
-  const deckJsonPath = join(artifactPath, "deck.json");
-  let parsed: Partial<StoredDeckManifest> = {};
-  try {
-    const raw = await readFile(deckJsonPath, "utf8");
-    parsed = JSON.parse(raw) as Partial<StoredDeckManifest>;
-  } catch {
-    // Artifact deck without explicit manifest — derive from filesystem.
-  }
+  const parsed = options.parsed ?? (await readStoredManifest(artifactPath)) ?? {};
 
-  const discovered = await discoverSlides(artifactPath);
-  const baseSlides =
-    parsed.slides && parsed.slides.length > 0 ? parsed.slides : discovered;
+  const discovered = options.discoveredSlides ?? (await discoverSlides(artifactPath));
+  const discoveredHasSlideFiles = discovered.some((slide) => slide.file.startsWith("slides/"));
+  const baseSlides = discoveredHasSlideFiles
+    ? mergeDiscoveredSlideMetadata(discovered, parsed.slides)
+    : parsed.slides && parsed.slides.length > 0
+      ? parsed.slides
+      : discovered;
   const slides = await hydrateSlideNotes(artifactPath, baseSlides);
 
   return {
@@ -405,6 +411,30 @@ async function readArtifactManifest(
     slides,
     tweaks: sanitizeTweaks(parsed.tweaks ?? {}),
   };
+}
+
+async function readStoredManifest(
+  artifactPath: string,
+): Promise<Partial<StoredDeckManifest> | undefined> {
+  try {
+    const raw = await readFile(join(artifactPath, "deck.json"), "utf8");
+    return JSON.parse(raw) as Partial<StoredDeckManifest>;
+  } catch {
+    return undefined;
+  }
+}
+
+function mergeDiscoveredSlideMetadata(
+  discovered: StudioDeckSlide[],
+  stored: StudioDeckSlide[] | undefined,
+): StudioDeckSlide[] {
+  if (!stored || stored.length === 0) return discovered;
+  return discovered.map((slide) => {
+    const previous = stored.find(
+      (candidate) => candidate.file === slide.file || candidate.id === slide.id,
+    );
+    return previous?.notes ? { ...slide, notes: previous.notes } : slide;
+  });
 }
 
 async function discoverSlides(artifactPath: string): Promise<StudioDeckSlide[]> {
@@ -503,10 +533,7 @@ async function inferDeckDimensions(
 ): Promise<DeckDimensions> {
   const firstSlide = slides.find((slide) => slide.file.startsWith("slides/"));
   if (!firstSlide) {
-    return (await inferSharedStylesDimensions(artifactPath)) ?? {
-      width: DECK_WIDTH,
-      height: DECK_HEIGHT,
-    };
+    return (await inferSharedStylesDimensions(artifactPath)) ?? DEFAULT_DECK_DIMENSIONS;
   }
 
   try {
@@ -516,15 +543,9 @@ async function inferDeckDimensions(
       readCssDimensions(html, /body\s*\{([\s\S]*?)\}/i) ??
       readViewportDimensions(html);
     if (fromSlide) return fromSlide;
-    return (await inferSharedStylesDimensions(artifactPath)) ?? {
-      width: DECK_WIDTH,
-      height: DECK_HEIGHT,
-    };
+    return (await inferSharedStylesDimensions(artifactPath)) ?? DEFAULT_DECK_DIMENSIONS;
   } catch {
-    return (await inferSharedStylesDimensions(artifactPath)) ?? {
-      width: DECK_WIDTH,
-      height: DECK_HEIGHT,
-    };
+    return (await inferSharedStylesDimensions(artifactPath)) ?? DEFAULT_DECK_DIMENSIONS;
   }
 }
 
@@ -682,61 +703,12 @@ async function waitForPrintFramesReady(win: BrowserWindow): Promise<void> {
  * Falls back to a 1500ms ceiling so a hung page never wedges export forever.
  */
 function waitForDeckLoad(win: BrowserWindow): Promise<void> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-    const ceiling = setTimeout(finish, 1500);
-    const ready = () => {
-      win.webContents
-        .executeJavaScript(
-          `(async () => {
-            try { if (document.fonts && document.fonts.ready) { await document.fonts.ready; } } catch (_) {}
-            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-            return true;
-          })()`,
-        )
-        .then(() => {
-          clearTimeout(ceiling);
-          finish();
-        })
-        .catch(() => {
-          clearTimeout(ceiling);
-          finish();
-        });
-    };
-    if (win.webContents.isLoading()) {
-      win.webContents.once("did-finish-load", ready);
-      win.webContents.once("did-fail-load", () => {
-        clearTimeout(ceiling);
-        finish();
-      });
-    } else {
-      ready();
-    }
-  });
-}
-
-function buildSlides(contents: StudioDeckSlideContent[]): StudioDeckSlide[] {
-  const labels = ["Cover", "Narrative", "Problem", "Solution", "Proof", "Roadmap", "Closing"];
-  return contents.map((content, index) => {
-    const n = String(index + 1).padStart(2, "0");
-    const label = content.label?.trim() || labels[index] || `Slide ${index + 1}`;
-    return {
-      id: `slide-${n}`,
-      file: `slides/${n}-${slugify(label)}.html`,
-      label,
-      title: content.title,
-    };
-  });
+  return waitForWebContentsVisualReady(win.webContents, 1500);
 }
 
 function renderDeckIndex(
   slides: StudioDeckSlide[],
-  dimensions: DeckDimensions = { width: DECK_WIDTH, height: DECK_HEIGHT },
+  dimensions: DeckDimensions = DEFAULT_DECK_DIMENSIONS,
 ) {
   const manifest = slides
     .map((slide) => `    { file: ${JSON.stringify(slide.file)}, label: ${JSON.stringify(slide.label)} }`)
@@ -844,99 +816,6 @@ ${printFrames}
 `;
 }
 
-function renderSlideHtml({
-  title,
-  slide,
-  content,
-  index,
-  total,
-  mode,
-}: {
-  title: string;
-  slide: StudioDeckSlide;
-  content: StudioDeckSlideContent;
-  index: number;
-  total: number;
-  mode: StudioDeckMode;
-}) {
-  const isCover = index === 0;
-  const safeNote =
-    mode === "pptx-safe"
-      ? "PPTX-safe: text stays in p/h tags, images use img tags, gradients and web components are avoided."
-      : "Freeform HTML source: PDF and browser presentation are the primary exports.";
-
-  const points = (content.points && content.points.length > 0
-    ? content.points
-    : [
-        "Models learn statistical patterns from examples.",
-        "Training adjusts internal weights to reduce errors.",
-        "Inference applies those learned weights to new inputs.",
-      ]
-  ).slice(0, 5);
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=1920,height=1080">
-<title>${escapeHtml(title)} · ${escapeHtml(slide.label)}</title>
-<link rel="stylesheet" href="../shared/tokens.css">
-</head>
-<body>
-  <main class="slide ${isCover ? "cover" : ""}">
-    <header class="masthead">
-      <p>Studio Deck</p>
-      <p>${String(index + 1).padStart(2, "0")} / ${String(total).padStart(2, "0")}</p>
-    </header>
-    <section class="content">
-      <p class="kicker">${escapeHtml(slide.label)}</p>
-      <h1>${escapeHtml(content.title || (isCover ? title : slide.title))}</h1>
-      <p class="lede">${escapeHtml(content.lede || safeNote)}</p>
-      <div class="process">
-        ${points
-          .map(
-            (point, pointIndex) => `<article>
-          <p class="eyebrow">Step ${String(pointIndex + 1).padStart(2, "0")}</p>
-          <h2>${escapeHtml(point.split(":")[0] || point)}</h2>
-          <p>${escapeHtml(point.includes(":") ? point.split(":").slice(1).join(":").trim() : point)}</p>
-        </article>`,
-          )
-          .join("\n        ")}
-      </div>
-    </section>
-  </main>
-</body>
-</html>
-`;
-}
-
-function renderTokensCss(mode: StudioDeckMode) {
-  const background =
-    mode === "pptx-safe"
-      ? "#faf8f1"
-      : "radial-gradient(circle at 20% 0%, rgba(215,255,114,.18), transparent 30%), #faf8f1";
-  const kickerBorder =
-    mode === "pptx-safe"
-      ? ""
-      : "border: 1px solid rgba(23,23,20,.2); border-radius: 999px;";
-  return `* { box-sizing: border-box; }
-html, body { margin: 0; width: ${DECK_WIDTH}px; height: ${DECK_HEIGHT}px; overflow: hidden; }
-body { background: ${background}; color: #171714; font-family: Georgia, "Times New Roman", serif; }
-.slide { position: relative; width: ${DECK_WIDTH}px; height: ${DECK_HEIGHT}px; padding: 58px 76px 64px; }
-.masthead { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(23,23,20,.18); padding-bottom: 18px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .12em; text-transform: uppercase; font-size: 16px; color: rgba(23,23,20,.55); }
-.content { height: calc(100% - 50px); display: flex; flex-direction: column; justify-content: center; gap: 28px; }
-.kicker { width: fit-content; ${kickerBorder} padding: 8px 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; letter-spacing: .16em; text-transform: uppercase; }
-h1 { max-width: 1240px; margin: 0; font-size: 118px; line-height: .95; letter-spacing: -.055em; text-wrap: balance; }
-.cover h1 { max-width: 1500px; font-size: 150px; }
-.lede { max-width: 980px; margin: 0; font-size: 30px; line-height: 1.35; color: rgba(23,23,20,.72); text-wrap: pretty; }
-.process { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; max-width: 1440px; margin-top: 12px; }
-article { border-top: 1px solid rgba(23,23,20,.18); padding-top: 22px; }
-.eyebrow { margin: 0 0 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: rgba(23,23,20,.5); }
-h2 { margin: 0 0 12px; font-size: 36px; letter-spacing: -.02em; }
-article p:last-child { margin: 0; max-width: 520px; font-size: 22px; line-height: 1.55; color: rgba(23,23,20,.68); }
-`;
-}
-
 function normalizeSlideContents(input: StudioCreateDeckInput): StudioDeckSlideContent[] {
   const provided = input.slides
     ?.filter((slide) => slide.title.trim().length > 0)
@@ -1038,6 +917,15 @@ async function writePlanFile(deckPath: string, plan: StudioDeckPlan): Promise<vo
     JSON.stringify(plan, null, 2),
     "utf8",
   );
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isPlanRecord(value: unknown): value is Record<string, unknown> {
