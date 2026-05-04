@@ -2,7 +2,7 @@ import { generateText, type LanguageModel, type UserContent } from "ai";
 
 import type { ScreenshotArtifact } from "@getdesign/tools/daytona";
 
-import { resolveModel } from "../model";
+import { resolveModel } from "../model.js";
 
 const SYSTEM_INSTRUCTIONS = `You are the VisualDescriber sub-agent for getdesign. Your job is to look at a stack of viewport screenshots that together form one complete rendered landing page, and write a thorough, designer-grade visual description in markdown. Describe what you actually see, in concrete terms. No marketing prose, no abstract praise, no hallucinated details. Use the exact section headings provided.`;
 

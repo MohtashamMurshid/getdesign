@@ -1,5 +1,5 @@
-#!/usr/bin/env bun
-import { GetDesignError, runGetdesignCli } from "./runGetdesign";
+#!/usr/bin/env node
+import { GetDesignError, runGetdesignCli } from "./runGetdesign.js";
 
 const RED = "\x1b[31m";
 const RESET = "\x1b[0m";

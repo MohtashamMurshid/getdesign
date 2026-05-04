@@ -32,7 +32,7 @@ const synthesisSchema = designDocSchema.extend({
 });
 
 import type { ScreenshotArtifact } from "@getdesign/tools/daytona";
-import { resolveModel } from "../model";
+import { resolveModel } from "../model.js";
 
 /**
  * Defensive cap on the number of tile images sent to the synthesizer in a

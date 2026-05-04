@@ -3,10 +3,10 @@ import { dirname } from "node:path";
 
 import { GetDesignError, streamDesign } from "@getdesign/sdk";
 
-import { parseArgs, usage } from "./lib/parseArgs";
-import { normalizeUrl, resolveOutputPath } from "./lib/outputPath";
-import { ProgressDisplay } from "./lib/progressDisplay";
-import { readCliPackageVersion } from "./lib/version";
+import { parseArgs, usage } from "./lib/parseArgs.js";
+import { normalizeUrl, resolveOutputPath } from "./lib/outputPath.js";
+import { ProgressDisplay } from "./lib/progressDisplay.js";
+import { readCliPackageVersion } from "./lib/version.js";
 
 const DIM = "\x1b[2m";
 const GREEN = "\x1b[32m";

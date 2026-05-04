@@ -5,11 +5,11 @@ import type { CrawlSiteResult } from "@getdesign/tools";
 import { renderDesignMd } from "@getdesign/tools/render";
 import type { DesignTokens } from "@getdesign/types";
 
-import { createCrawlerTool } from "./crawler";
-import { createTokenExtractorTool } from "./tokenExtractor";
-import { createVisualTool, type VisualResult } from "./visual";
-import { runSynthesize } from "./synthesizer";
-import { resolveModel } from "../model";
+import { createCrawlerTool } from "./crawler.js";
+import { createTokenExtractorTool } from "./tokenExtractor.js";
+import { createVisualTool, type VisualResult } from "./visual.js";
+import { runSynthesize } from "./synthesizer.js";
+import { resolveModel } from "../model.js";
 
 const COORDINATOR_INSTRUCTIONS = `You are the Coordinator for getdesign. Given a URL, run the pipeline exactly once in this order:
 

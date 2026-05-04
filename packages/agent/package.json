@@ -35,8 +35,8 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.58",
-    "@getdesign/tools": "workspace:*",
-    "@getdesign/types": "workspace:*",
+    "@getdesign/tools": "^0.1.0",
+    "@getdesign/types": "^0.1.0",
     "ai": "^6.0.174",
     "zod": "^4.4.2"
   }

@@ -21,7 +21,7 @@ import {
   crawlSiteResultSchema,
   type CrawlSiteResult,
   type CrawledStylesheet,
-} from "../crawler";
+} from "../crawler/index.js";
 
 const HEX_COLOR_PATTERN =
   /#(?:[\dA-Fa-f]{3}|[\dA-Fa-f]{4}|[\dA-Fa-f]{6}|[\dA-Fa-f]{8})\b/g;

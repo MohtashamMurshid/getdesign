@@ -1,6 +1,6 @@
 import type { Sandbox } from "@daytonaio/sdk";
 
-import type { CapturePhaseHandler } from "./types";
+import type { CapturePhaseHandler } from "./types.js";
 
 const I18N_TLDS = new Set([
   ".cn",

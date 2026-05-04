@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { breakpointTokenSchema, colorTokenSchema, designTokensSchema, shadowTokenSchema } from "./design-tokens";
+import { breakpointTokenSchema, colorTokenSchema, designTokensSchema, shadowTokenSchema } from "./design-tokens.js";
 
 const nonEmptyTextSchema = z.string().trim().min(1);
 

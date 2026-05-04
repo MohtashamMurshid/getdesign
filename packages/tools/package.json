@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@daytonaio/sdk": "^0.167.0",
-    "@getdesign/types": "workspace:*",
+    "@getdesign/types": "^0.1.0",
     "cheerio": "^1.2.0",
     "postcss": "^8.5.10",
     "postcss-safe-parser": "^7.0.1",
