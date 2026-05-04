@@ -56,6 +56,7 @@ export class StudioChatController {
   status: StudioConversationSnapshot["status"] = "ready";
   lastError: string | undefined;
   currentArtifactId = createId("artifact");
+  lastSubmittedModelId: string | undefined;
   assistantStream: AssistantStreamState = createAssistantStreamState();
   chatSessions: StoredChatSession[] = [];
   sessionsLoaded = false;
@@ -401,6 +402,7 @@ export class StudioChatController {
       updatedAt: now,
       messages: this.messages,
       manualTitle: existing?.manualTitle,
+      lastSubmittedModelId: this.lastSubmittedModelId ?? existing?.lastSubmittedModelId,
     };
     this.chatSessions = [
       session,
@@ -412,6 +414,16 @@ export class StudioChatController {
   async persistChatSessions(): Promise<void> {
     await mkdir(getPiAgentDir(), { recursive: true });
     await writeFile(getChatSessionsPath(), JSON.stringify(this.chatSessions, null, 2), "utf8");
+  }
+
+  async rememberSubmittedModel(modelId: string): Promise<void> {
+    this.lastSubmittedModelId = modelId;
+    await this.ensureChatSessionsLoaded();
+    const existing = this.chatSessions.find((session) => session.id === this.currentSessionId);
+    if (!existing) return;
+    existing.lastSubmittedModelId = modelId;
+    existing.updatedAt = Date.now();
+    await this.persistChatSessions();
   }
 
   async listChatSessionSummaries(): Promise<StudioChatSessionSummary[]> {

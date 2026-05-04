@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   IconChevronRight,
   IconExternalLink,
@@ -88,6 +88,7 @@ export function DeckWorkspace({
   const [tweaksBusy, setTweaksBusy] = useState(false);
   const [templates, setTemplates] = useState<StudioDeckTemplateSummary[]>([]);
   const [creatingTemplateId, setCreatingTemplateId] = useState<string | undefined>();
+  const selectedDeckIdRef = useRef<string | undefined>(selectedDeckId);
 
   const selectedDeck = useMemo(
     () => decks.find((deck) => deck.id === selectedDeckId),
@@ -103,6 +104,10 @@ export function DeckWorkspace({
   const planPending = Boolean(selectedDeck?.plan && !planConfirmed);
   const hasSlides = Boolean(selectedDeck && selectedDeck.slides.length > 0);
   const exportsBlocked = !planConfirmed || !hasSlides;
+
+  useEffect(() => {
+    selectedDeckIdRef.current = selectedDeckId;
+  }, [selectedDeckId]);
 
   // Reset transient panel state when the user switches decks.
   useEffect(() => {
@@ -131,28 +136,34 @@ export function DeckWorkspace({
 
   async function handleExport(format: StudioDeckExportFormat) {
     if (!selectedDeck) return;
+    const requestDeckId = selectedDeck.id;
     setExportingFormat(format);
     setExportError(undefined);
     setExportMessage(undefined);
     setExportPath(undefined);
     try {
-      const result = await onExportDeck(selectedDeck.id, format);
+      const result = await onExportDeck(requestDeckId, format);
+      if (selectedDeckIdRef.current !== requestDeckId) return;
       setExportMessage(result.message);
       setExportPath(result.path);
     } catch (error) {
+      if (selectedDeckIdRef.current !== requestDeckId) return;
       setExportError(error instanceof Error ? error.message : "Export failed.");
     } finally {
-      setExportingFormat(undefined);
+      if (selectedDeckIdRef.current === requestDeckId) setExportingFormat(undefined);
     }
   }
 
   async function handleVerify() {
     if (!selectedDeck) return;
+    const requestDeckId = selectedDeck.id;
     setVerifying(true);
     try {
-      const result = await window.api.verifyDeck(selectedDeck.id);
+      const result = await window.api.verifyDeck(requestDeckId);
+      if (selectedDeckIdRef.current !== requestDeckId) return;
       setVerification(result);
     } catch (error) {
+      if (selectedDeckIdRef.current !== requestDeckId) return;
       setVerification({
         ok: false,
         issues: [
@@ -164,23 +175,26 @@ export function DeckWorkspace({
         checkedAt: Date.now(),
       });
     } finally {
-      setVerifying(false);
+      if (selectedDeckIdRef.current === requestDeckId) setVerifying(false);
     }
   }
 
   async function handleTweakChange(patch: Partial<StudioDeckTweaks>) {
     if (!selectedDeck) return;
+    const requestDeckId = selectedDeck.id;
     setTweaksBusy(true);
     try {
       const next: StudioDeckTweaks = { ...(selectedDeck.tweaks ?? {}), ...patch };
-      await window.api.applyDeckTweaks({ deckId: selectedDeck.id, tweaks: next });
+      await window.api.applyDeckTweaks({ deckId: requestDeckId, tweaks: next });
+      if (selectedDeckIdRef.current !== requestDeckId) return;
       setPreviewKey((key) => key + 1);
     } catch (error) {
+      if (selectedDeckIdRef.current !== requestDeckId) return;
       setExportError(
         error instanceof Error ? error.message : "Could not apply tweaks.",
       );
     } finally {
-      setTweaksBusy(false);
+      if (selectedDeckIdRef.current === requestDeckId) setTweaksBusy(false);
     }
   }
 
@@ -405,6 +419,7 @@ export function DeckWorkspace({
           <EmptyState
             templates={templates}
             creatingTemplateId={creatingTemplateId}
+            exportError={exportError}
             onCreate={handleCreateFromTemplate}
           />
         )}
@@ -445,7 +460,15 @@ function PlanStatusPill({
     );
   }
 
-  // Pending — clickable; nudges the user to the chat where the real card is.
+  // Pending — nudge the user to the chat where the real card is when possible.
+  if (!onShowChat) {
+    return (
+      <span className="mb-2 inline-flex items-center gap-1.5 self-start rounded-md border border-amber-400/40 bg-amber-50/40 px-2.5 py-1 text-[11px] text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
+        Plan pending — confirm in chat
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -669,10 +692,12 @@ function ExportBar({
 function EmptyState({
   templates,
   creatingTemplateId,
+  exportError,
   onCreate,
 }: {
   templates: StudioDeckTemplateSummary[];
   creatingTemplateId?: string;
+  exportError?: string;
   onCreate: (templateId: string) => void;
 }) {
   return (
@@ -720,6 +745,13 @@ function EmptyState({
             );
           })}
         </ul>
+      ) : null}
+      {exportError ? (
+        <Card className="w-full max-w-xl border-destructive/40 bg-destructive/10 text-left">
+          <CardContent className="whitespace-pre-wrap py-2 text-xs text-destructive">
+            {exportError}
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   );

@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import pptxgen from "pptxgenjs";
 
 import type { StudioDeckProject } from "../shared/studio-api";
+import { waitForWebContentsVisualReady } from "./web-contents-ready";
 
 const PX_PER_IN = 96;
 const MIN_BOTTOM_MARGIN_IN = 0.35;
@@ -226,42 +227,7 @@ async function captureDeck(deck: StudioDeckProject, parentWindow?: BrowserWindow
  * surface as snapshot errors rather than silent hangs.
  */
 function waitForSlideLoad(win: BrowserWindow): Promise<void> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-    const ceiling = setTimeout(finish, 2000);
-    const ready = () => {
-      win.webContents
-        .executeJavaScript(
-          `(async () => {
-            try { if (document.fonts && document.fonts.ready) { await document.fonts.ready; } } catch (_) {}
-            await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-            return true;
-          })()`,
-        )
-        .then(() => {
-          clearTimeout(ceiling);
-          finish();
-        })
-        .catch(() => {
-          clearTimeout(ceiling);
-          finish();
-        });
-    };
-    if (win.webContents.isLoading()) {
-      win.webContents.once("did-finish-load", ready);
-      win.webContents.once("did-fail-load", () => {
-        clearTimeout(ceiling);
-        finish();
-      });
-    } else {
-      ready();
-    }
-  });
+  return waitForWebContentsVisualReady(win.webContents, 2000);
 }
 
 function textOptions(position: Box, style: TextStyle) {

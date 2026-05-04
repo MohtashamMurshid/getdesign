@@ -61,7 +61,8 @@ export class DeckPlanWatcher {
       // deck-plan.json), and `fs.watch` errors on a missing path. Directory
       // watching catches creates, modifies, and renames uniformly.
       this.fsWatcher = watch(artifactPath, (_eventType, filename) => {
-        if (filename !== DECK_PLAN_FILE) return;
+        const watchedName = filename == null ? undefined : String(filename);
+        if (watchedName && watchedName !== DECK_PLAN_FILE) return;
         this.scheduleEmit();
       });
       this.fsWatcher.on("error", () => {
