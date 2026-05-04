@@ -181,11 +181,11 @@
     },
     "packages/agent": {
       "name": "@getdesign/agent",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@ai-sdk/openai": "^3.0.58",
-        "@getdesign/tools": "^0.1.0",
-        "@getdesign/types": "^0.1.0",
+        "@getdesign/tools": "^0.1.1",
+        "@getdesign/types": "^0.1.1",
         "ai": "^6.0.174",
         "zod": "^4.4.2",
       },
@@ -195,12 +195,12 @@
     },
     "packages/cli": {
       "name": "@getdesign/cli",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "bin": {
         "getdesign": "./dist/getdesign.js",
       },
       "dependencies": {
-        "@getdesign/sdk": "^0.1.1",
+        "@getdesign/sdk": "^0.1.2",
         "unicode-animations": "^1.0.3",
       },
       "devDependencies": {
@@ -213,10 +213,10 @@
     },
     "packages/sdk": {
       "name": "@getdesign/sdk",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
-        "@getdesign/agent": "^0.1.0",
-        "@getdesign/types": "^0.1.0",
+        "@getdesign/agent": "^0.1.1",
+        "@getdesign/types": "^0.1.1",
       },
       "devDependencies": {
         "@types/bun": "^1.3.13",
@@ -225,10 +225,10 @@
     },
     "packages/tools": {
       "name": "@getdesign/tools",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@daytonaio/sdk": "^0.167.0",
-        "@getdesign/types": "^0.1.0",
+        "@getdesign/types": "^0.1.1",
         "cheerio": "^1.2.0",
         "postcss": "^8.5.10",
         "postcss-safe-parser": "^7.0.1",
@@ -243,7 +243,7 @@
     },
     "packages/types": {
       "name": "@getdesign/types",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "zod": "^4.3.6",
       },

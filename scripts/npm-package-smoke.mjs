@@ -101,6 +101,14 @@ async function main() {
       throw new Error(`CLI help output did not contain usage text:\n${cliHelp.stdout}`);
     }
 
+    const bunxHelp = run("bunx", ["--no-install", "getdesign", "--help"], {
+      cwd: projectDir,
+      capture: true,
+    });
+    if (!bunxHelp.stdout.includes("Usage:") || !bunxHelp.stdout.includes("getdesign <url>")) {
+      throw new Error(`bunx help output did not contain usage text:\n${bunxHelp.stdout}`);
+    }
+
     console.log(`npm package smoke passed in ${projectDir}`);
   } finally {
     await rm(workDir, { recursive: true, force: true });
