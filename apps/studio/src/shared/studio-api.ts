@@ -96,6 +96,37 @@ export type StudioMessagePart = {
   result?: unknown;
 };
 
+/**
+ * Inline chat representation of a deck-plan.json on disk. Created by the main
+ * process when the watcher observes a new or changed plan; mutated in place on
+ * status-only changes (pending → confirmed) and superseded when the plan
+ * content hash changes.
+ */
+export type StudioDeckPlanCardData = {
+  artifactId: string;
+  artifactPath: string;
+  /** Stable hash over the plan's content fields (audience/keyMessage/etc).
+   * Used to distinguish status-only writes from content rewrites. */
+  contentHash: string;
+  plan: StudioDeckPlan;
+  /** True if a newer plan card with a different contentHash exists in this
+   * thread. Renderer dims superseded cards. */
+  superseded?: boolean;
+};
+
+/** Thin one-line system note appended after the user clicks Confirm in chat. */
+export type StudioPlanConfirmedNoteData = {
+  artifactId: string;
+  confirmedAt: number;
+};
+
+export const STUDIO_DECK_PLAN_PART_TYPE = "studio:deck-plan" as const;
+export const STUDIO_PLAN_CONFIRMED_PART_TYPE = "studio:plan-confirmed" as const;
+/** Marker on a user message that the chat UI should NOT render — the message
+ * still carries real content sent to the model (used for system-injected
+ * follow-up prompts like "plan confirmed, proceed"). */
+export const STUDIO_HIDDEN_PROMPT_PART_TYPE = "studio:hidden-prompt" as const;
+
 export type StudioConversationSnapshot = {
   id?: string;
   status: StudioChatStatus;
@@ -125,17 +156,60 @@ export type StudioDeleteChatSessionInput = {
 export type StudioSendPromptInput = {
   content: string;
   modelId?: string;
+  /** When true, the user message is recorded in chat history (so the agent
+   * sees it on session reload) but tagged with STUDIO_HIDDEN_PROMPT_PART_TYPE
+   * so the renderer skips it. Used for auto-resume after plan confirm. */
+  hidden?: boolean;
 };
 
 export type StudioDeckExportFormat = "html" | "pdf" | "pptx";
 
 export type StudioDeckMode = "freeform" | "pptx-safe";
 
+export type StudioDeckExportPath = "html" | "html-pdf" | "pptx";
+
+export type StudioDeckPlanStatus = "pending" | "confirmed";
+
+/**
+ * Lightweight pre-build plan that the agent records and the user confirms
+ * before slide files are written. Stored in `deck-plan.json` at the artifact
+ * root and surfaced to the renderer for explicit confirmation.
+ */
+export type StudioDeckPlan = {
+  audience: string;
+  keyMessage: string;
+  exportPath: StudioDeckExportPath;
+  slideCount: number;
+  mode: StudioDeckMode;
+  notes?: string;
+  status: StudioDeckPlanStatus;
+  createdAt: number;
+  confirmedAt?: number;
+};
+
+export type StudioDeckPlanInput = {
+  audience: string;
+  keyMessage: string;
+  exportPath: StudioDeckExportPath;
+  slideCount: number;
+  mode: StudioDeckMode;
+  notes?: string;
+  status?: StudioDeckPlanStatus;
+};
+
+export type StudioDeckTweaks = {
+  theme?: "default" | "light" | "dark" | "warm" | "cool";
+  density?: "comfortable" | "compact" | "spacious";
+  imageStyle?: "default" | "muted" | "vivid";
+};
+
 export type StudioDeckSlide = {
   id: string;
   file: string;
   label: string;
   title: string;
+  /** Speaker notes for this slide. Sourced from deck.json or `<aside class="notes">`. */
+  notes?: string;
 };
 
 export type StudioDeckSlideContent = {
@@ -144,6 +218,15 @@ export type StudioDeckSlideContent = {
   kicker?: string;
   lede?: string;
   points?: string[];
+  notes?: string;
+};
+
+export type StudioDeckTemplateSummary = {
+  id: string;
+  title: string;
+  description: string;
+  slideCount: number;
+  mode: StudioDeckMode;
 };
 
 export type StudioDeckProject = {
@@ -156,6 +239,10 @@ export type StudioDeckProject = {
   createdAt: number;
   updatedAt: number;
   slides: StudioDeckSlide[];
+  /** Required-but-lightweight plan that gates exports when present. */
+  plan?: StudioDeckPlan;
+  /** Optional manifest-level tweak controls applied via injected CSS variables. */
+  tweaks?: StudioDeckTweaks;
 };
 
 export type StudioCreateDeckInput = {
@@ -163,6 +250,7 @@ export type StudioCreateDeckInput = {
   mode?: StudioDeckMode;
   slideCount?: number;
   slides?: StudioDeckSlideContent[];
+  templateId?: string;
 };
 
 export type StudioExportDeckInput = {
@@ -174,6 +262,37 @@ export type StudioExportDeckResult = {
   format: StudioDeckExportFormat;
   path: string;
   message: string;
+};
+
+export type StudioDeckVerificationIssue = {
+  level: "error" | "warning";
+  slide?: string;
+  message: string;
+};
+
+export type StudioDeckVerificationResult = {
+  ok: boolean;
+  issues: StudioDeckVerificationIssue[];
+  checkedAt: number;
+};
+
+export type StudioSaveDeckPlanInput = {
+  deckId: string;
+  plan: StudioDeckPlanInput;
+};
+
+export type StudioConfirmDeckPlanInput = {
+  deckId: string;
+};
+
+export type StudioApplyDeckTweaksInput = {
+  deckId: string;
+  tweaks: StudioDeckTweaks;
+};
+
+export type StudioCreateDeckFromTemplateInput = {
+  templateId: string;
+  title?: string;
 };
 
 export type StudioSetRuntimeKeyInput = {
@@ -269,6 +388,14 @@ export type StudioApi = {
   openDeck: (deckId: string) => Promise<void>;
   revealPath: (path: string) => Promise<void>;
   exportDeck: (input: StudioExportDeckInput) => Promise<StudioExportDeckResult>;
+  saveDeckPlan: (input: StudioSaveDeckPlanInput) => Promise<StudioDeckProject>;
+  confirmDeckPlan: (input: StudioConfirmDeckPlanInput) => Promise<StudioDeckProject>;
+  applyDeckTweaks: (input: StudioApplyDeckTweaksInput) => Promise<StudioDeckProject>;
+  verifyDeck: (deckId: string) => Promise<StudioDeckVerificationResult>;
+  listDeckTemplates: () => Promise<StudioDeckTemplateSummary[]>;
+  createDeckFromTemplate: (
+    input: StudioCreateDeckFromTemplateInput,
+  ) => Promise<StudioDeckProject>;
   getCursorAuth: () => Promise<StudioCursorAuthStatus>;
   cursorLogin: (input: StudioCursorLoginInput) => Promise<StudioCursorAuthStatus>;
   cursorLogout: () => Promise<StudioCursorAuthStatus>;

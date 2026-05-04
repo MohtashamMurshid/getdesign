@@ -3,6 +3,9 @@ import type {
   StudioAddCustomModelInput,
   StudioAddCustomProviderInput,
   StudioApi,
+  StudioApplyDeckTweaksInput,
+  StudioConfirmDeckPlanInput,
+  StudioCreateDeckFromTemplateInput,
   StudioCreateDeckInput,
   StudioCursorLoginInput,
   StudioDeleteChatSessionInput,
@@ -10,6 +13,7 @@ import type {
   StudioExportDeckInput,
   StudioRemoveCustomModelInput,
   StudioRenameChatSessionInput,
+  StudioSaveDeckPlanInput,
   StudioSelectModelInput,
   StudioSendPromptInput,
   StudioStartLoginInput,
@@ -59,6 +63,16 @@ const api: StudioApi = {
   revealPath: (path: string) => ipcRenderer.invoke("studio:reveal-path", path),
   exportDeck: (input: StudioExportDeckInput) =>
     ipcRenderer.invoke("studio:export-deck", input),
+  saveDeckPlan: (input: StudioSaveDeckPlanInput) =>
+    ipcRenderer.invoke("studio:save-deck-plan", input),
+  confirmDeckPlan: (input: StudioConfirmDeckPlanInput) =>
+    ipcRenderer.invoke("studio:confirm-deck-plan", input),
+  applyDeckTweaks: (input: StudioApplyDeckTweaksInput) =>
+    ipcRenderer.invoke("studio:apply-deck-tweaks", input),
+  verifyDeck: (deckId: string) => ipcRenderer.invoke("studio:verify-deck", deckId),
+  listDeckTemplates: () => ipcRenderer.invoke("studio:list-deck-templates"),
+  createDeckFromTemplate: (input: StudioCreateDeckFromTemplateInput) =>
+    ipcRenderer.invoke("studio:create-deck-from-template", input),
   getCursorAuth: () => ipcRenderer.invoke("studio:cursor-get-auth"),
   cursorLogin: (input: StudioCursorLoginInput) =>
     ipcRenderer.invoke("studio:cursor-login", input),

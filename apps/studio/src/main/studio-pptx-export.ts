@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import pptxgen from "pptxgenjs";
 
 import type { StudioDeckProject } from "../shared/studio-api";
+import { waitForWebContentsVisualReady } from "./web-contents-ready";
 
 const PX_PER_IN = 96;
 const MIN_BOTTOM_MARGIN_IN = 0.35;
@@ -187,8 +188,11 @@ export async function exportStudioDeckPptx(
 
 async function captureDeck(deck: StudioDeckProject, parentWindow?: BrowserWindow) {
   const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    // 16:9 viewport so slides without an explicit body { width; height } still
+    // measure as 16:9 in the snapshot pre-flight (matches LAYOUT_WIDE 1280x720).
+    width: 1280,
+    height: 720,
+    useContentSize: true,
     show: false,
     parent: parentWindow,
     webPreferences: {
@@ -216,11 +220,14 @@ async function captureDeck(deck: StudioDeckProject, parentWindow?: BrowserWindow
   }
 }
 
+/**
+ * Wait for the slide page to be visually ready before snapshotting. Replaces
+ * the previous fixed-timer approach with real ready signals (did-finish-load +
+ * document.fonts.ready + a layout settle tick). Capped at 2000ms so hung pages
+ * surface as snapshot errors rather than silent hangs.
+ */
 function waitForSlideLoad(win: BrowserWindow): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 1200);
-    win.webContents.once("did-frame-finish-load", () => setTimeout(resolve, 350));
-  });
+  return waitForWebContentsVisualReady(win.webContents, 2000);
 }
 
 function textOptions(position: Box, style: TextStyle) {

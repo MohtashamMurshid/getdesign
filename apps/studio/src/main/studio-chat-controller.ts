@@ -3,11 +3,18 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import type {
   StudioChatSessionSummary,
   StudioConversationSnapshot,
+  StudioDeckPlan,
+  StudioDeckPlanCardData,
   StudioDeckProject,
   StudioEvent,
   StudioMessage,
   StudioMessagePart,
+  StudioPlanConfirmedNoteData,
   StudioRenameChatSessionInput,
+} from "../shared/studio-api";
+import {
+  STUDIO_DECK_PLAN_PART_TYPE,
+  STUDIO_PLAN_CONFIRMED_PART_TYPE,
 } from "../shared/studio-api";
 import type { StudioDeckService } from "./deck-service";
 import { createId, createIdSuffix } from "./pi/id-utils";
@@ -49,6 +56,7 @@ export class StudioChatController {
   status: StudioConversationSnapshot["status"] = "ready";
   lastError: string | undefined;
   currentArtifactId = createId("artifact");
+  lastSubmittedModelId: string | undefined;
   assistantStream: AssistantStreamState = createAssistantStreamState();
   chatSessions: StoredChatSession[] = [];
   sessionsLoaded = false;
@@ -70,6 +78,118 @@ export class StudioChatController {
 
   emitConversation(): void {
     this.deps.emit({ type: "conversation", payload: this.getConversationSnapshot() });
+  }
+
+  /**
+   * Reconcile chat history with the current state of `deck-plan.json`. Called
+   * by the deck-plan watcher when the file changes. Behavior follows Q4 of the
+   * design grill: status-only changes mutate the most recent matching card in
+   * place, content changes append a new card and mark the previous one
+   * `superseded`. Returns true if a chat mutation actually happened (caller
+   * uses this to decide whether to persist + emit).
+   */
+  reconcileDeckPlan(input: {
+    artifactId: string;
+    artifactPath: string;
+    plan: StudioDeckPlan;
+    contentHash: string;
+  }): { mutated: boolean; appended: boolean } {
+    const latest = this.findLatestPlanCardForArtifact(input.artifactId);
+    if (latest) {
+      const data = latest.part.input as StudioDeckPlanCardData;
+      if (data.contentHash === input.contentHash) {
+        // Status-only change (or identical write) — mutate in place.
+        const planChanged =
+          data.plan.status !== input.plan.status ||
+          data.plan.confirmedAt !== input.plan.confirmedAt;
+        if (!planChanged) return { mutated: false, appended: false };
+        const nextData: StudioDeckPlanCardData = {
+          ...data,
+          plan: input.plan,
+        };
+        this.replacePartAt(latest.messageIndex, latest.partIndex, {
+          ...latest.part,
+          input: nextData,
+        });
+        return { mutated: true, appended: false };
+      }
+      // Content changed — supersede the old card, then fall through to append.
+      this.markPlanCardSuperseded(latest.messageIndex, latest.partIndex);
+    }
+    const cardData: StudioDeckPlanCardData = {
+      artifactId: input.artifactId,
+      artifactPath: input.artifactPath,
+      contentHash: input.contentHash,
+      plan: input.plan,
+    };
+    const message: StudioMessage = {
+      id: createId("plan-card"),
+      role: "system",
+      content: "",
+      parts: [{ type: STUDIO_DECK_PLAN_PART_TYPE, input: cardData }],
+      createdAt: Date.now(),
+      status: "done",
+    };
+    this.messages = [...this.messages, message];
+    return { mutated: true, appended: true };
+  }
+
+  /** Append a thin one-line "✓ Plan confirmed at HH:MM" system note. */
+  appendPlanConfirmedNote(artifactId: string, confirmedAt: number): void {
+    const noteData: StudioPlanConfirmedNoteData = { artifactId, confirmedAt };
+    const message: StudioMessage = {
+      id: createId("plan-confirmed"),
+      role: "system",
+      content: "",
+      parts: [{ type: STUDIO_PLAN_CONFIRMED_PART_TYPE, input: noteData }],
+      createdAt: Date.now(),
+      status: "done",
+    };
+    this.messages = [...this.messages, message];
+  }
+
+  private findLatestPlanCardForArtifact(artifactId: string):
+    | { messageIndex: number; partIndex: number; part: StudioMessagePart }
+    | undefined {
+    for (let i = this.messages.length - 1; i >= 0; i--) {
+      const message = this.messages[i]!;
+      const parts = message.parts ?? [];
+      for (let j = parts.length - 1; j >= 0; j--) {
+        const part = parts[j]!;
+        if (part.type !== STUDIO_DECK_PLAN_PART_TYPE) continue;
+        const data = part.input as StudioDeckPlanCardData | undefined;
+        if (data && data.artifactId === artifactId && !data.superseded) {
+          return { messageIndex: i, partIndex: j, part };
+        }
+      }
+    }
+    return undefined;
+  }
+
+  private markPlanCardSuperseded(messageIndex: number, partIndex: number): void {
+    const message = this.messages[messageIndex];
+    if (!message) return;
+    const part = message.parts?.[partIndex];
+    if (!part) return;
+    const data = part.input as StudioDeckPlanCardData;
+    this.replacePartAt(messageIndex, partIndex, {
+      ...part,
+      input: { ...data, superseded: true },
+    });
+  }
+
+  private replacePartAt(
+    messageIndex: number,
+    partIndex: number,
+    nextPart: StudioMessagePart,
+  ): void {
+    this.messages = this.messages.map((message, i) => {
+      if (i !== messageIndex) return message;
+      const parts = (message.parts ?? []).map((part, j) =>
+        j === partIndex ? nextPart : part,
+      );
+      return { ...message, parts };
+    });
   }
 
   async listDecksForCurrentArtifact(): Promise<StudioDeckProject[]> {
@@ -282,6 +402,7 @@ export class StudioChatController {
       updatedAt: now,
       messages: this.messages,
       manualTitle: existing?.manualTitle,
+      lastSubmittedModelId: this.lastSubmittedModelId ?? existing?.lastSubmittedModelId,
     };
     this.chatSessions = [
       session,
@@ -293,6 +414,16 @@ export class StudioChatController {
   async persistChatSessions(): Promise<void> {
     await mkdir(getPiAgentDir(), { recursive: true });
     await writeFile(getChatSessionsPath(), JSON.stringify(this.chatSessions, null, 2), "utf8");
+  }
+
+  async rememberSubmittedModel(modelId: string): Promise<void> {
+    this.lastSubmittedModelId = modelId;
+    await this.ensureChatSessionsLoaded();
+    const existing = this.chatSessions.find((session) => session.id === this.currentSessionId);
+    if (!existing) return;
+    existing.lastSubmittedModelId = modelId;
+    existing.updatedAt = Date.now();
+    await this.persistChatSessions();
   }
 
   async listChatSessionSummaries(): Promise<StudioChatSessionSummary[]> {
