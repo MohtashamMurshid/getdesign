@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,13 +30,18 @@ async function newestTarball(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const tarballs = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".tgz"))
-    .map((entry) => join(directory, entry.name));
+    .map((entry) => entry.name);
 
-  if (tarballs.length !== 1) {
-    throw new Error(`Expected exactly one tarball in ${directory}, found ${tarballs.length}.`);
+  if (tarballs.length === 0) {
+    throw new Error(`No tarball found in ${directory}.`);
+  }
+  if (tarballs.length > 1) {
+    throw new Error(
+      `Multiple tarballs found in ${directory}: ${tarballs.join(", ")} — expected exactly one.`,
+    );
   }
 
-  return tarballs[0];
+  return join(directory, tarballs[0]);
 }
 
 async function main() {
@@ -45,7 +50,8 @@ async function main() {
   const projectDir = join(workDir, "project");
 
   try {
-    run("mkdir", ["-p", packDir, projectDir]);
+    await mkdir(packDir, { recursive: true });
+    await mkdir(projectDir, { recursive: true });
 
     const tarballs = new Map();
     for (const packageName of packOrder) {

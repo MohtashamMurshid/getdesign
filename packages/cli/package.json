@@ -48,7 +48,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@getdesign/sdk": "^0.1.2",

@@ -52,7 +52,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@getdesign/agent": "^0.1.1",
