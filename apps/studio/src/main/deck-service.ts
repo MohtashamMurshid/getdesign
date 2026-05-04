@@ -575,8 +575,8 @@ async function inferSharedStylesDimensions(
 function readCssDimensions(html: string, blockPattern: RegExp): DeckDimensions | undefined {
   const block = html.match(blockPattern)?.[1];
   if (!block) return undefined;
-  const width = readPixelValue(block, "width");
-  const height = readPixelValue(block, "height");
+  const width = readCssLengthValue(html, block, "width");
+  const height = readCssLengthValue(html, block, "height");
   return width && height ? { width, height } : undefined;
 }
 
@@ -593,6 +593,31 @@ function readPixelValue(css: string, property: string): number | undefined {
   if (!match) return undefined;
   const value = Number(match[1]);
   return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function readCssLengthValue(
+  fullSource: string,
+  blockSource: string,
+  property: string,
+): number | undefined {
+  const px = readPixelValue(blockSource, property);
+  if (px) return px;
+  const varMatch = blockSource.match(new RegExp(`${property}\\s*:\\s*var\\((--[\\w-]+)\\)`, "i"));
+  if (!varMatch) return undefined;
+  return readCssVariablePixelValue(fullSource, varMatch[1]!);
+}
+
+function readCssVariablePixelValue(source: string, variableName: string): number | undefined {
+  const match = source.match(
+    new RegExp(`${escapeRegExp(variableName)}\\s*:\\s*(\\d+(?:\\.\\d+)?)px`, "i"),
+  );
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function readViewportValue(content: string, property: string): number | undefined {
@@ -742,10 +767,33 @@ ${manifest}
   .nav-zone { position: fixed; top: 0; bottom: 0; width: 15%; z-index: 5; cursor: pointer; }
   .nav-zone.left { left: 0; }
   .nav-zone.right { right: 0; }
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 11;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 999px;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: .86;
+  }
+  .nav-btn:hover { background: rgba(0,0,0,.75); opacity: 1; }
+  .nav-btn.left { left: 14px; }
+  .nav-btn.right { right: 14px; }
+  .nav-btn:disabled { opacity: .28; cursor: default; }
   @media print {
     @page { size: ${deckWidth}px ${deckHeight}px; margin: 0; }
     html, body { background: #fff; overflow: visible; height: auto; }
-    #stage, .counter, .nav-zone { display: none !important; }
+    #stage, .counter, .nav-zone, .nav-btn { display: none !important; }
     .print-stack { display: block !important; }
     .print-stack iframe { width: ${deckWidth}px; height: ${deckHeight}px; page-break-after: always; display: block; }
   }
@@ -755,6 +803,8 @@ ${manifest}
 <div id="stage"><iframe id="frame" src="about:blank"></iframe></div>
 <div class="nav-zone left" id="navL"></div>
 <div class="nav-zone right" id="navR"></div>
+<button class="nav-btn left" id="navPrev" aria-label="Previous slide" title="Previous slide">‹</button>
+<button class="nav-btn right" id="navNext" aria-label="Next slide" title="Next slide">›</button>
 <div class="counter" id="counter">1 / 1</div>
 <div class="print-stack" id="printStack" style="display:none">
 ${printFrames}
@@ -767,7 +817,8 @@ ${printFrames}
   const stage = document.getElementById("stage");
   const frame = document.getElementById("frame");
   const counter = document.getElementById("counter");
-  const storageKey = "studio-deck-" + location.pathname;
+  const navPrev = document.getElementById("navPrev");
+  const navNext = document.getElementById("navNext");
   let current = 0;
   function fit() {
     const s = Math.min(window.innerWidth / W, window.innerHeight / H);
@@ -778,8 +829,8 @@ ${printFrames}
     current = idx;
     frame.src = deck[idx].file;
     counter.innerHTML = \`\${idx + 1} / \${deck.length}<span class="label">\${deck[idx].label || ""}</span>\`;
-    try { localStorage.setItem(storageKey, String(idx)); } catch (_) {}
-    if (location.hash !== "#" + (idx + 1)) history.replaceState(null, "", "#" + (idx + 1));
+    if (navPrev) navPrev.disabled = idx <= 0;
+    if (navNext) navNext.disabled = idx >= deck.length - 1;
   }
   function next() { show(Math.min(current + 1, deck.length - 1)); }
   function prev() { show(Math.max(current - 1, 0)); }
@@ -796,17 +847,12 @@ ${printFrames}
   });
   document.getElementById("navL").addEventListener("click", prev);
   document.getElementById("navR").addEventListener("click", next);
+  if (navPrev) navPrev.addEventListener("click", prev);
+  if (navNext) navNext.addEventListener("click", next);
   window.addEventListener("resize", fit);
-  window.addEventListener("hashchange", () => {
-    const match = location.hash.match(/^#(\\d+)$/);
-    if (match) show(Number(match[1]) - 1);
-  });
-  const hash = location.hash.match(/^#(\\d+)$/);
-  if (hash) current = Math.max(0, Math.min(Number(hash[1]) - 1, deck.length - 1));
-  else {
-    const stored = Number(localStorage.getItem(storageKey));
-    if (Number.isInteger(stored) && stored >= 0 && stored < deck.length) current = stored;
-  }
+  // Always open from slide 1 on load so switching chat history/decks doesn't
+  // restore stale position from hash/localStorage.
+  current = 0;
   fit();
   show(current);
 })();
