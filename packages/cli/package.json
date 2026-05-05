@@ -51,7 +51,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@getdesign/sdk": "^0.1.2",
+    "@getdesign/sdk": "workspace:*",
     "unicode-animations": "^1.0.3"
   },
   "devDependencies": {

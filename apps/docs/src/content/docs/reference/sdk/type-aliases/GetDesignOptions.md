@@ -7,7 +7,7 @@ title: "GetDesignOptions"
 
 > **GetDesignOptions** = `object`
 
-Defined in: [packages/sdk/src/index.ts:20](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L20)
+Defined in: [packages/sdk/src/index.ts:20](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L20)
 
 ## Properties
 
@@ -15,7 +15,7 @@ Defined in: [packages/sdk/src/index.ts:20](https://github.com/MohtashamMurshid/g
 
 > `optional` **credentials?**: [`GetDesignCredentials`](/reference/sdk/type-aliases/getdesigncredentials/)
 
-Defined in: [packages/sdk/src/index.ts:24](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L24)
+Defined in: [packages/sdk/src/index.ts:24](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L24)
 
 Request-scoped credentials for BYOK runs.
 
@@ -25,7 +25,7 @@ Request-scoped credentials for BYOK runs.
 
 > `optional` **installI18nFonts?**: `boolean`
 
-Defined in: [packages/sdk/src/index.ts:28](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L28)
+Defined in: [packages/sdk/src/index.ts:28](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L28)
 
 Force or skip i18n font install. Auto-detected from URL TLD when omitted.
 
@@ -35,7 +35,7 @@ Force or skip i18n font install. Auto-detected from URL TLD when omitted.
 
 > `optional` **measurementMode?**: `"cdp"` \| `"visual"` \| `"auto"`
 
-Defined in: [packages/sdk/src/index.ts:30](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L30)
+Defined in: [packages/sdk/src/index.ts:30](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L30)
 
 Override measurement strategy. `auto` tries CDP first, then visual-stability.
 
@@ -45,7 +45,7 @@ Override measurement strategy. `auto` tries CDP first, then visual-stability.
 
 > `optional` **runDesign?**: (`url`, `options?`) => `Promise`\<`RunDesignResult`\>
 
-Defined in: [packages/sdk/src/index.ts:35](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L35)
+Defined in: [packages/sdk/src/index.ts:35](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L35)
 
 Internal/testing seam. Defaults to the real local agent pipeline.
 Most callers should not pass this.
@@ -70,7 +70,7 @@ Most callers should not pass this.
 
 > `optional` **siteName?**: `string`
 
-Defined in: [packages/sdk/src/index.ts:22](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L22)
+Defined in: [packages/sdk/src/index.ts:22](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L22)
 
 Override the detected site name.
 
@@ -80,6 +80,6 @@ Override the detected site name.
 
 > `optional` **visualRequirement?**: [`VisualRequirement`](/reference/sdk/type-aliases/visualrequirement/)
 
-Defined in: [packages/sdk/src/index.ts:26](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L26)
+Defined in: [packages/sdk/src/index.ts:26](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L26)
 
 Continue with text-only output if visual capture is unavailable.

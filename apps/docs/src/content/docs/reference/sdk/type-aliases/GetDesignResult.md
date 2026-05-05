@@ -7,7 +7,7 @@ title: "GetDesignResult"
 
 > **GetDesignResult** = `object`
 
-Defined in: [packages/sdk/src/index.ts:41](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L41)
+Defined in: [packages/sdk/src/index.ts:41](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L41)
 
 ## Properties
 
@@ -15,7 +15,7 @@ Defined in: [packages/sdk/src/index.ts:41](https://github.com/MohtashamMurshid/g
 
 > **doc**: [`DesignDoc`](/reference/sdk/type-aliases/designdoc/)
 
-Defined in: [packages/sdk/src/index.ts:44](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L44)
+Defined in: [packages/sdk/src/index.ts:44](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L44)
 
 ***
 
@@ -23,7 +23,7 @@ Defined in: [packages/sdk/src/index.ts:44](https://github.com/MohtashamMurshid/g
 
 > **markdown**: `string`
 
-Defined in: [packages/sdk/src/index.ts:43](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L43)
+Defined in: [packages/sdk/src/index.ts:43](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L43)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [packages/sdk/src/index.ts:43](https://github.com/MohtashamMurshid/g
 
 > **mode**: `"visual"` \| `"text_only"`
 
-Defined in: [packages/sdk/src/index.ts:48](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L48)
+Defined in: [packages/sdk/src/index.ts:48](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L48)
 
 ***
 
@@ -39,7 +39,7 @@ Defined in: [packages/sdk/src/index.ts:48](https://github.com/MohtashamMurshid/g
 
 > **tiles**: `number`
 
-Defined in: [packages/sdk/src/index.ts:47](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L47)
+Defined in: [packages/sdk/src/index.ts:47](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L47)
 
 ***
 
@@ -47,7 +47,7 @@ Defined in: [packages/sdk/src/index.ts:47](https://github.com/MohtashamMurshid/g
 
 > **tokens**: [`DesignTokens`](/reference/sdk/type-aliases/designtokens/)
 
-Defined in: [packages/sdk/src/index.ts:45](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L45)
+Defined in: [packages/sdk/src/index.ts:45](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L45)
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: [packages/sdk/src/index.ts:45](https://github.com/MohtashamMurshid/g
 
 > **url**: `string`
 
-Defined in: [packages/sdk/src/index.ts:42](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L42)
+Defined in: [packages/sdk/src/index.ts:42](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L42)
 
 ***
 
@@ -63,4 +63,4 @@ Defined in: [packages/sdk/src/index.ts:42](https://github.com/MohtashamMurshid/g
 
 > **visualDescription**: `string` \| `null`
 
-Defined in: [packages/sdk/src/index.ts:46](https://github.com/MohtashamMurshid/getdesign/blob/431a074a3f895c83c413dd5e8c64fd460dbdd75e/packages/sdk/src/index.ts#L46)
+Defined in: [packages/sdk/src/index.ts:46](https://github.com/MohtashamMurshid/getdesign/blob/52146c2000790ad5ab7577305b1ea2f4593205eb/packages/sdk/src/index.ts#L46)
