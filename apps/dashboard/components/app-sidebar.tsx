@@ -1,10 +1,11 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
+import { BrandMark } from "@/components/brand-mark"
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -16,144 +17,77 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ComputerTerminalIcon, RoboticIcon, BookOpen02Icon, Settings05Icon, ChartRingIcon, SentIcon, CropIcon, PieChartIcon, MapsIcon, CommandIcon } from "@hugeicons/core-free-icons"
+import {
+  DashboardBrowsingIcon,
+  SparklesIcon,
+  ApiIcon,
+  ComputerTerminalIcon,
+  CodeSquareIcon,
+  MagicWand01Icon,
+  BookOpen02Icon,
+  Settings05Icon,
+} from "@hugeicons/core-free-icons"
 
-const data = {
-  navMain: [
-    {
-      title: "Playground",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={ComputerTerminalIcon} strokeWidth={2} />
-      ),
-      isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Models",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={RoboticIcon} strokeWidth={2} />
-      ),
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={BookOpen02Icon} strokeWidth={2} />
-      ),
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Settings",
-      url: "/dashboard/account",
-      icon: (
-        <HugeiconsIcon icon={Settings05Icon} strokeWidth={2} />
-      ),
-      items: [
-        {
-          title: "Account",
-          url: "/dashboard/account",
-        },
-        {
-          title: "Team",
-          url: "/dashboard/team",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Support",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={ChartRingIcon} strokeWidth={2} />
-      ),
-    },
-    {
-      title: "Feedback",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
-      ),
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={CropIcon} strokeWidth={2} />
-      ),
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={PieChartIcon} strokeWidth={2} />
-      ),
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: (
-        <HugeiconsIcon icon={MapsIcon} strokeWidth={2} />
-      ),
-    },
-  ],
+type NavItem = {
+  title: string
+  url: string
+  icon: React.ReactNode
+  items?: { title: string; url: string }[]
 }
+
+const NAV_ITEMS: NavItem[] = [
+  {
+    title: "Overview",
+    url: "/dashboard",
+    icon: <HugeiconsIcon icon={DashboardBrowsingIcon} strokeWidth={2} />,
+  },
+  {
+    title: "Agent",
+    url: "/dashboard/agent",
+    icon: <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} />,
+  },
+  {
+    title: "API",
+    url: "/dashboard/api",
+    icon: <HugeiconsIcon icon={ApiIcon} strokeWidth={2} />,
+    items: [
+      { title: "Keys", url: "/dashboard/api/keys" },
+      { title: "Usage", url: "/dashboard/api/usage" },
+      { title: "Webhooks", url: "/dashboard/api/webhooks" },
+    ],
+  },
+  {
+    title: "CLI",
+    url: "/dashboard/cli",
+    icon: <HugeiconsIcon icon={ComputerTerminalIcon} strokeWidth={2} />,
+  },
+  {
+    title: "SDK",
+    url: "/dashboard/sdk",
+    icon: <HugeiconsIcon icon={CodeSquareIcon} strokeWidth={2} />,
+  },
+  {
+    title: "Skills",
+    url: "/dashboard/skills",
+    icon: <HugeiconsIcon icon={MagicWand01Icon} strokeWidth={2} />,
+  },
+  {
+    title: "Docs",
+    url: "/dashboard/docs",
+    icon: <HugeiconsIcon icon={BookOpen02Icon} strokeWidth={2} />,
+  },
+  {
+    title: "Settings",
+    url: "/dashboard/account",
+    icon: <HugeiconsIcon icon={Settings05Icon} strokeWidth={2} />,
+    items: [
+      { title: "Account", url: "/dashboard/account" },
+      { title: "Team", url: "/dashboard/team" },
+      { title: "Billing", url: "/dashboard/billing" },
+    ],
+  },
+]
+
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user: {
     name: string
@@ -163,27 +97,42 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
+  const pathname = usePathname()
+
+  const items = NAV_ITEMS.map((item) => ({
+    ...item,
+    isActive:
+      pathname === item.url ||
+      (item.url !== "/dashboard" && pathname?.startsWith(item.url)) ||
+      item.items?.some((sub) => pathname?.startsWith(sub.url)) ||
+      false,
+  }))
+
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<a href="#" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <HugeiconsIcon icon={CommandIcon} strokeWidth={2} className="size-4" />
+            <SidebarMenuButton
+              size="lg"
+              tooltip="getdesign"
+              render={<Link href="/dashboard" />}
+            >
+              <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground">
+                <BrandMark size={22} />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">Acme Inc</span>
-                <span className="truncate text-xs">Enterprise</span>
+                <span className="truncate font-medium">getdesign</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  Dashboard
+                </span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={items} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

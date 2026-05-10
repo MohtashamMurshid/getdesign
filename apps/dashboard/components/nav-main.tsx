@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -7,7 +9,6 @@ import {
 } from "@/components/ui/collapsible"
 import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
@@ -17,7 +18,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import { ArrowDown01Icon } from "@hugeicons/core-free-icons"
 
 export function NavMain({
   items,
@@ -35,7 +36,6 @@ export function NavMain({
 }) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <Collapsible
@@ -45,7 +45,8 @@ export function NavMain({
           >
             <SidebarMenuButton
               tooltip={item.title}
-              render={<a href={item.url} />}
+              isActive={item.isActive}
+              render={<Link href={item.url} />}
             >
               {item.icon}
               <span>{item.title}</span>
@@ -54,17 +55,19 @@ export function NavMain({
               <>
                 <CollapsibleTrigger
                   render={
-                    <SidebarMenuAction className="aria-expanded:rotate-90" />
+                    <SidebarMenuAction className="aria-expanded:rotate-180" />
                   }
                 >
-                  <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+                  <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={2} />
                   <span className="sr-only">Toggle</span>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenuSub>
-                    {item.items?.map((subItem) => (
+                    {item.items.map((subItem) => (
                       <SidebarMenuSubItem key={subItem.title}>
-                        <SidebarMenuSubButton render={<a href={subItem.url} />}>
+                        <SidebarMenuSubButton
+                          render={<Link href={subItem.url} />}
+                        >
                           <span>{subItem.title}</span>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
