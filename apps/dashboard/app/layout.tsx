@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google"
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -23,7 +24,9 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <AuthKitProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </AuthKitProvider>
       </body>
     </html>
   )
