@@ -19,11 +19,6 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ComputerTerminalIcon, RoboticIcon, BookOpen02Icon, Settings05Icon, ChartRingIcon, SentIcon, CropIcon, PieChartIcon, MapsIcon, CommandIcon } from "@hugeicons/core-free-icons"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Playground",
@@ -95,18 +90,18 @@ const data = {
     },
     {
       title: "Settings",
-      url: "#",
+      url: "/dashboard/account",
       icon: (
         <HugeiconsIcon icon={Settings05Icon} strokeWidth={2} />
       ),
       items: [
         {
-          title: "General",
-          url: "#",
+          title: "Account",
+          url: "/dashboard/account",
         },
         {
           title: "Team",
-          url: "#",
+          url: "/dashboard/team",
         },
         {
           title: "Billing",
@@ -159,7 +154,15 @@ const data = {
     },
   ],
 }
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
+  user: {
+    name: string
+    email: string
+    avatar: string
+  }
+}
+
+export function AppSidebar({ user, ...props }: AppSidebarProps) {
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
@@ -183,7 +186,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )

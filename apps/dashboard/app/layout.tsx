@@ -1,6 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google"
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components"
 
+import "@radix-ui/themes/styles.css"
+import "@workos-inc/widgets/base.css"
+import "@workos-inc/widgets/styles.css"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
