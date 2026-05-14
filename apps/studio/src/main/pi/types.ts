@@ -74,6 +74,7 @@ export type AssistantStreamState = {
   textIndices: Map<string, number>;
   thinkingIndices: Map<string, number>;
   toolIndices: Map<string, number>;
+  toolContentIds: Map<string, string>;
   turn: number;
 };
 
@@ -82,6 +83,7 @@ export function createAssistantStreamState(): AssistantStreamState {
     textIndices: new Map(),
     thinkingIndices: new Map(),
     toolIndices: new Map(),
+    toolContentIds: new Map(),
     turn: 0,
   };
 }

@@ -3,6 +3,7 @@ import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promi
 import { dirname, isAbsolute, join, resolve, sep } from "node:path";
 
 import type {
+  StudioArtifactKind,
   StudioCreateDeckInput,
   StudioDeckMode,
   StudioDeckPlan,
@@ -121,6 +122,7 @@ export class StudioDeckService {
 
     const manifest: StoredDeckManifest = {
       id,
+      artifactKind: "deck",
       title,
       mode,
       path: deckPath,
@@ -168,6 +170,13 @@ export class StudioDeckService {
       });
       return withPreviewUrl({
         ...manifest,
+        artifactKind: inferArtifactKind({
+          parsed: stored,
+          plan,
+          hasSlideFiles,
+          hasIndexFile,
+          artifactPath,
+        }),
         mode: plan?.mode ?? manifest.mode,
         path: artifactPath,
         indexFile,
@@ -213,6 +222,13 @@ export class StudioDeckService {
     const effectiveMode = plan?.mode ?? manifest.mode;
     return withPreviewUrl({
       ...manifest,
+      artifactKind: inferArtifactKind({
+        parsed: await readStoredManifest(artifactPath),
+        plan,
+        hasSlideFiles,
+        hasIndexFile: true,
+        artifactPath,
+      }),
       mode: effectiveMode,
       path: artifactPath,
       indexFile,
@@ -281,6 +297,7 @@ export class StudioDeckService {
     }
     const next: StoredDeckManifest = {
       id: deck.id,
+      artifactKind: deck.artifactKind,
       title: stored.title ?? deck.title,
       mode: stored.mode ?? deck.mode,
       path: deck.path,
@@ -402,6 +419,7 @@ async function readArtifactManifest(
 
   return {
     id: artifactId,
+    artifactKind: normalizeArtifactKind(parsed.artifactKind),
     title: parsed.title || titleFromArtifactId(artifactId),
     mode: parsed.mode === "pptx-safe" ? "pptx-safe" : "freeform",
     path: artifactPath,
@@ -888,8 +906,43 @@ async function writeManifest(deckPath: string, manifest: StoredDeckManifest) {
 function withPreviewUrl(manifest: StoredDeckManifest): StudioDeckProject {
   return {
     ...manifest,
+    artifactKind: normalizeArtifactKind(manifest.artifactKind),
     previewUrl: `studio-artifact://artifacts/${encodeURIComponent(manifest.id)}/index.html`,
   };
+}
+
+function inferArtifactKind(input: {
+  parsed?: Partial<StoredDeckManifest>;
+  plan?: StudioDeckPlan;
+  hasSlideFiles: boolean;
+  hasIndexFile: boolean;
+  artifactPath: string;
+}): StudioArtifactKind {
+  const explicit = normalizeArtifactKind(input.parsed?.artifactKind);
+  if (explicit !== "deck") return explicit;
+  if (input.plan || input.hasSlideFiles) return "deck";
+
+  const title = `${input.parsed?.title ?? ""} ${input.artifactPath}`.toLowerCase();
+  if (/\b(proto|prototype|ios|android|app|mockup)\b/.test(title)) return "prototype";
+  if (/\b(animation|motion|video|narration|voiceover)\b/.test(title)) return "animation";
+  if (/\b(infographic|visualization|visualisation|dataviz)\b/.test(title)) return "infographic";
+  if (/\b(variant|variants|exploration|directions)\b/.test(title)) return "design-variants";
+  if (/\b(review|critique|score)\b/.test(title)) return "review";
+  return input.hasIndexFile ? "html" : "deck";
+}
+
+function normalizeArtifactKind(value: unknown): StudioArtifactKind {
+  switch (value) {
+    case "prototype":
+    case "animation":
+    case "infographic":
+    case "design-variants":
+    case "review":
+    case "html":
+      return value;
+    default:
+      return "deck";
+  }
 }
 
 function sanitizeTitle(title: string) {
@@ -1105,11 +1158,17 @@ async function verifyDeckArtifact(
   try {
     await access(deck.indexFile);
   } catch {
-    issues.push({ level: "error", message: "Missing deck index.html." });
+    issues.push({ level: "error", message: "Missing artifact index.html." });
   }
 
   if (deck.slides.length === 0) {
-    issues.push({ level: "error", message: "Deck has no slides." });
+    issues.push({
+      level: "error",
+      message:
+        deck.artifactKind === "deck"
+          ? "Deck has no slides."
+          : "Artifact has no preview entry.",
+    });
   }
 
   for (const slide of deck.slides) {

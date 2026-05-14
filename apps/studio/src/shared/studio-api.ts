@@ -164,6 +164,15 @@ export type StudioSendPromptInput = {
 
 export type StudioDeckExportFormat = "html" | "pdf" | "pptx";
 
+export type StudioArtifactKind =
+  | "deck"
+  | "prototype"
+  | "animation"
+  | "infographic"
+  | "design-variants"
+  | "review"
+  | "html";
+
 export type StudioDeckMode = "freeform" | "pptx-safe";
 
 export type StudioDeckExportPath = "html" | "html-pdf" | "pptx";
@@ -231,6 +240,7 @@ export type StudioDeckTemplateSummary = {
 
 export type StudioDeckProject = {
   id: string;
+  artifactKind: StudioArtifactKind;
   title: string;
   mode: StudioDeckMode;
   path: string;

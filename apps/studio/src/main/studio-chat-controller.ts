@@ -300,9 +300,29 @@ export class StudioChatController {
           this.emitConversation();
         }
         break;
+      case "toolcall_start":
+        this.upsertAssistantToolCallFromStream(
+          assistantEvent.contentIndex,
+          assistantEvent.toolCall ?? this.getPartialToolCall(assistantEvent),
+          "input-streaming",
+        );
+        this.emitConversation();
+        break;
+      case "toolcall_delta":
+        this.upsertAssistantToolCallFromStream(
+          assistantEvent.contentIndex,
+          assistantEvent.toolCall ?? this.getPartialToolCall(assistantEvent),
+          "input-streaming",
+        );
+        this.emitConversation();
+        break;
       case "toolcall_end":
         if (assistantEvent.toolCall) {
-          this.upsertAssistantToolCall(assistantEvent.toolCall);
+          this.upsertAssistantToolCallFromStream(
+            assistantEvent.contentIndex,
+            assistantEvent.toolCall,
+            "input-available",
+          );
           this.emitConversation();
         }
         break;
@@ -572,6 +592,44 @@ export class StudioChatController {
     this.insertOrUpdateToolPart(part);
   }
 
+  private upsertAssistantToolCallFromStream(
+    contentIndex: number | undefined,
+    toolCall: unknown,
+    state: NonNullable<StudioMessagePart["state"]>,
+  ): void {
+    const record = asRecord(toolCall);
+    const key = this.streamKey(contentIndex);
+    const name = record?.["name"];
+    if (typeof name !== "string") return;
+
+    const previousId = this.assistantStream.toolContentIds.get(key);
+    const rawId = record?.["id"];
+    const id =
+      typeof rawId === "string" && rawId
+        ? rawId
+        : previousId ?? `toolcall-${this.assistantStream.turn}-${contentIndex ?? "x"}`;
+    this.assistantStream.toolContentIds.set(key, id);
+
+    const part: StudioMessagePart = {
+      type: `tool-${toAgentElementsToolName(name)}`,
+      toolCallId: id,
+      state,
+      input: record?.["arguments"] ?? {},
+    };
+    this.insertOrUpdateToolPart(part, previousId && previousId !== id ? previousId : undefined);
+  }
+
+  private getPartialToolCall(
+    assistantEvent: NonNullable<PiSessionEvent["assistantMessageEvent"]>,
+  ): unknown {
+    const partial = asRecord(assistantEvent.partial);
+    const content = partial?.["content"];
+    if (!Array.isArray(content)) return undefined;
+    const index = assistantEvent.contentIndex;
+    if (typeof index !== "number") return undefined;
+    return content[index];
+  }
+
   private updateToolPart(
     toolCallId: unknown,
     toolName: unknown,
@@ -586,12 +644,18 @@ export class StudioChatController {
     this.insertOrUpdateToolPart(part);
   }
 
-  private insertOrUpdateToolPart(part: StudioMessagePart): void {
+  private insertOrUpdateToolPart(
+    part: StudioMessagePart,
+    replaceToolCallId?: string,
+  ): void {
     if (!part.toolCallId) return;
     const toolCallId = part.toolCallId;
     this.mutateAssistantParts((parts) => {
       const existingIndex =
         this.assistantStream.toolIndices.get(toolCallId) ??
+        (replaceToolCallId
+          ? this.assistantStream.toolIndices.get(replaceToolCallId)
+          : undefined) ??
         parts.findIndex((candidate) => candidate.toolCallId === toolCallId);
       if (existingIndex !== undefined && existingIndex >= 0 && parts[existingIndex]) {
         const target = parts[existingIndex]!;
@@ -603,6 +667,9 @@ export class StudioChatController {
           result: part.result ?? target.result,
           state: part.state ?? target.state,
         };
+        if (replaceToolCallId) {
+          this.assistantStream.toolIndices.delete(replaceToolCallId);
+        }
         this.assistantStream.toolIndices.set(toolCallId, existingIndex);
         return parts.map((candidate, i) => (i === existingIndex ? merged : candidate));
       }

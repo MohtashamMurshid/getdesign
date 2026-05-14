@@ -102,8 +102,9 @@ export function DeckWorkspace({
     : undefined;
   const planConfirmed = selectedDeck?.plan?.status === "confirmed";
   const planPending = Boolean(selectedDeck?.plan && !planConfirmed);
+  const isDeckArtifact = selectedDeck?.artifactKind === "deck";
   const hasSlides = Boolean(selectedDeck && selectedDeck.slides.length > 0);
-  const exportsBlocked = !planConfirmed || !hasSlides;
+  const exportsBlocked = isDeckArtifact && (!planConfirmed || !hasSlides);
 
   useEffect(() => {
     selectedDeckIdRef.current = selectedDeckId;
@@ -257,7 +258,7 @@ export function DeckWorkspace({
             </Select>
           ) : (
             <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-              <span>project</span>
+              <span>artifact</span>
               {selectedDeck ? (
                 <>
                   <IconChevronRight size={12} />
@@ -270,7 +271,8 @@ export function DeckWorkspace({
           )}
           {selectedDeck ? (
             <span className="hidden shrink-0 text-[11px] text-muted-foreground/70 sm:inline">
-              {selectedDeck.slides.length}p · {selectedDeck.mode}
+              {artifactKindLabel(selectedDeck.artifactKind)}
+              {isDeckArtifact ? ` · ${selectedDeck.slides.length}p · ${selectedDeck.mode}` : null}
             </span>
           ) : null}
         </div>
@@ -283,21 +285,23 @@ export function DeckWorkspace({
                 className="size-7"
                 disabled={verifying}
                 onClick={handleVerify}
-                aria-label={verifying ? "Verifying" : "Verify deck"}
-                title={verifying ? "Verifying..." : "Verify deck"}
+                aria-label={verifying ? "Verifying" : "Verify artifact"}
+                title={verifying ? "Verifying..." : "Verify artifact"}
               >
                 <IconSparkles size={15} className={verifying ? "animate-pulse" : undefined} />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn("size-7", notesOpen && "bg-muted text-foreground")}
-                onClick={() => setNotesOpen((open) => !open)}
-                aria-label="Speaker notes"
-                title="Speaker notes"
-              >
-                <IconNotes size={15} />
-              </Button>
+              {isDeckArtifact ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn("size-7", notesOpen && "bg-muted text-foreground")}
+                  onClick={() => setNotesOpen((open) => !open)}
+                  aria-label="Speaker notes"
+                  title="Speaker notes"
+                >
+                  <IconNotes size={15} />
+                </Button>
+              ) : null}
               <Button
                 variant="ghost"
                 size="icon"
@@ -316,7 +320,7 @@ export function DeckWorkspace({
                 size="icon"
                 className="size-7"
                 onClick={() => onOpenDeck(selectedDeck.id)}
-                aria-label="Open deck folder"
+                aria-label="Open artifact folder"
                 title="Open folder"
               >
                 <IconExternalLink size={15} />
@@ -329,13 +333,19 @@ export function DeckWorkspace({
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
         {selectedDeck ? (
           <>
-            <PlanStatusPill deck={selectedDeck} onShowChat={onShowChat} />
+            {isDeckArtifact ? (
+              <PlanStatusPill deck={selectedDeck} onShowChat={onShowChat} />
+            ) : (
+              <ArtifactStatusPill deck={selectedDeck} />
+            )}
 
-            <TweaksRow
-              deck={selectedDeck}
-              busy={tweaksBusy}
-              onChange={handleTweakChange}
-            />
+            {isDeckArtifact ? (
+              <TweaksRow
+                deck={selectedDeck}
+                busy={tweaksBusy}
+                onChange={handleTweakChange}
+              />
+            ) : null}
 
             <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border/80 bg-black">
               {hasSlides ? (
@@ -351,21 +361,25 @@ export function DeckWorkspace({
                 <div className="flex h-full w-full items-center justify-center p-6 text-center text-xs text-muted-foreground">
                   {planPending
                     ? "Confirm the plan above so the agent can write slides."
-                    : "No slides yet. The agent will write them once the plan is confirmed."}
+                    : isDeckArtifact
+                      ? "No slides yet. The agent will write them once the plan is confirmed."
+                      : "No preview yet. The agent will write index.html for this design artifact."}
                 </div>
               )}
             </div>
 
-            <ExportBar
-              mode={selectedDeck.mode}
-              exportingFormat={exportingFormat}
-              disabled={exportsBlocked}
-              disabledReason={exportsBlocked ? "Confirm the deck plan to enable exports." : undefined}
-              onExport={handleExport}
-            />
+            {isDeckArtifact ? (
+              <ExportBar
+                mode={selectedDeck.mode}
+                exportingFormat={exportingFormat}
+                disabled={exportsBlocked}
+                disabledReason={exportsBlocked ? "Confirm the deck plan to enable exports." : undefined}
+                onExport={handleExport}
+              />
+            ) : null}
 
             {verification ? <VerificationCard result={verification} /> : null}
-            {notesOpen ? <NotesPanel deck={selectedDeck} /> : null}
+            {notesOpen && isDeckArtifact ? <NotesPanel deck={selectedDeck} /> : null}
 
             {exportMessage ? (
               <Card className="border-border/70">
@@ -480,6 +494,33 @@ function PlanStatusPill({
       <IconChevronRight size={12} />
     </button>
   );
+}
+
+function ArtifactStatusPill({ deck }: { deck: StudioDeckProject }) {
+  return (
+    <div className="mb-2 inline-flex items-center gap-1.5 self-start rounded-md border border-sky-400/40 bg-sky-50/50 px-2.5 py-1 text-[11px] text-sky-800 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300">
+      {artifactKindLabel(deck.artifactKind)} preview
+    </div>
+  );
+}
+
+function artifactKindLabel(kind: StudioDeckProject["artifactKind"]) {
+  switch (kind) {
+    case "prototype":
+      return "Prototype";
+    case "animation":
+      return "Animation";
+    case "infographic":
+      return "Infographic";
+    case "design-variants":
+      return "Design variants";
+    case "review":
+      return "Design review";
+    case "html":
+      return "HTML design";
+    default:
+      return "Deck";
+  }
 }
 
 function VerificationCard({ result }: { result: StudioDeckVerificationResult }) {

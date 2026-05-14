@@ -190,6 +190,18 @@ body,
   }
 }
 
+@keyframes pi-tool-loading {
+  0% {
+    transform: translateX(-115%);
+  }
+  50% {
+    transform: translateX(130%);
+  }
+  100% {
+    transform: translateX(330%);
+  }
+}
+
 .animate-shimmer {
   animation: studio-shimmer 2.2s linear infinite;
 }

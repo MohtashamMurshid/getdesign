@@ -61,6 +61,14 @@ export function getToolTitle(
   if (toolName === "Grep" || toolName === "Glob") {
     return isPending ? "Searching files" : "Searched files";
   }
+  if (toolName === "WebFetch") {
+    const url = getToolUrl(part);
+    if (url?.startsWith("https://pi.dev/docs/latest/sdk")) {
+      return isPending ? "Loading Pi SDK docs" : "Loaded Pi SDK docs";
+    }
+    return isPending ? "Loading web page" : "Loaded web page";
+  }
+  if (toolName === "WebSearch") return isPending ? "Searching web" : "Searched web";
   if (toolName === "Thinking") return "Thinking";
   if (part.state === "output-error") return `${toolName} failed`;
   return `${verb} ${toolName}`;
@@ -78,11 +86,32 @@ export function getToolSubtitle(part: StudioMessagePart): string {
   const command = getString(input, "command");
   if (command) return command.replace(/\s+/g, " ").trim();
 
+  const url = getToolUrl(part);
+  if (url) return formatToolUrl(url);
+
   const pattern = getString(input, "pattern") ?? getString(input, "query");
   if (pattern) return pattern;
 
   if (typeof output === "string" && output.trim()) return output.trim().slice(0, 80);
   return "";
+}
+
+function getToolUrl(part: StudioMessagePart): string | undefined {
+  const input = asRecord(part.input);
+  return (
+    getString(input, "url") ??
+    getString(input, "uri") ??
+    getString(input, "link")
+  );
+}
+
+function formatToolUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname}`.replace(/\/$/, "");
+  } catch {
+    return url;
+  }
 }
 
 export function getThinkingText(part: StudioMessagePart): string {

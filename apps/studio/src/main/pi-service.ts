@@ -593,7 +593,7 @@ async function startCursorPrompt(
     modelId,
     cwd,
     apiKey,
-    prompt: content,
+    prompt: `${STUDIO_SYSTEM_PROMPT}\n\n## Current user request\n${content}`,
     callbacks: {
       onTextDelta(delta) {
         if (!delta) return;
