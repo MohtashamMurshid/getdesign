@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@getdesign/sdk": "workspace:*",
     "@icons-pack/react-simple-icons": "^13.13.0",
     "convex": "^1.35.1",
     "next": "16.2.4",
