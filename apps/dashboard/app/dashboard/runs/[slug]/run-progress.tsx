@@ -28,6 +28,14 @@ const STEP_ORDER: RunStep[] = [
   "render",
 ];
 
+const STEP_DAG: Array<RunStep | RunStep[]> = [
+  "crawl",
+  ["capture", "extract"],
+  "describe",
+  "synthesize",
+  "render",
+];
+
 type Phase =
   | "crawl"
   | "capture"
@@ -74,14 +82,12 @@ export function RunProgress({
     setError(null);
 
     try {
-      const response = await fetch(`/api/runs/${run.id}/start`, {
-        method: "POST",
-      });
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-      };
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Run failed.");
+      for (const group of STEP_DAG) {
+        if (Array.isArray(group)) {
+          await Promise.all(group.map((step) => postStep(run.id, step)));
+        } else {
+          await postStep(run.id, group);
+        }
       }
       router.refresh();
     } catch (err) {
@@ -166,6 +172,18 @@ export function RunProgress({
       </p>
     </div>
   );
+}
+
+async function postStep(runId: string, step: RunStep) {
+  const response = await fetch(`/api/runs/${runId}/${step}`, {
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+  };
+  if (!response.ok) {
+    throw new Error(payload.error ?? `${step} failed.`);
+  }
 }
 
 function derivePhase(run: RunState, error: string | null): Phase {

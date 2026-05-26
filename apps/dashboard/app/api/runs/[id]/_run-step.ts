@@ -19,17 +19,7 @@ import type { RunStep } from "@/lib/runs-store";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 
-export const runtime = "nodejs";
-export const maxDuration = 300;
-
-const STEP_ORDER: RunStep[] = [
-  "crawl",
-  "capture",
-  "describe",
-  "extract",
-  "synthesize",
-  "render",
-];
+type StepStatus = "ok" | "skipped";
 
 type StoredVisual = {
   status: "captured" | "skipped" | "failed";
@@ -51,228 +41,274 @@ type StoredVisual = {
   durationsMs?: unknown;
 };
 
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const { user } = await withAuth({ ensureSignedIn: true });
-  const { id } = await params;
-  const runId = id as Id<"designRuns">;
-  const convex = getConvexClient();
-
-  const run = await convex.query(api.designRuns.get, {
-    id: runId,
-    userId: user.id,
-  });
-
-  if (!run) {
-    return NextResponse.json({ error: "Run not found." }, { status: 404 });
-  }
-
-  const nextStep = STEP_ORDER.find(
-    (step) => run.steps[step] !== "ok" && run.steps[step] !== "skipped",
-  );
-
-  if (!nextStep || run.status === "completed") {
-    return NextResponse.json({ ok: true });
-  }
-
-  try {
-    await runFromStep({ convex, run, runId, userId: user.id, nextStep });
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    await convex.mutation(api.designRuns.failStep, {
-      id: runId,
-      userId: user.id,
-      step: inferFailedStep(error, nextStep),
-      message: error instanceof Error ? error.message : "Run failed.",
-      code: error instanceof Error ? error.name : undefined,
-    });
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Run failed." },
-      { status: 500 },
-    );
-  }
-}
-
-async function runFromStep({
-  convex,
-  run,
-  runId,
-  userId,
-  nextStep,
-}: {
+type RunContext = {
   convex: ReturnType<typeof getConvexClient>;
   run: any;
   runId: Id<"designRuns">;
   userId: string;
-  nextStep: RunStep;
-}) {
-  const artifacts = await convex.query(api.designRunArtifacts.getForRun, {
-    runId,
-    userId,
-  });
+  artifacts: Record<string, unknown>;
+};
 
-  let crawl = await loadStoredJson<CrawlSiteResult>(artifacts.crawl);
-  let visual = artifacts.visual as StoredVisual | null;
-  let description = typeof artifacts.description === "string"
-    ? artifacts.description
-    : "";
-  let tokens = artifacts.tokens as DesignTokens | null;
-  let doc = artifacts.doc as DesignDoc | null;
-  let mode = run.mode as "visual" | "text_only" | undefined;
+export function runStepHandler(step: RunStep) {
+  return async function POST(
+    _request: Request,
+    { params }: { params: Promise<{ id: string }> },
+  ) {
+    const { user } = await withAuth({ ensureSignedIn: true });
+    const { id } = await params;
+    const runId = id as Id<"designRuns">;
+    const convex = getConvexClient();
 
-  if (shouldRun(nextStep, "crawl")) {
-    await beginStep(convex, runId, userId, "crawl", "Reading site");
-    const crawled = await runCrawl({
-      url: run.normalizedUrl,
-      maxHtmlBytes: 5_000_000,
-      maxStylesheetBytes: 1_000_000,
+    const run = await convex.query(api.designRuns.get, {
+      id: runId,
+      userId: user.id,
     });
-    crawl = run.siteName?.trim()
-      ? { ...crawled, siteName: run.siteName.trim() }
-      : crawled;
-    await saveCrawl(convex, runId, userId, crawl);
-    await finishStep(
-      convex,
-      runId,
-      userId,
-      "crawl",
-      "ok",
-      `Crawled ${crawl.stylesheets.length} stylesheets`,
-    );
-  }
 
-  if (shouldRun(nextStep, "capture")) {
-    if (!crawl) throw new StepError("crawl", "Crawl artifact missing.");
-    if (!process.env.DAYTONA_API_KEY) {
-      throw new StepError(
-        "capture",
-        "No Daytona API key available; set DAYTONA_API_KEY before starting a visual run.",
-      );
+    if (!run) {
+      return NextResponse.json({ error: "Run not found." }, { status: 404 });
     }
-    await beginStep(convex, runId, userId, "capture", "Capturing page");
-    const captured = await runVisual(
-      { url: crawl.sourceUrl },
-      { daytonaApiKey: process.env.DAYTONA_API_KEY },
-    );
-    visual = await storeVisual(convex, runId, userId, captured);
-    mode = visual.status === "captured" ? "visual" : "text_only";
-    await finishStep(
-      convex,
-      runId,
-      userId,
-      "capture",
-      visual.status === "captured" ? "ok" : "skipped",
-      visual.status === "captured"
-        ? `Captured ${visual.tiles.length} tiles`
-        : (visual.reason ?? "Capture skipped"),
-      {
-        mode,
-        tiles: visual.tiles.length,
-      },
-    );
-  }
 
-  if (shouldRun(nextStep, "describe")) {
-    if (!crawl) throw new StepError("crawl", "Crawl artifact missing.");
-    if (!visual || visual.status !== "captured" || !visual.viewport) {
-      description = "";
-      await saveText(convex, runId, userId, "description", description);
-      await finishStep(
+    const status = run.steps[step];
+    if (status === "ok" || status === "skipped") {
+      return NextResponse.json({ ok: true, skipped: true });
+    }
+
+    const artifacts = await convex.query(api.designRunArtifacts.getForRun, {
+      runId,
+      userId: user.id,
+    });
+
+    try {
+      await runStep(step, {
         convex,
+        run,
         runId,
-        userId,
-        "describe",
-        "skipped",
-        "No screenshots available",
-      );
-    } else {
-      await beginStep(convex, runId, userId, "describe", "Describing screenshots");
-      const tiles = await loadTileArtifacts(convex, runId, userId, visual);
-      const result = await runDescribe({
-        sourceUrl: crawl.sourceUrl,
-        siteName: crawl.siteName,
-        tiles,
-        documentHeight: visual.documentHeight ?? visual.viewport.height,
-        documentWidth: visual.documentWidth ?? visual.viewport.width,
-        viewport: visual.viewport,
-        model: resolveModel({ apiKey: process.env.OPENAI_API_KEY }),
+        userId: user.id,
+        artifacts,
       });
-      description = result.description;
-      await saveText(convex, runId, userId, "description", description);
-      const wordCount = description.split(/\s+/).filter(Boolean).length;
-      await finishStep(
-        convex,
-        runId,
-        userId,
-        "describe",
-        "ok",
-        `Described ${wordCount} words`,
+      return NextResponse.json({ ok: true });
+    } catch (error) {
+      await convex.mutation(api.designRuns.failStep, {
+        id: runId,
+        userId: user.id,
+        step: inferFailedStep(error, step),
+        message: error instanceof Error ? error.message : "Run failed.",
+        code: error instanceof Error ? error.name : undefined,
+      });
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Run failed." },
+        { status: 500 },
       );
     }
-  }
+  };
+}
 
-  if (shouldRun(nextStep, "extract")) {
-    if (!crawl) throw new StepError("crawl", "Crawl artifact missing.");
-    await beginStep(convex, runId, userId, "extract", "Extracting CSS tokens");
-    tokens = runExtractTokens(crawl);
-    await saveValue(convex, runId, userId, "tokens", tokens);
-    await finishStep(
-      convex,
-      runId,
-      userId,
-      "extract",
-      "ok",
-      `Extracted ${tokens.typography.fontFamilies.length} font families`,
-    );
-  }
-
-  if (shouldRun(nextStep, "synthesize")) {
-    if (!crawl) throw new StepError("crawl", "Crawl artifact missing.");
-    if (!tokens) throw new StepError("extract", "Token artifact missing.");
-    await beginStep(convex, runId, userId, "synthesize", "Synthesizing design doc");
-    const tiles = visual?.status === "captured"
-      ? await loadTileArtifacts(convex, runId, userId, visual)
-      : [];
-    const result = await runSynthesize({
-      sourceUrl: crawl.sourceUrl,
-      siteName: crawl.siteName,
-      tokens,
-      tiles: tiles.length > 0 ? tiles : undefined,
-      visualDescription: description.trim() || undefined,
-      crawlNotes: crawl.notes,
-      model: resolveModel({ apiKey: process.env.OPENAI_API_KEY }),
-    });
-    doc = result.doc;
-    await saveValue(convex, runId, userId, "doc", doc);
-    await finishStep(
-      convex,
-      runId,
-      userId,
-      "synthesize",
-      "ok",
-      `Synthesized ${doc.palette.groups.length} palette groups`,
-    );
-  }
-
-  if (shouldRun(nextStep, "render")) {
-    if (!doc) throw new StepError("synthesize", "Design doc artifact missing.");
-    await beginStep(convex, runId, userId, "render", "Rendering markdown");
-    const baseMarkdown = renderDesignMd(doc);
-    const markdown =
-      mode === "text_only" ? prependTextOnlyBanner(baseMarkdown) : baseMarkdown;
-    await saveText(convex, runId, userId, "markdown", markdown);
-    await finishStep(convex, runId, userId, "render", "ok", "Ready", {
-      status: "completed",
-      completedAt: Date.now(),
-      markdownLength: markdown.length,
-    });
+async function runStep(step: RunStep, context: RunContext) {
+  switch (step) {
+    case "crawl":
+      return await runCrawlStep(context);
+    case "capture":
+      return await runCaptureStep(context);
+    case "extract":
+      return await runExtractStep(context);
+    case "describe":
+      return await runDescribeStep(context);
+    case "synthesize":
+      return await runSynthesizeStep(context);
+    case "render":
+      return await runRenderStep(context);
   }
 }
 
-function shouldRun(nextStep: RunStep, step: RunStep) {
-  return STEP_ORDER.indexOf(step) >= STEP_ORDER.indexOf(nextStep);
+async function runCrawlStep({ convex, run, runId, userId }: RunContext) {
+  await beginStep(convex, runId, userId, "crawl", "Reading site");
+  const crawled = await runCrawl({
+    url: run.normalizedUrl,
+    maxHtmlBytes: 5_000_000,
+    maxStylesheetBytes: 1_000_000,
+  });
+  const crawl = run.siteName?.trim()
+    ? { ...crawled, siteName: run.siteName.trim() }
+    : crawled;
+  await saveCrawl(convex, runId, userId, crawl);
+  await finishStep(
+    convex,
+    runId,
+    userId,
+    "crawl",
+    "ok",
+    `Crawled ${crawl.stylesheets.length} stylesheets`,
+  );
+}
+
+async function runCaptureStep({
+  convex,
+  runId,
+  userId,
+  artifacts,
+}: RunContext) {
+  const crawl = await requireCrawl(artifacts);
+  if (!process.env.DAYTONA_API_KEY) {
+    throw new StepError(
+      "capture",
+      "No Daytona API key available; set DAYTONA_API_KEY before starting a visual run.",
+    );
+  }
+
+  await beginStep(convex, runId, userId, "capture", "Capturing page");
+  const captured = await runVisual(
+    { url: crawl.sourceUrl },
+    { daytonaApiKey: process.env.DAYTONA_API_KEY },
+  );
+  const visual = await storeVisual(convex, runId, userId, captured);
+  const mode = visual.status === "captured" ? "visual" : "text_only";
+  await finishStep(
+    convex,
+    runId,
+    userId,
+    "capture",
+    visual.status === "captured" ? "ok" : "skipped",
+    visual.status === "captured"
+      ? `Captured ${visual.tiles.length} tiles`
+      : (visual.reason ?? "Capture skipped"),
+    {
+      mode,
+      tiles: visual.tiles.length,
+    },
+  );
+}
+
+async function runExtractStep({
+  convex,
+  runId,
+  userId,
+  artifacts,
+}: RunContext) {
+  const crawl = await requireCrawl(artifacts);
+  await beginStep(convex, runId, userId, "extract", "Extracting CSS tokens");
+  const tokens = runExtractTokens(crawl);
+  await saveValue(convex, runId, userId, "tokens", tokens);
+  await finishStep(
+    convex,
+    runId,
+    userId,
+    "extract",
+    "ok",
+    `Extracted ${tokens.typography.fontFamilies.length} font families`,
+  );
+}
+
+async function runDescribeStep({
+  convex,
+  runId,
+  userId,
+  artifacts,
+}: RunContext) {
+  const crawl = await requireCrawl(artifacts);
+  const visual = artifacts.visual as StoredVisual | null;
+
+  if (!visual || visual.status !== "captured" || !visual.viewport) {
+    await saveText(convex, runId, userId, "description", "");
+    await finishStep(
+      convex,
+      runId,
+      userId,
+      "describe",
+      "skipped",
+      "No screenshots available",
+    );
+    return;
+  }
+
+  await beginStep(convex, runId, userId, "describe", "Describing screenshots");
+  const tiles = await loadTileArtifacts(convex, runId, userId, visual);
+  const result = await runDescribe({
+    sourceUrl: crawl.sourceUrl,
+    siteName: crawl.siteName,
+    tiles,
+    documentHeight: visual.documentHeight ?? visual.viewport.height,
+    documentWidth: visual.documentWidth ?? visual.viewport.width,
+    viewport: visual.viewport,
+    model: resolveModel({ apiKey: process.env.OPENAI_API_KEY }),
+  });
+  await saveText(convex, runId, userId, "description", result.description);
+  const wordCount = result.description.split(/\s+/).filter(Boolean).length;
+  await finishStep(
+    convex,
+    runId,
+    userId,
+    "describe",
+    "ok",
+    `Described ${wordCount} words`,
+  );
+}
+
+async function runSynthesizeStep({
+  convex,
+  runId,
+  userId,
+  artifacts,
+}: RunContext) {
+  const crawl = await requireCrawl(artifacts);
+  const tokens = artifacts.tokens as DesignTokens | null;
+  if (!tokens) throw new StepError("extract", "Token artifact missing.");
+
+  const visual = artifacts.visual as StoredVisual | null;
+  const description = typeof artifacts.description === "string"
+    ? artifacts.description
+    : "";
+  await beginStep(convex, runId, userId, "synthesize", "Synthesizing design doc");
+  const tiles = visual?.status === "captured"
+    ? await loadTileArtifacts(convex, runId, userId, visual)
+    : [];
+  const result = await runSynthesize({
+    sourceUrl: crawl.sourceUrl,
+    siteName: crawl.siteName,
+    tokens,
+    tiles: tiles.length > 0 ? tiles : undefined,
+    visualDescription: description.trim() || undefined,
+    crawlNotes: crawl.notes,
+    model: resolveModel({ apiKey: process.env.OPENAI_API_KEY }),
+  });
+  await saveValue(convex, runId, userId, "doc", result.doc);
+  await finishStep(
+    convex,
+    runId,
+    userId,
+    "synthesize",
+    "ok",
+    `Synthesized ${result.doc.palette.groups.length} palette groups`,
+  );
+}
+
+async function runRenderStep({
+  convex,
+  run,
+  runId,
+  userId,
+  artifacts,
+}: RunContext) {
+  const doc = artifacts.doc as DesignDoc | null;
+  if (!doc) throw new StepError("synthesize", "Design doc artifact missing.");
+
+  await beginStep(convex, runId, userId, "render", "Rendering markdown");
+  const baseMarkdown = renderDesignMd(doc);
+  const markdown =
+    run.mode === "text_only" ? prependTextOnlyBanner(baseMarkdown) : baseMarkdown;
+  await saveText(convex, runId, userId, "markdown", markdown);
+  await finishStep(convex, runId, userId, "render", "ok", "Ready", {
+    status: "completed",
+    completedAt: Date.now(),
+    markdownLength: markdown.length,
+  });
+}
+
+async function requireCrawl(
+  artifacts: Record<string, unknown>,
+): Promise<CrawlSiteResult> {
+  const crawl = await loadStoredJson<CrawlSiteResult>(artifacts.crawl);
+  if (!crawl) throw new StepError("crawl", "Crawl artifact missing.");
+  return crawl;
 }
 
 async function beginStep(
@@ -290,7 +326,7 @@ async function finishStep(
   id: Id<"designRuns">,
   userId: string,
   step: RunStep,
-  status: "ok" | "skipped",
+  status: StepStatus,
   message: string,
   patch?: {
     status?: "queued" | "running" | "completed" | "failed";
@@ -314,7 +350,7 @@ async function saveValue(
   convex: ReturnType<typeof getConvexClient>,
   runId: Id<"designRuns">,
   userId: string,
-  kind: "crawl" | "visual" | "tokens" | "doc",
+  kind: "visual" | "tokens" | "doc",
   value: unknown,
 ) {
   await convex.mutation(api.designRunArtifacts.upsertValue, {
