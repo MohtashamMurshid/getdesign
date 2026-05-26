@@ -3,6 +3,7 @@ import path from "path"
 import { notFound } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { withAuth } from "@workos-inc/authkit-nextjs"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,6 +12,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { assertOwner, runDir } from "@/lib/runs-store"
+import { RunProgress } from "./run-progress"
 
 export default async function RunPage({
   params,
@@ -18,11 +21,20 @@ export default async function RunPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
+  const stateFilePath = path.join(runDir(slug), "state.json")
   const filePath = path.join(process.cwd(), "../../getdesign-runs", slug, "design.md")
 
-  if (!fs.existsSync(filePath)) notFound()
+  let runState = null
+  if (fs.existsSync(stateFilePath)) {
+    const { user } = await withAuth({ ensureSignedIn: true })
+    runState = await assertOwner(slug, user.id)
+  }
 
-  const content = fs.readFileSync(filePath, "utf-8")
+  if (!fs.existsSync(filePath) && !runState) notFound()
+
+  const content = fs.existsSync(filePath)
+    ? fs.readFileSync(filePath, "utf-8")
+    : null
 
   return (
     <>
@@ -40,6 +52,7 @@ export default async function RunPage({
         </Breadcrumb>
       </header>
 
+      {content ? (
       <div className="flex flex-1 justify-center p-6">
         <article className="w-full max-w-3xl mx-auto">
           <ReactMarkdown
@@ -118,6 +131,9 @@ export default async function RunPage({
           </ReactMarkdown>
         </article>
       </div>
+      ) : runState ? (
+        <RunProgress initialRun={runState} />
+      ) : null}
     </>
   )
 }

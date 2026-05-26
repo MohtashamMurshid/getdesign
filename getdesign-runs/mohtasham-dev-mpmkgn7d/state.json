@@ -1,0 +1,22 @@
+{
+  "id": "mohtasham-dev-mpmkgn7d",
+  "url": "https://mohtasham.dev/",
+  "userId": "user_01KRAYGPPNANZV3PEEQGH47ZYK",
+  "userEmail": "mohtasham@citysage.my",
+  "status": "failed",
+  "message": "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"shadows\",\n      4,\n      \"value\"\n    ],\n    \"message\": \"Too small: expected string to have >=1 characters\"\n  }\n]",
+  "steps": {
+    "crawl": "ok",
+    "capture": "ok",
+    "describe": "ok",
+    "extract": "failed",
+    "synthesize": "pending",
+    "render": "pending"
+  },
+  "createdAt": 1779795793273,
+  "updatedAt": 1779795898228,
+  "currentStep": "extract",
+  "mode": "visual",
+  "tiles": 4,
+  "error": "[\n  {\n    \"origin\": \"string\",\n    \"code\": \"too_small\",\n    \"minimum\": 1,\n    \"inclusive\": true,\n    \"path\": [\n      \"shadows\",\n      4,\n      \"value\"\n    ],\n    \"message\": \"Too small: expected string to have >=1 characters\"\n  }\n]"
+}

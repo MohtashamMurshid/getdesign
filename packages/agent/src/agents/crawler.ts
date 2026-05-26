@@ -16,6 +16,13 @@ const crawlerInputSchema = z.object({
     .max(1_000_000)
     .optional()
     .describe("Max bytes to keep per stylesheet (default 200 KB)"),
+  maxHtmlBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(10_000_000)
+    .optional()
+    .describe("Max bytes to fetch for the HTML document (default 1 MB)"),
 });
 
 export type CrawlerInput = z.infer<typeof crawlerInputSchema>;
@@ -33,6 +40,7 @@ export async function runCrawl(input: CrawlerInput): Promise<CrawlSiteResult> {
   const url = validatePublicUrl(input.url);
   return crawlSite({
     url,
+    maxHtmlBytes: input.maxHtmlBytes,
     maxStylesheetBytes: input.maxStylesheetBytes ?? 200_000,
   });
 }

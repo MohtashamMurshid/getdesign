@@ -1,0 +1,23 @@
+{
+  "id": "linear-app-mpmk9bs6",
+  "url": "https://linear.app/",
+  "userId": "user_01KRAYGPPNANZV3PEEQGH47ZYK",
+  "userEmail": "mohtasham@citysage.my",
+  "status": "completed",
+  "message": "Ready",
+  "steps": {
+    "crawl": "ok",
+    "capture": "ok",
+    "describe": "ok",
+    "extract": "ok",
+    "synthesize": "ok",
+    "render": "ok"
+  },
+  "createdAt": 1779795451878,
+  "updatedAt": 1779795616830,
+  "currentStep": "render",
+  "mode": "visual",
+  "tiles": 14,
+  "completedAt": 1779795616830,
+  "markdownLength": 10909
+}

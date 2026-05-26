@@ -1,0 +1,20 @@
+{
+  "id": "linear-app-mpmk884u",
+  "url": "https://linear.app/",
+  "userId": "user_01KRAYGPPNANZV3PEEQGH47ZYK",
+  "userEmail": "mohtasham@citysage.my",
+  "status": "failed",
+  "message": "Response from https://linear.app/ exceeded 1000000 bytes.",
+  "steps": {
+    "crawl": "failed",
+    "capture": "pending",
+    "describe": "pending",
+    "extract": "pending",
+    "synthesize": "pending",
+    "render": "pending"
+  },
+  "createdAt": 1779795400494,
+  "updatedAt": 1779795402305,
+  "currentStep": "crawl",
+  "error": "Response from https://linear.app/ exceeded 1000000 bytes."
+}

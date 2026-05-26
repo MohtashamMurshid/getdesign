@@ -37,6 +37,7 @@ const crawledStylesheetSchema = z
 const crawlSiteInputSchema = z
   .object({
     url: crawlableUrlSchema,
+    maxHtmlBytes: z.number().int().positive().max(10_000_000).default(DEFAULT_MAX_HTML_BYTES),
     maxStylesheetBytes: z.number().int().positive().max(1_000_000).default(200_000),
     maxImportDepth: z.number().int().min(0).max(3).default(1),
   })
@@ -159,7 +160,7 @@ export async function crawlSite(input: CrawlSiteInput): Promise<CrawlSiteResult>
   }
 
   const html = await fetchText(fetcher, parsedInput.url, {
-    maxBytes: DEFAULT_MAX_HTML_BYTES,
+    maxBytes: parsedInput.maxHtmlBytes,
   });
   const linkedStylesheets = extractStylesheetUrls(html, parsedInput.url);
   const inlineStyles = extractInlineStyles(html);
