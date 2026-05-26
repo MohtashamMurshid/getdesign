@@ -1,0 +1,105 @@
+{
+  "status": "captured",
+  "tiles": [
+    {
+      "file": "000.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "001.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "002.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "003.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "004.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "005.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "006.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "007.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "008.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "009.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "010.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "011.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "012.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "013.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    }
+  ],
+  "documentHeight": 10466,
+  "documentWidth": 1024,
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "measurementMode": "cdp",
+  "installedI18nFonts": false,
+  "durationsMs": {
+    "sandboxCreate": 905,
+    "prepare": 11670,
+    "chromiumLaunch": 1155,
+    "measure": 601,
+    "tiles": 34884,
+    "total": 52523
+  }
+}

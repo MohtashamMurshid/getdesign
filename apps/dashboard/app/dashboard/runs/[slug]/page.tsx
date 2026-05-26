@@ -13,6 +13,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { assertOwner, runDir } from "@/lib/runs-store"
+import { ExportActions } from "./export-actions"
 import { RunProgress } from "./run-progress"
 
 export default async function RunPage({
@@ -50,6 +51,9 @@ export default async function RunPage({
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
+        {content ? (
+          <ExportActions content={content} filename={`${slug}.md`} />
+        ) : null}
       </header>
 
       {content ? (

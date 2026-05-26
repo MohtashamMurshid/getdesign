@@ -1,0 +1,18 @@
+{
+  "id": "getdesign-app-mpml4und",
+  "url": "https://getdesign.app/",
+  "userId": "user_01KRAYGPPNANZV3PEEQGH47ZYK",
+  "userEmail": "mohtasham@citysage.my",
+  "status": "queued",
+  "message": "Queued",
+  "steps": {
+    "crawl": "pending",
+    "capture": "pending",
+    "describe": "pending",
+    "extract": "pending",
+    "synthesize": "pending",
+    "render": "pending"
+  },
+  "createdAt": 1779796922665,
+  "updatedAt": 1779796922665
+}
