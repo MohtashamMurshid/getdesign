@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type LightboxTile = {
   file: string;
@@ -23,6 +24,19 @@ export function TileLightbox({
   onIndexChange: (next: number) => void;
 }) {
   const isOpen = openIndex !== null;
+
+  // Render into document.body via a portal so the modal escapes any ancestor
+  // that establishes a containing block for `position: fixed` descendants
+  // (e.g. ancestors with `backdrop-filter`, `transform`, `filter`, or
+  // `contain` set — the hero gallery uses `backdrop-blur` for its sticky
+  // band, which is exactly such a case).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // Defer portal rendering to client-only since `document` is unavailable
+    // during SSR.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   const goPrev = useCallback(() => {
     if (openIndex === null) return;
@@ -53,12 +67,13 @@ export function TileLightbox({
   }, [isOpen, onClose, goPrev, goNext]);
 
   if (openIndex === null) return null;
+  if (!mounted) return null;
   const tile = tiles[openIndex];
   if (!tile) return null;
   const url = tile.url;
   if (!url) return null;
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -116,7 +131,8 @@ export function TileLightbox({
           {openIndex + 1} / {tiles.length}
         </p>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -1,148 +1,162 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
 import type { DesignTokens } from "@getdesign/types";
 
+type Swatch = { hex: string; role: string };
+type FontSample = { family: string; size: string; role: string };
+
+const SWATCH_SIZE = 44;
+
 export function ExtractStage({ tokens }: { tokens: DesignTokens | null }) {
   const swatches = useMemo(() => collectSwatches(tokens), [tokens]);
-  const fontSamples = useMemo(() => collectFonts(tokens), [tokens]);
-  const spacing = useMemo(() => collectSpacing(tokens), [tokens]);
-  const radii = useMemo(() => collectRadii(tokens), [tokens]);
+  const fonts = useMemo(() => collectFonts(tokens), [tokens]);
 
-  const [revealedSwatches, setRevealedSwatches] = useState(0);
+  // Stable random scatter positions per hex; recomputed only when the set
+  // of colors changes. Coordinates are in % of canvas.
+  const scatter = useMemo(() => buildScatter(swatches), [swatches]);
+
+  const [phase, setPhase] = useState<"scattering" | "settled">("scattering");
+  const [revealed, setRevealed] = useState(0);
 
   useEffect(() => {
-    if (swatches.length === 0) return;
+    // Intentional: animation resets when the source swatches change.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (swatches.length === 0) {
+      setRevealed(0);
+      setPhase("scattering");
+      return;
+    }
+    setRevealed(0);
+    setPhase("scattering");
+    /* eslint-enable react-hooks/set-state-in-effect */
+
     let i = 0;
-    const interval = window.setInterval(() => {
+    const popper = window.setInterval(() => {
       i = Math.min(i + 1, swatches.length);
-      setRevealedSwatches(i);
-      if (i >= swatches.length) window.clearInterval(interval);
-    }, 70);
-    return () => window.clearInterval(interval);
+      setRevealed(i);
+      if (i >= swatches.length) {
+        window.clearInterval(popper);
+        // Hold the chaotic constellation for a beat, then settle.
+        window.setTimeout(() => setPhase("settled"), 900);
+      }
+    }, 110);
+
+    return () => window.clearInterval(popper);
   }, [swatches.length]);
 
   return (
-    <div className="grid h-full w-full grid-cols-2 gap-4 p-6">
-      <Section title="Colors">
-        <div className="flex flex-wrap gap-1.5">
-          {swatches.length === 0
-            ? Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={`swatch-skel-${i}`}
-                  className="size-7 animate-pulse rounded-md bg-muted"
-                />
-              ))
-            : swatches.slice(0, revealedSwatches).map((s, i) => (
-                <div
-                  key={`${s.hex}-${i}`}
-                  className="size-7 rounded-md border border-border/60 shadow-sm [animation:chipIn_320ms_ease-out_both]"
-                  style={{ backgroundColor: s.hex }}
-                  title={`${s.hex} · ${s.role}`}
-                />
-              ))}
-        </div>
-      </Section>
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-muted/15">
+      <div className="flex items-center gap-2 px-6 pt-6">
+        <span className="size-1.5 animate-pulse rounded-full bg-foreground/70" />
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          Extracting tokens
+        </p>
+        <span className="ml-auto rounded-full border bg-background px-2 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+          {swatches.length} color{swatches.length === 1 ? "" : "s"}
+        </span>
+      </div>
 
-      <Section title="Typography">
-        <div className="space-y-2">
-          {fontSamples.length === 0
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={`type-skel-${i}`}
-                  className="h-6 animate-pulse rounded-md bg-muted"
-                />
-              ))
-            : fontSamples.map((f, i) => (
-                <div
-                  key={`${f.family}-${i}`}
-                  className="flex items-baseline gap-2 [animation:chipIn_320ms_ease-out_both]"
-                  style={{ animationDelay: `${i * 80}ms` }}
-                >
-                  <span
-                    className="truncate text-foreground"
-                    style={{ fontSize: f.size, fontFamily: safeFontStack(f.family) }}
-                  >
-                    {f.family}
-                  </span>
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {f.role}
-                  </span>
-                </div>
-              ))}
-        </div>
-      </Section>
-
-      <Section title="Spacing">
-        <div className="flex flex-wrap items-end gap-1.5">
-          {spacing.length === 0
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={`spc-skel-${i}`}
-                  className="h-4 w-6 animate-pulse rounded-sm bg-muted"
-                />
-              ))
-            : spacing.map((s, i) => (
-                <div
-                  key={`${s.value}-${i}`}
-                  className="flex flex-col items-center gap-0.5 [animation:chipIn_320ms_ease-out_both]"
-                  style={{ animationDelay: `${i * 60}ms` }}
+      {/* Canvas: scatter when popping, then settle into a row at the bottom */}
+      <div className="relative min-h-0 flex-1">
+        {phase === "scattering" ? (
+          <AnimatePresence>
+            {swatches.slice(0, revealed).map((s, i) => {
+              const pos = scatter[i] ?? { x: 50, y: 50, rot: 0 };
+              return (
+                <motion.div
+                  key={`scatter-${s.hex}-${i}`}
+                  layoutId={`swatch-${s.hex}-${i}`}
+                  initial={{ opacity: 0, scale: 0.4 }}
+                  animate={{ opacity: 1, scale: 1, rotate: pos.rot }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 360,
+                    damping: 18,
+                  }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2"
+                  style={{
+                    left: `${pos.x}%`,
+                    top: `${pos.y}%`,
+                  }}
                 >
                   <div
-                    className="rounded-sm bg-foreground/80"
+                    className="rounded-md border border-border/60 shadow-md"
                     style={{
-                      width: `${Math.min(48, Math.max(4, s.px))}px`,
-                      height: "10px",
+                      backgroundColor: s.hex,
+                      width: SWATCH_SIZE,
+                      height: SWATCH_SIZE,
                     }}
+                    title={`${s.hex} · ${s.role}`}
                   />
-                  <span className="font-mono text-[9px] text-muted-foreground">
-                    {s.value}
-                  </span>
-                </div>
-              ))}
-        </div>
-      </Section>
+                  <div className="mt-1 text-center font-mono text-[9px] text-muted-foreground">
+                    {s.hex}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        ) : null}
 
-      <Section title="Radii">
-        <div className="flex flex-wrap items-center gap-2">
-          {radii.length === 0
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={`rad-skel-${i}`}
-                  className="size-7 animate-pulse rounded-md bg-muted"
-                />
-              ))
-            : radii.map((r, i) => (
-                <div
-                  key={`${r.value}-${i}`}
-                  className="flex flex-col items-center gap-0.5 [animation:chipIn_320ms_ease-out_both]"
-                  style={{ animationDelay: `${i * 70}ms` }}
-                >
-                  <div
-                    className="size-7 border bg-foreground/10"
-                    style={{ borderRadius: r.value }}
+        {phase === "settled" ? (
+          <div className="absolute inset-0 flex flex-col justify-end gap-4 px-6 pb-6">
+            <Section title="Palette">
+              <div className="flex flex-wrap gap-1.5">
+                {swatches.map((s, i) => (
+                  <motion.div
+                    key={`grid-${s.hex}-${i}`}
+                    layoutId={`swatch-${s.hex}-${i}`}
+                    transition={{
+                      type: "spring",
+                      stiffness: 280,
+                      damping: 28,
+                    }}
+                    className="size-7 rounded-md border border-border/60 shadow-sm"
+                    style={{ backgroundColor: s.hex }}
+                    title={`${s.hex} · ${s.role}`}
                   />
-                  <span className="font-mono text-[9px] text-muted-foreground">
-                    {r.value}
-                  </span>
-                </div>
-              ))}
-        </div>
-      </Section>
+                ))}
+              </div>
+            </Section>
 
-      <style jsx>{`
-        @keyframes chipIn {
-          from {
-            opacity: 0;
-            transform: scale(0.85);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
+            <Section title="Typography">
+              <div className="space-y-1.5">
+                {fonts.length === 0
+                  ? Array.from({ length: 2 }).map((_, i) => (
+                      <div
+                        key={`type-skel-${i}`}
+                        className="h-5 w-2/3 animate-pulse rounded bg-muted"
+                      />
+                    ))
+                  : fonts.map((f, i) => (
+                      <motion.div
+                        key={`${f.family}-${i}`}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 + i * 0.08 }}
+                        className="flex items-baseline gap-2"
+                      >
+                        <span
+                          className="truncate text-foreground"
+                          style={{
+                            fontSize: f.size,
+                            fontFamily: safeFontStack(f.family),
+                          }}
+                        >
+                          {f.family}
+                        </span>
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {f.role}
+                        </span>
+                      </motion.div>
+                    ))}
+              </div>
+            </Section>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -155,16 +169,46 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 overflow-hidden rounded-lg border bg-card/60 p-3">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="rounded-lg border bg-card/70 p-3 shadow-sm"
+    >
+      <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
         {title}
       </p>
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
-    </div>
+      {children}
+    </motion.div>
   );
 }
 
-function collectSwatches(tokens: DesignTokens | null) {
+function buildScatter(swatches: Swatch[]) {
+  // Deterministic pseudo-random based on hex so positions are stable per render
+  // (avoids re-shuffling when the parent re-renders). Margins keep chips off
+  // the edges and out of the top label area.
+  return swatches.map((s, i) => {
+    const seed = hashSeed(`${s.hex}-${i}`);
+    const x = 12 + (seed.r1 * 76); // 12..88%
+    const y = 18 + (seed.r2 * 60); // 18..78%
+    const rot = (seed.r3 - 0.5) * 16;
+    return { x, y, rot };
+  });
+}
+
+function hashSeed(key: string) {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i += 1) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const r1 = (((h >>> 0) % 1000) / 1000);
+  const r2 = ((((h * 7) >>> 0) % 1000) / 1000);
+  const r3 = ((((h * 13) >>> 0) % 1000) / 1000);
+  return { r1, r2, r3 };
+}
+
+function collectSwatches(tokens: DesignTokens | null): Swatch[] {
   if (!tokens) return [];
   const groups = [
     tokens.colors.primary,
@@ -175,79 +219,36 @@ function collectSwatches(tokens: DesignTokens | null) {
   ];
   const all = groups.flat();
   const seen = new Set<string>();
-  const result: { hex: string; role: string }[] = [];
+  const result: Swatch[] = [];
   for (const c of all) {
-    const key = normalizeHex(c.hex);
+    const key = c.hex.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     result.push({ hex: c.hex, role: c.role });
-    if (result.length >= 36) break;
+    if (result.length >= 18) break;
   }
   return result;
 }
 
-function normalizeHex(hex: string) {
-  return hex.toLowerCase();
-}
-
-function collectFonts(tokens: DesignTokens | null) {
+function collectFonts(tokens: DesignTokens | null): FontSample[] {
   if (!tokens) return [];
   const seen = new Set<string>();
-  const samples: { family: string; size: string; role: string }[] = [];
-  const sizes = ["20px", "14px", "12px"];
+  const out: FontSample[] = [];
+  const sizes = ["22px", "16px", "13px"];
   let i = 0;
   for (const f of tokens.typography.fontFamilies) {
     if (f.family.startsWith("var(") || f.family === "inherit") continue;
     if (seen.has(f.family)) continue;
     seen.add(f.family);
-    samples.push({ family: f.family, size: sizes[i % sizes.length], role: f.role });
+    out.push({ family: f.family, size: sizes[i % sizes.length]!, role: f.role });
     i += 1;
-    if (samples.length >= 3) break;
-  }
-  return samples;
-}
-
-function collectSpacing(tokens: DesignTokens | null) {
-  if (!tokens) return [];
-  const seen = new Set<string>();
-  const out: { value: string; px: number }[] = [];
-  for (const s of tokens.spacing) {
-    const px = parsePx(s.value);
-    if (!Number.isFinite(px) || px <= 0 || px > 96) continue;
-    if (seen.has(s.value)) continue;
-    seen.add(s.value);
-    out.push({ value: s.value, px });
-    if (out.length >= 10) break;
-  }
-  return out.sort((a, b) => a.px - b.px);
-}
-
-function parsePx(value: string): number {
-  const trimmed = value.trim();
-  const match = /^([-]?[0-9]*\.?[0-9]+)(px|rem|em)?$/.exec(trimmed);
-  if (!match) return Number.NaN;
-  const num = parseFloat(match[1]!);
-  const unit = match[2] ?? "px";
-  if (unit === "rem" || unit === "em") return num * 16;
-  return num;
-}
-
-function collectRadii(tokens: DesignTokens | null) {
-  if (!tokens) return [];
-  const out: { value: string }[] = [];
-  const seen = new Set<string>();
-  for (const r of tokens.radii) {
-    if (seen.has(r.value)) continue;
-    seen.add(r.value);
-    if (r.value === "9999px") continue;
-    out.push({ value: r.value });
-    if (out.length >= 6) break;
+    if (out.length >= 3) break;
   }
   return out;
 }
 
 function safeFontStack(family: string): string {
-  if (/[\s\-]/.test(family) && !/['",]/.test(family)) {
+  if (/[\s-]/.test(family) && !/['",]/.test(family)) {
     return `"${family}", system-ui, sans-serif`;
   }
   return `${family}, system-ui, sans-serif`;

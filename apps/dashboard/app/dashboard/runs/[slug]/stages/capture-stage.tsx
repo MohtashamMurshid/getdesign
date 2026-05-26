@@ -1,113 +1,101 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
 import type { StoredVisual } from "@/lib/runs-store";
 
-import { TileLightbox } from "../tile-lightbox";
 import { tileUrl } from "../use-run-artifacts";
 
+/**
+ * Stage canvas for the Capture phase. Renders a "now arriving" tile preview
+ * in the center; once the rail has had time to register the new tile (via
+ * the shared `layoutId` set up in `LiveTileRail`), we drop our preview so
+ * Motion's layout animation flies the tile from the canvas into the rail.
+ */
 export function CaptureStage({
-  runId,
   visual,
   expectedTiles,
 }: {
-  runId: string;
   visual: StoredVisual | null;
   expectedTiles?: number;
 }) {
   const tiles = visual?.tiles ?? [];
-  const [revealed, setRevealed] = useState(0);
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const scrollerRef = useRef<HTMLDivElement>(null);
+  const total = Math.max(tiles.length, expectedTiles ?? 0);
+
+  // Index of the most recently landed tile; null until any have arrived.
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const seenCountRef = useRef(0);
+  const hideTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (tiles.length === 0) return;
-    let i = 0;
-    const interval = window.setInterval(() => {
-      i = Math.min(i + 1, tiles.length);
-      setRevealed(i);
-      if (i >= tiles.length) window.clearInterval(interval);
-    }, 220);
-    return () => window.clearInterval(interval);
+    if (tiles.length > seenCountRef.current) {
+      const next = tiles.length - 1;
+      seenCountRef.current = tiles.length;
+      setPreviewIndex(next);
+
+      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+      // Keep the preview centered briefly, then unmount so layoutId hands the
+      // element off to the rail with a smooth shared-layout tween.
+      hideTimerRef.current = window.setTimeout(() => {
+        setPreviewIndex(null);
+      }, 700);
+    }
+    return () => {
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    };
   }, [tiles.length]);
 
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
-  }, [revealed]);
-
-  const slots = Math.max(
-    tiles.length,
-    expectedTiles ?? 0,
-    tiles.length === 0 ? 4 : 0,
-  );
+  const previewTile = previewIndex !== null ? tiles[previewIndex] : null;
+  const previewUrl = previewIndex !== null ? tileUrl(visual, previewIndex) : null;
 
   return (
-    <div className="flex h-full w-full bg-muted/30">
-      <div
-        ref={scrollerRef}
-        className="relative mx-auto h-full w-full max-w-[78%] overflow-hidden"
-      >
-        <div className="flex flex-col gap-2 p-4">
-          {Array.from({ length: slots }).map((_, index) => {
-            const tile = tiles[index];
-            const isRevealed = index < revealed;
-
-            if (!tile || !isRevealed) {
-              return (
-                <div
-                  key={`placeholder-${index}`}
-                  className="aspect-[16/10] w-full animate-pulse rounded-md bg-muted"
-                />
-              );
-            }
-
-            const url = tileUrl(visual, index);
-            return (
-              <button
-                key={tile.file}
-                type="button"
-                onClick={() => setOpenIndex(index)}
-                className="group block w-full cursor-zoom-in overflow-hidden rounded-md border border-border/60 shadow-sm [animation:tileIn_500ms_ease-out]"
-                title={`Tile ${index + 1}`}
-              >
-                {url ? (
-                  <img
-                    src={url}
-                    alt={`Tile ${index + 1}`}
-                    width={tile.width}
-                    height={tile.height}
-                    className="w-full transition-opacity group-hover:opacity-90"
-                  />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-muted/10 p-6">
+      <div className="absolute left-4 top-4 flex items-center gap-2">
+        <span className="size-1.5 animate-pulse rounded-full bg-foreground/70" />
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          Capturing
+        </p>
+        <span className="rounded-full border bg-background px-2 py-0.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+          {tiles.length}
+          {total ? ` / ${total}` : ""}
+        </span>
       </div>
 
-      <style jsx>{`
-        @keyframes tileIn {
-          from {
-            opacity: 0;
-            transform: translateY(12px) scale(0.985);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
+      {/* Empty-state: gentle placeholder before any tile lands */}
+      {tiles.length === 0 ? (
+        <div className="flex flex-col items-center gap-3">
+          <div className="aspect-[16/10] w-72 animate-pulse rounded-md border bg-muted" />
+          <p className="font-mono text-[10px] text-muted-foreground">
+            warming up the headless browser…
+          </p>
+        </div>
+      ) : null}
 
-      <TileLightbox
-        runId={runId}
-        tiles={tiles}
-        openIndex={openIndex}
-        onClose={() => setOpenIndex(null)}
-        onIndexChange={setOpenIndex}
-      />
+      <AnimatePresence>
+        {previewIndex !== null && previewTile && previewUrl ? (
+          <motion.div
+            key={`preview-${previewIndex}`}
+            layoutId={`tile-${previewIndex}`}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", stiffness: 320, damping: 26 }}
+            className="overflow-hidden rounded-md border border-border/60 shadow-lg"
+            style={{ maxWidth: "70%", maxHeight: "78%" }}
+          >
+            <img
+              src={previewUrl}
+              alt={`Tile ${previewIndex + 1}`}
+              width={previewTile.width}
+              height={previewTile.height}
+              className="block w-full"
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
