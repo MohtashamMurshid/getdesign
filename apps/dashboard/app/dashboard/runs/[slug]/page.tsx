@@ -1,9 +1,14 @@
-import fs from "fs"
-import path from "path"
 import { notFound } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { withAuth } from "@workos-inc/authkit-nextjs"
+import {
+  getInlineCodeText,
+  HexColorCode,
+  isHexColor,
+  renderChildrenWithHexColors,
+  renderTextWithHexColors,
+} from "@/components/design-md-hex"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,7 +17,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { assertOwner, loadVisual, runDir } from "@/lib/runs-store"
+import { getConvexClient } from "@/lib/convex-server"
+import { toRunState } from "@/lib/runs-store"
+import { api } from "@convex/_generated/api"
+import type { Id } from "@convex/_generated/dataModel"
 import { ExportActions } from "./export-actions"
 import { RunProgress } from "./run-progress"
 import { ScreenshotsButton } from "./screenshots-button"
@@ -23,30 +31,29 @@ export default async function RunPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const stateFilePath = path.join(runDir(slug), "state.json")
-  const filePath = path.join(process.cwd(), "../../getdesign-runs", slug, "design.md")
+  const { user } = await withAuth({ ensureSignedIn: true })
+  const convex = getConvexClient()
+  const run = await convex.query(api.designRuns.get, {
+    id: slug as Id<"designRuns">,
+    userId: user.id,
+  })
 
-  let runState = null
-  if (fs.existsSync(stateFilePath)) {
-    const { user } = await withAuth({ ensureSignedIn: true })
-    runState = await assertOwner(slug, user.id)
-  }
+  if (!run) notFound()
 
-  if (!fs.existsSync(filePath) && !runState) notFound()
+  const runState = toRunState(run)
+  const artifacts = await convex.query(api.designRunArtifacts.getForRun, {
+    runId: slug as Id<"designRuns">,
+    userId: user.id,
+  })
+  const tiles = await convex.query(api.designRunArtifacts.getTileUrls, {
+    runId: slug as Id<"designRuns">,
+    userId: user.id,
+  })
 
-  const content = fs.existsSync(filePath)
-    ? fs.readFileSync(filePath, "utf-8")
-    : null
-
-  let tiles: Array<{ file: string; width: number; height: number }> = []
-  if (content) {
-    try {
-      const visual = await loadVisual(slug)
-      if (visual.status === "captured") tiles = visual.tiles
-    } catch {
-      tiles = []
-    }
-  }
+  const content =
+    runState.status === "completed" && typeof artifacts.markdown === "string"
+      ? artifacts.markdown
+      : null
 
   return (
     <>
@@ -88,13 +95,13 @@ export default async function RunPage({
                 <h3 className="text-sm font-semibold mt-6 mb-2 text-muted-foreground uppercase tracking-wider">{children}</h3>
               ),
               p: ({ children }) => (
-                <p className="text-sm leading-relaxed text-muted-foreground mb-3 text-justify">{children}</p>
+                <p className="text-sm leading-relaxed text-muted-foreground mb-3 text-justify">{renderChildrenWithHexColors(children)}</p>
               ),
               ul: ({ children }) => (
                 <ul className="text-sm text-muted-foreground space-y-1 mb-3 ml-4 list-disc">{children}</ul>
               ),
               li: ({ children }) => (
-                <li className="leading-relaxed text-justify">{children}</li>
+                <li className="leading-relaxed text-justify">{renderChildrenWithHexColors(children)}</li>
               ),
               table: ({ children }) => (
                 <div className="overflow-x-auto mb-4">
@@ -108,7 +115,7 @@ export default async function RunPage({
                 <th className="text-left text-xs font-medium text-muted-foreground py-2 pr-6">{children}</th>
               ),
               td: ({ children }) => (
-                <td className="py-2 pr-6 text-sm text-muted-foreground align-top">{children}</td>
+                <td className="py-2 pr-6 text-sm text-muted-foreground align-top">{renderChildrenWithHexColors(children)}</td>
               ),
               tr: ({ children }) => (
                 <tr className="border-b border-border/50 last:border-0">{children}</tr>
@@ -118,26 +125,17 @@ export default async function RunPage({
                 if (isBlock) {
                   return (
                     <code className="block bg-muted rounded-lg p-4 text-xs font-mono overflow-x-auto mb-4">
-                      {children}
+                      {renderTextWithHexColors(String(children))}
                     </code>
                   )
                 }
-                // Inline hex color swatch — 3, 6, or 8 digit
-                const text = String(children).trim()
-                const hexMatch = text.match(/^(#[A-Fa-f0-9]{8}|#[A-Fa-f0-9]{6}|#[A-Fa-f0-9]{3})$/)
-                // For display, strip alpha from 8-digit so the swatch shows the base color
-                const swatchColor = hexMatch
-                  ? hexMatch[1].length === 9 ? hexMatch[1].slice(0, 7) : hexMatch[1]
-                  : null
+                const text = getInlineCodeText(children)
+                if (isHexColor(text)) {
+                  return <HexColorCode hex={text} />
+                }
                 return (
                   <code className="inline-flex items-center gap-1.5 font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                    {swatchColor && (
-                      <span
-                        className="inline-block size-2.5 rounded-sm shrink-0 border border-white/10"
-                        style={{ backgroundColor: swatchColor }}
-                      />
-                    )}
-                    {text}
+                    {children}
                   </code>
                 )
               },
@@ -152,7 +150,7 @@ export default async function RunPage({
         </article>
       </div>
       ) : runState ? (
-        <RunProgress initialRun={runState} />
+        <RunProgress initialRun={runState} userId={user.id} />
       ) : null}
     </>
   )

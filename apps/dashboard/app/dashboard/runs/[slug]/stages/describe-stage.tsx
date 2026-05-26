@@ -32,7 +32,7 @@ export function DescribeStage({
   }, [slice]);
 
   const tileCount = visual?.tiles?.length ?? 0;
-  const backdropTile = tileCount > 0 ? tileUrl(runId, 0) : null;
+  const backdropTile = tileCount > 0 ? tileUrl(visual, 0) : null;
 
   return (
     <div className="relative h-full w-full overflow-hidden">

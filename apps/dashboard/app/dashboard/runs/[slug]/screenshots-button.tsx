@@ -99,7 +99,8 @@ export function ScreenshotsButton({
           >
             <div className="mx-auto grid max-w-6xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {tiles.map((tile, index) => {
-                const url = `/api/runs/${runId}/artifacts/tiles/${tile.file}`;
+                const url = tile.url;
+                if (!url) return null;
                 return (
                   <button
                     key={tile.file}

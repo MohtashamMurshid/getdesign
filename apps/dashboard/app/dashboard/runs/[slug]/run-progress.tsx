@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "convex/react";
 
-import type { RunState, RunStep } from "@/lib/runs-store";
+import { toRunState, type RunState, type RunStep } from "@/lib/runs-store";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 
 import { BrowserWindow } from "./browser-window";
 import { CaptureStage } from "./stages/capture-stage";
@@ -35,14 +38,26 @@ type Phase =
   | "completed"
   | "failed";
 
-export function RunProgress({ initialRun }: { initialRun: RunState }) {
+export function RunProgress({
+  initialRun,
+  userId,
+}: {
+  initialRun: RunState;
+  userId: string;
+}) {
   const router = useRouter();
-  const [run, setRun] = useState(initialRun);
-  const [error, setError] = useState<string | null>(initialRun.error ?? null);
+  const liveRun = useQuery(api.designRuns.get, {
+    id: initialRun.id as Id<"designRuns">,
+    userId,
+  });
+  const run = liveRun ? toRunState(liveRun) : initialRun;
+  const runError =
+    typeof run.error === "object" && run.error ? run.error.message : run.error;
+  const [error, setError] = useState<string | null>(runError ?? null);
   const [isRunning, setIsRunning] = useState(false);
   const startedRef = useRef(false);
 
-  const artifacts = useRunArtifacts(run);
+  const artifacts = useRunArtifacts(run, userId);
 
   const completedCount = useMemo(
     () =>
@@ -54,65 +69,27 @@ export function RunProgress({ initialRun }: { initialRun: RunState }) {
   );
   const progress = Math.round((completedCount / STEP_ORDER.length) * 100);
 
-  const refreshRun = useCallback(async () => {
-    const response = await fetch(`/api/runs/${run.id}`, { cache: "no-store" });
-    const payload = (await response.json().catch(() => ({}))) as {
-      run?: RunState;
-      error?: string;
-    };
-
-    if (!response.ok || !payload.run) {
-      throw new Error(payload.error ?? "Could not load run.");
-    }
-
-    setRun(payload.run);
-    return payload.run;
-  }, [run.id]);
-
   const runSteps = useCallback(async () => {
     setIsRunning(true);
     setError(null);
 
     try {
-      let current = await refreshRun();
-
-      for (const step of STEP_ORDER) {
-        const status = current.steps[step];
-        if (status === "ok" || status === "skipped") continue;
-        if (status === "running") {
-          current = await refreshRun();
-          if (
-            current.steps[step] === "ok" ||
-            current.steps[step] === "skipped"
-          ) {
-            continue;
-          }
-        }
-
-        const response = await fetch(`/api/runs/${current.id}/${step}`, {
-          method: "POST",
-        });
-        const payload = (await response.json().catch(() => ({}))) as {
-          run?: RunState;
-          error?: string;
-        };
-
-        if (!response.ok || !payload.run) {
-          throw new Error(payload.error ?? `${step} failed.`);
-        }
-
-        current = payload.run;
-        setRun(current);
+      const response = await fetch(`/api/runs/${run.id}/start`, {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Run failed.");
       }
-
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Run failed.");
-      await refreshRun().catch(() => {});
     } finally {
       setIsRunning(false);
     }
-  }, [refreshRun, router]);
+  }, [router, run.id]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -123,6 +100,10 @@ export function RunProgress({ initialRun }: { initialRun: RunState }) {
   }, [run.status, runSteps]);
 
   const phase = derivePhase(run, error);
+  useEffect(() => {
+    setError(runError ?? null);
+  }, [runError]);
+
   const substatus = useMemo(() => {
     if (phase === "failed") return "Failed";
     if (phase === "completed") return "Done";
@@ -173,7 +154,7 @@ export function RunProgress({ initialRun }: { initialRun: RunState }) {
         </Stage>
         <Stage active={phase === "failed"}>
           <FailedStage
-            error={error ?? run.error ?? "Run failed."}
+            error={error ?? runError ?? "Run failed."}
             onRetry={onRetry}
             isRetrying={isRunning}
           />

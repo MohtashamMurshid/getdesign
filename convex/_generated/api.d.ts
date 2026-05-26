@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as designRunArtifacts from "../designRunArtifacts.js";
 import type * as designRuns from "../designRuns.js";
 import type * as waitlist from "../waitlist.js";
 
@@ -18,6 +19,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  designRunArtifacts: typeof designRunArtifacts;
   designRuns: typeof designRuns;
   waitlist: typeof waitlist;
 }>;

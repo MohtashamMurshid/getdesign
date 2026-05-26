@@ -6,6 +6,7 @@ export type LightboxTile = {
   file: string;
   width: number;
   height: number;
+  url?: string;
 };
 
 export function TileLightbox({
@@ -54,7 +55,8 @@ export function TileLightbox({
   if (openIndex === null) return null;
   const tile = tiles[openIndex];
   if (!tile) return null;
-  const url = `/api/runs/${runId}/artifacts/tiles/${tile.file}`;
+  const url = tile.url;
+  if (!url) return null;
 
   return (
     <div

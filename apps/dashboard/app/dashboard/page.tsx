@@ -1,6 +1,5 @@
-import fs from "fs"
-import path from "path"
 import Link from "next/link"
+import { withAuth } from "@workos-inc/authkit-nextjs"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,6 +7,8 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { getConvexClient } from "@/lib/convex-server"
+import { api } from "@convex/_generated/api"
 
 const MOCK_STATS = {
   globalRuns: 3_201_056,
@@ -24,6 +25,7 @@ const MOCK_STATS = {
 
 type DesignRun = {
   slug: string
+  domain: string
   title: string
   theme: string
   colors: string[]
@@ -56,18 +58,6 @@ function parseDesignMd(content: string): Pick<DesignRun, "title" | "theme" | "co
   return { title, theme, colors, accent }
 }
 
-function loadRuns(): DesignRun[] {
-  const runsDir = path.join(process.cwd(), "../../getdesign-runs")
-  if (!fs.existsSync(runsDir)) return []
-  return fs
-    .readdirSync(runsDir)
-    .filter((slug) => fs.existsSync(path.join(runsDir, slug, "design.md")))
-    .map((slug) => {
-      const content = fs.readFileSync(path.join(runsDir, slug, "design.md"), "utf-8")
-      return { slug, ...parseDesignMd(content) }
-    })
-}
-
 function fmt(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
@@ -88,8 +78,31 @@ function Favicon({ domain }: { domain: string }) {
 }
 
 
-export default function Page() {
-  const runs = loadRuns()
+export default async function Page() {
+  const { user } = await withAuth({ ensureSignedIn: true })
+  const convex = getConvexClient()
+  const recent = await convex.query(api.designRuns.listRecent, {
+    userId: user.id,
+    limit: 24,
+  })
+  const runs = (
+    await Promise.all(
+      recent
+        .filter((run) => run.status === "completed")
+        .map(async (run) => {
+          const artifacts = await convex.query(api.designRunArtifacts.getForRun, {
+            runId: run._id,
+            userId: user.id,
+          })
+          if (typeof artifacts.markdown !== "string") return null
+          return {
+            slug: String(run._id),
+            domain: run.domain,
+            ...parseDesignMd(artifacts.markdown),
+          }
+        }),
+    )
+  ).filter((run): run is DesignRun => Boolean(run))
 
   return (
     <>

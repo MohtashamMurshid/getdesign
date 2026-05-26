@@ -2,12 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation } from "convex/react";
 
 import { InputBar } from "@/components/agent-elements/input-bar";
 import { BrandMark } from "@/components/brand-mark";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 
 type AgentCommandProps = {
   aiReady: boolean;
+  user: {
+    id: string;
+    email?: string;
+  };
 };
 
 type RunStep =
@@ -21,7 +28,7 @@ type RunStep =
 type StepStatus = "pending" | "running" | "ok" | "skipped" | "failed";
 
 type RunState = {
-  id: string;
+  id: Id<"designRuns">;
   status: "queued" | "running" | "completed" | "failed";
   message?: string;
   steps: Record<RunStep, StepStatus>;
@@ -41,8 +48,9 @@ function isProbablyUrl(value: string) {
   }
 }
 
-export function AgentCommand({ aiReady }: AgentCommandProps) {
+export function AgentCommand({ aiReady, user }: AgentCommandProps) {
   const router = useRouter();
+  const createRun = useMutation(api.designRuns.create);
   const [error, setError] = useState<string | null>(null);
   const [run, setRun] = useState<RunState | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -75,11 +83,25 @@ export function AgentCommand({ aiReady }: AgentCommandProps) {
           startTransition(async () => {
             setIsRunning(true);
             try {
-              const created = await postJson<{ run: RunState }>("/api/runs", {
+              const runId = await createRun({
                 url: normalizeUrl(content),
+                userId: user.id,
+                userEmail: user.email,
               });
-              setRun(created.run);
-              router.push(`/dashboard/runs/${created.run.id}`);
+              setRun({
+                id: runId,
+                status: "queued",
+                message: "Queued",
+                steps: {
+                  crawl: "pending",
+                  capture: "pending",
+                  describe: "pending",
+                  extract: "pending",
+                  synthesize: "pending",
+                  render: "pending",
+                },
+              });
+              router.push(`/dashboard/runs/${runId}`);
             } catch (err) {
               setError(err instanceof Error ? err.message : "Could not start run.");
             } finally {
@@ -105,24 +127,6 @@ export function AgentCommand({ aiReady }: AgentCommandProps) {
       {run ? <RunProgress run={run} /> : null}
     </div>
   );
-}
-
-async function postJson<T>(url: string, body?: unknown): Promise<T> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const payload = (await response.json().catch(() => ({}))) as {
-    error?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(payload.error ?? "Request failed.");
-  }
-
-  return payload as T;
 }
 
 function RunProgress({ run }: { run: RunState }) {

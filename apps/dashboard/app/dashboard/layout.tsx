@@ -11,7 +11,7 @@ export default async function DashboardLayout({
   const { user } = await withAuth({ ensureSignedIn: true });
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <AppSidebar
         user={{
           name:

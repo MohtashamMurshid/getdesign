@@ -5,6 +5,7 @@ import "@radix-ui/themes/styles.css"
 import "@workos-inc/widgets/base.css"
 import "@workos-inc/widgets/styles.css"
 import "./globals.css"
+import { DashboardConvexProvider } from "@/components/convex-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
 
@@ -28,7 +29,9 @@ export default function RootLayout({
     >
       <body>
         <AuthKitProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <DashboardConvexProvider>
+            <ThemeProvider>{children}</ThemeProvider>
+          </DashboardConvexProvider>
         </AuthKitProvider>
       </body>
     </html>

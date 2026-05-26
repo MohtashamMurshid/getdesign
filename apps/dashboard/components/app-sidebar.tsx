@@ -17,7 +17,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import {
   DashboardBrowsingIcon,
   SparklesIcon,
@@ -34,7 +34,7 @@ import {
 type NavItem = {
   title: string
   url: string
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
+  icon: IconSvgElement
 }
 
 const NAV_MAIN: NavItem[] = [

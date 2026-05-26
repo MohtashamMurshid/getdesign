@@ -1,19 +1,35 @@
-import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
-import { api } from "./_generated/api";
+import { ConvexError, v } from "convex/values";
 
-const phaseSchema = v.union(
+import { mutation, query } from "./_generated/server";
+
+const stepSchema = v.union(
   v.literal("crawl"),
   v.literal("capture"),
-  v.literal("visual"),
   v.literal("describe"),
   v.literal("extract"),
   v.literal("synthesize"),
   v.literal("render"),
 );
 
+const stepStatusSchema = v.union(
+  v.literal("pending"),
+  v.literal("running"),
+  v.literal("ok"),
+  v.literal("skipped"),
+  v.literal("failed"),
+);
+
+const runStatusSchema = v.union(
+  v.literal("queued"),
+  v.literal("running"),
+  v.literal("completed"),
+  v.literal("failed"),
+);
+
 function normalizeUrl(input: string) {
-  const withProtocol = /^https?:\/\//i.test(input) ? input : `https://${input}`;
+  const withProtocol = /^https?:\/\//i.test(input.trim())
+    ? input.trim()
+    : `https://${input.trim()}`;
   const url = new URL(withProtocol);
   url.hash = "";
   return url.toString();
@@ -31,31 +47,60 @@ function slugFromDomain(domain: string) {
     .slice(0, 64);
 }
 
+function initialSteps() {
+  return {
+    crawl: "pending" as const,
+    capture: "pending" as const,
+    describe: "pending" as const,
+    extract: "pending" as const,
+    synthesize: "pending" as const,
+    render: "pending" as const,
+  };
+}
+
+async function getOwnedRun(ctx: { db: any }, id: any, userId: string) {
+  const run = await ctx.db.get(id);
+  if (!run || run.userId !== userId || run.deletedAt) return null;
+  return run;
+}
+
 export const create = mutation({
   args: {
     userId: v.string(),
     userEmail: v.optional(v.string()),
     url: v.string(),
+    siteName: v.optional(v.string()),
     rerunOf: v.optional(v.id("designRuns")),
   },
+  returns: v.id("designRuns"),
   handler: async (ctx, args) => {
-    const normalizedUrl = normalizeUrl(args.url);
+    let normalizedUrl: string;
+    try {
+      normalizedUrl = normalizeUrl(args.url);
+    } catch {
+      throw new ConvexError({
+        code: "INVALID_URL",
+        message: "Enter a public URL.",
+      });
+    }
+
     const domain = domainFromUrl(normalizedUrl);
     const now = Date.now();
 
     return await ctx.db.insert("designRuns", {
       userId: args.userId,
       userEmail: args.userEmail,
-      url: args.url,
+      url: normalizedUrl,
       normalizedUrl,
       domain,
       slug: slugFromDomain(domain),
       status: "queued",
-      latestMessage: "Queued",
+      message: "Queued",
+      steps: initialSteps(),
       rerunOf: args.rerunOf,
       traceEvents: [
         {
-          phase: "queued",
+          step: "queued",
           status: "ok",
           message: "Run created",
           at: now,
@@ -67,11 +112,23 @@ export const create = mutation({
   },
 });
 
-export const listForUser = query({
+export const get = query({
+  args: {
+    id: v.id("designRuns"),
+    userId: v.string(),
+  },
+  returns: v.union(v.any(), v.null()),
+  handler: async (ctx, { id, userId }) => {
+    return await getOwnedRun(ctx, id, userId);
+  },
+});
+
+export const listRecent = query({
   args: {
     userId: v.string(),
     limit: v.optional(v.number()),
   },
+  returns: v.array(v.any()),
   handler: async (ctx, { userId, limit = 24 }) => {
     const rows = await ctx.db
       .query("designRuns")
@@ -83,111 +140,121 @@ export const listForUser = query({
   },
 });
 
-export const getForUser = query({
-  args: {
-    id: v.id("designRuns"),
-    userId: v.string(),
-  },
-  handler: async (ctx, { id, userId }) => {
-    const run = await ctx.db.get(id);
-    if (!run || run.userId !== userId || run.deletedAt) return null;
-    return run;
-  },
-});
-
 export const markDeleted = mutation({
   args: {
     id: v.id("designRuns"),
     userId: v.string(),
   },
+  returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, { id, userId }) => {
-    const run = await ctx.db.get(id);
-    if (!run || run.userId !== userId) return { ok: false };
+    const run = await getOwnedRun(ctx, id, userId);
+    if (!run) return { ok: false };
     await ctx.db.patch(id, { deletedAt: Date.now(), updatedAt: Date.now() });
     return { ok: true };
   },
 });
 
-export const appendProgress = mutation({
-  args: {
-    id: v.id("designRuns"),
-    status: v.optional(
-      v.union(
-        v.literal("queued"),
-        v.literal("running"),
-        v.literal("needs_action"),
-        v.literal("completed"),
-        v.literal("failed"),
-        v.literal("canceled"),
-      ),
-    ),
-    currentPhase: v.optional(phaseSchema),
-    currentPhaseStatus: v.optional(v.string()),
-    latestMessage: v.optional(v.string()),
-    event: v.any(),
-  },
-  handler: async (ctx, args) => {
-    const run = await ctx.db.get(args.id);
-    if (!run) return;
-
-    const now = Date.now();
-    await ctx.db.patch(args.id, {
-      status: args.status ?? run.status,
-      currentPhase: args.currentPhase ?? run.currentPhase,
-      currentPhaseStatus: args.currentPhaseStatus ?? run.currentPhaseStatus,
-      latestMessage: args.latestMessage ?? run.latestMessage,
-      traceEvents: [...(run.traceEvents ?? []), { ...args.event, at: now }],
-      startedAt:
-        run.startedAt ?? (args.status === "running" ? now : undefined),
-      updatedAt: now,
-    });
-  },
-});
-
-export const complete = mutation({
-  args: {
-    id: v.id("designRuns"),
-    markdown: v.string(),
-    doc: v.any(),
-    tokens: v.any(),
-    visualDescription: v.optional(v.string()),
-    mode: v.union(v.literal("visual"), v.literal("text_only")),
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    await ctx.db.patch(args.id, {
-      status: "completed",
-      currentPhase: "render",
-      currentPhaseStatus: "ok",
-      latestMessage: "Ready",
-      markdown: args.markdown,
-      doc: args.doc,
-      tokens: args.tokens,
-      visualDescription: args.visualDescription,
-      mode: args.mode,
-      completedAt: now,
-      updatedAt: now,
-    });
-  },
-});
-
-export const start = action({
+export const beginStep = mutation({
   args: {
     id: v.id("designRuns"),
     userId: v.string(),
+    step: stepSchema,
+    message: v.string(),
   },
-  handler: async (ctx, { id }) => {
-    await ctx.runMutation(api.designRuns.appendProgress, {
-      id,
-      status: "running",
-      currentPhase: "crawl",
-      currentPhaseStatus: "start",
-      latestMessage: "Crawling",
-      event: { phase: "crawl", status: "start" },
-    });
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const run = await getOwnedRun(ctx, args.id, args.userId);
+    if (!run) throw new ConvexError("Run not found.");
+    const now = Date.now();
 
-    // The production action should call @getdesign/sdk streamDesign here and
-    // persist each progress event. Keeping this action lightweight lets the UI
-    // and data contract land before provider credentials are wired into Convex.
+    await ctx.db.patch(args.id, {
+      status: "running",
+      currentStep: args.step,
+      message: args.message,
+      error: undefined,
+      steps: { ...run.steps, [args.step]: "running" },
+      traceEvents: [
+        ...(run.traceEvents ?? []),
+        { step: args.step, status: "running", message: args.message, at: now },
+      ],
+      startedAt: run.startedAt ?? now,
+      updatedAt: now,
+    });
+    return null;
+  },
+});
+
+export const finishStep = mutation({
+  args: {
+    id: v.id("designRuns"),
+    userId: v.string(),
+    step: stepSchema,
+    status: v.union(v.literal("ok"), v.literal("skipped")),
+    message: v.string(),
+    patch: v.optional(
+      v.object({
+        status: v.optional(runStatusSchema),
+        mode: v.optional(v.union(v.literal("visual"), v.literal("text_only"))),
+        tiles: v.optional(v.number()),
+        markdownLength: v.optional(v.number()),
+        completedAt: v.optional(v.number()),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const run = await getOwnedRun(ctx, args.id, args.userId);
+    if (!run) throw new ConvexError("Run not found.");
+    const now = Date.now();
+    const nextStatus = args.patch?.status ?? run.status;
+
+    await ctx.db.patch(args.id, {
+      ...args.patch,
+      status: nextStatus,
+      currentStep: args.step,
+      message: args.message,
+      steps: { ...run.steps, [args.step]: args.status },
+      traceEvents: [
+        ...(run.traceEvents ?? []),
+        { step: args.step, status: args.status, message: args.message, at: now },
+      ],
+      updatedAt: now,
+    });
+    return null;
+  },
+});
+
+export const failStep = mutation({
+  args: {
+    id: v.id("designRuns"),
+    userId: v.string(),
+    step: stepSchema,
+    message: v.string(),
+    code: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const run = await getOwnedRun(ctx, args.id, args.userId);
+    if (!run) return null;
+    const now = Date.now();
+
+    await ctx.db.patch(args.id, {
+      status: "failed",
+      currentStep: args.step,
+      message: args.message,
+      error: {
+        code: args.code,
+        message: args.message,
+        step: args.step,
+      },
+      steps: { ...run.steps, [args.step]: "failed" },
+      traceEvents: [
+        ...(run.traceEvents ?? []),
+        { step: args.step, status: "failed", message: args.message, at: now },
+      ],
+      failedAt: now,
+      updatedAt: now,
+    });
+    return null;
   },
 });

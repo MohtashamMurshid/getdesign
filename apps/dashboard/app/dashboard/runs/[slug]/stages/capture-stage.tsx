@@ -64,7 +64,7 @@ export function CaptureStage({
               );
             }
 
-            const url = tileUrl(runId, index);
+            const url = tileUrl(visual, index);
             return (
               <button
                 key={tile.file}
@@ -73,13 +73,15 @@ export function CaptureStage({
                 className="group block w-full cursor-zoom-in overflow-hidden rounded-md border border-border/60 shadow-sm [animation:tileIn_500ms_ease-out]"
                 title={`Tile ${index + 1}`}
               >
-                <img
-                  src={url}
-                  alt={`Tile ${index + 1}`}
-                  width={tile.width}
-                  height={tile.height}
-                  className="w-full transition-opacity group-hover:opacity-90"
-                />
+                {url ? (
+                  <img
+                    src={url}
+                    alt={`Tile ${index + 1}`}
+                    width={tile.width}
+                    height={tile.height}
+                    className="w-full transition-opacity group-hover:opacity-90"
+                  />
+                ) : null}
               </button>
             );
           })}
