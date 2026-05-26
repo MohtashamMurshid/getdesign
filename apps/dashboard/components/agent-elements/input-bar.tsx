@@ -52,6 +52,7 @@ export type InputBarProps = {
   onStop: () => void;
   placeholder?: string;
   className?: string;
+  size?: "default" | "lg";
 
   // Attachment support
   onAttach?: () => void;
@@ -122,12 +123,18 @@ export type InputBarProps = {
   rightActions?: React.ReactNode;
 };
 
+const INPUT_BAR_MAX_HEIGHT = {
+  default: 120,
+  lg: 160,
+} as const;
+
 export const InputBar = memo(function InputBar({
   onSend,
   status,
   onStop,
   placeholder,
   className,
+  size = "default",
   onAttach,
   attachedImages = [],
   attachedFiles = [],
@@ -182,17 +189,19 @@ export const InputBar = memo(function InputBar({
 
   const showAttach = Boolean(onAttach);
   const attachRight = config.attachmentButtonPosition === "right";
+  const maxHeight = INPUT_BAR_MAX_HEIGHT[size];
+  const isLarge = size === "lg";
 
   // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "0";
-    const nextHeight = Math.min(el.scrollHeight, 120);
+    const nextHeight = Math.min(el.scrollHeight, maxHeight);
     el.style.height = `${nextHeight}px`;
-    el.style.overflowY = el.scrollHeight > 120 ? "auto" : "hidden";
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
     el.style.overflowX = "hidden";
-  }, [input]);
+  }, [input, maxHeight]);
 
   useEffect(() => {
     if (!autoFocus) return;
@@ -420,7 +429,7 @@ export const InputBar = memo(function InputBar({
 
   return (
     <div className={cn("shrink-0 px-3 pb-3", className)}>
-      <div className="mx-auto max-w-an">
+      <div className={cn("mx-auto", isLarge ? "max-w-xl" : "max-w-an")}>
         <div
           className={cn(
             "flex flex-col gap-0",
@@ -495,9 +504,20 @@ export const InputBar = memo(function InputBar({
             )}
 
             {/* Text input or typing animation text */}
-            <div className="pt-3 pb-0 pr-3 pl-3.5 min-h-[44px]">
+            <div
+              className={cn(
+                isLarge
+                  ? "min-h-[56px] pt-4 pb-0 pr-4 pl-4"
+                  : "min-h-[44px] pt-3 pb-0 pr-3 pl-3.5",
+              )}
+            >
               {isTyping ? (
-                <div className="w-full text-[14px] leading-[1.6] text-an-foreground-muted">
+                <div
+                  className={cn(
+                    "w-full leading-[1.6] text-an-foreground-muted",
+                    isLarge ? "text-base" : "text-[14px]",
+                  )}
+                >
                   <span>{displayedText}</span>
                   <span className="inline-block w-[2px] h-[1em] ml-px align-text-bottom bg-an-foreground animate-an-blink" />
                 </div>
@@ -513,7 +533,8 @@ export const InputBar = memo(function InputBar({
                     disabled={disabled}
                     rows={1}
                     className={cn(
-                      "peer w-full resize-none bg-transparent border-0 outline-none text-[14px] leading-[1.6] text-an-foreground placeholder:text-an-input-placeholder-color",
+                      "peer w-full resize-none bg-transparent border-0 outline-none leading-[1.6] text-an-foreground placeholder:text-an-input-placeholder-color",
+                      isLarge ? "text-base" : "text-[14px]",
                       "overflow-hidden",
                       disabled && "opacity-50 cursor-not-allowed",
                     )}
@@ -524,7 +545,12 @@ export const InputBar = memo(function InputBar({
             </div>
 
             {/* Toolbar */}
-            <div className="flex items-center justify-between gap-3 px-2 pt-1 pb-2">
+            <div
+              className={cn(
+                "flex items-center justify-between gap-3 pt-1",
+                isLarge ? "px-3 pb-3" : "px-2 pb-2",
+              )}
+            >
               <div className="flex items-center gap-1 min-w-0">
                 {!attachRight && showAttach && onAttach && (
                   <AttachmentButton onClick={onAttach} />
