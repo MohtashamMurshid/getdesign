@@ -1,0 +1,424 @@
+{
+  "siteName": "getdesign",
+  "sourceUrl": "https://getdesign.app/",
+  "visualTheme": {
+    "overview": [
+      "Dark, code-native landing page aesthetic with restrained contrast and sparse neon accents.",
+      "Single-column long-scroll structure segmented by faint dashed horizontal dividers.",
+      "Product UI mockups (editor/terminal/browser chrome) are the primary visual storytelling device instead of illustrations or photography."
+    ],
+    "keyCharacteristics": [
+      "Near-black canvas with layered dark surfaces (#0A0A0B, #101012, #141418, #1A1A20).",
+      "Accent-led emphasis using lime (#A3E635) for active states, status dots, and key command/domain text.",
+      "Monospace syntax colors in demo panels (blue #60A5FA, yellow #FBBF24, violet #C084FC, pink #F472B6).",
+      "Consistent rounded geometry using tokenized radii (sm/md/lg/xl + rounded-full pill treatments).",
+      "Dense but orderly information hierarchy: oversized hero claim, muted explanatory text, compact metadata lines."
+    ]
+  },
+  "palette": {
+    "philosophy": "Keep most UI in low-contrast dark neutrals, reserve bright chroma for semantic emphasis, active navigation, and code-token legibility.",
+    "groups": [
+      {
+        "heading": "Core dark + text system",
+        "entries": [
+          {
+            "hex": "#0A0A0B",
+            "role": "App background / inverse text on light button",
+            "whereSeen": "Global page background, dark panels, primary button text"
+          },
+          {
+            "hex": "#EDEDEE",
+            "role": "Primary foreground",
+            "whereSeen": "Headlines, high-emphasis body text, light button fill"
+          },
+          {
+            "hex": "#EDEDEE99",
+            "role": "Muted foreground",
+            "whereSeen": "Secondary paragraphs, metadata, helper copy"
+          },
+          {
+            "hex": "#EDEDEE61",
+            "role": "Subtle text/border-adjacent tone",
+            "whereSeen": "Low-emphasis UI text and subdued labels"
+          },
+          {
+            "hex": "#EDEDEE1F",
+            "role": "Faint separators/overlays",
+            "whereSeen": "Very light divider and low-contrast panel detailing"
+          }
+        ]
+      },
+      {
+        "heading": "Surface layering",
+        "entries": [
+          {
+            "hex": "#101012",
+            "role": "Surface 100",
+            "whereSeen": "Cards/panels and container blocks"
+          },
+          {
+            "hex": "#141418",
+            "role": "Surface 200",
+            "whereSeen": "Nested mock-interface regions"
+          },
+          {
+            "hex": "#1A1A20",
+            "role": "Surface 300",
+            "whereSeen": "Raised subsections and denser demo panes"
+          },
+          {
+            "hex": "#0000",
+            "role": "Transparent surface",
+            "whereSeen": "Native form control resets and transparent layers"
+          }
+        ]
+      },
+      {
+        "heading": "Accent + syntax",
+        "entries": [
+          {
+            "hex": "#A3E635",
+            "role": "Primary accent",
+            "whereSeen": "Active nav underline, status dots, key command/domain text"
+          },
+          {
+            "hex": "#65A30D",
+            "role": "Dim accent",
+            "whereSeen": "Secondary accent moments and subdued green states"
+          },
+          {
+            "hex": "#A3E6352E",
+            "role": "Accent glow",
+            "whereSeen": "Soft glow/selection-like accent backing"
+          },
+          {
+            "hex": "#60A5FA",
+            "role": "Function/info syntax",
+            "whereSeen": "Code-like function names in mock terminal/editor"
+          },
+          {
+            "hex": "#C084FC",
+            "role": "Keyword syntax",
+            "whereSeen": "Code keyword highlighting"
+          },
+          {
+            "hex": "#FBBF24",
+            "role": "Numeric/metric syntax",
+            "whereSeen": "Timings, counts, file-size emphasis in logs"
+          },
+          {
+            "hex": "#F472B6",
+            "role": "Variable syntax",
+            "whereSeen": "Variable-like token highlighting"
+          },
+          {
+            "hex": "#F87171",
+            "role": "Danger/error",
+            "whereSeen": "Danger semantic token and error text moments"
+          }
+        ]
+      },
+      {
+        "heading": "Borders and utility colors",
+        "entries": [
+          {
+            "hex": "#FFFFFF12",
+            "role": "Default border",
+            "whereSeen": "Card outlines, control borders, section framing"
+          },
+          {
+            "hex": "#FFFFFF24",
+            "role": "Strong border",
+            "whereSeen": "Higher-emphasis boundary lines"
+          },
+          {
+            "hex": "#27C93F",
+            "role": "Window control green",
+            "whereSeen": "Browser chrome traffic-light dot in mock UI"
+          },
+          {
+            "hex": "#FF5F56",
+            "role": "Window control red",
+            "whereSeen": "Browser chrome traffic-light dot in mock UI"
+          },
+          {
+            "hex": "#0A0A0BB3",
+            "role": "Dark text 70% alpha",
+            "whereSeen": "Reduced-contrast dark-on-light text contexts"
+          }
+        ]
+      }
+    ],
+    "notes": "All hex values are sourced directly from extracted tokens; no inferred colors added."
+  },
+  "typography": {
+    "summary": "Primary UI typography uses Geist (sans) with a code layer in JetBrains Mono/system monospace stacks. Scale is utility-driven with many small UI sizes and conservative defaults.",
+    "hierarchy": [
+      {
+        "role": "Body",
+        "font": "Geist, Geist Fallback, var(--font-geist), ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "size": "16px",
+        "weight": "400",
+        "lineHeight": "1.5",
+        "letterSpacing": "normal",
+        "notes": "Default readable paragraph/body rhythm"
+      },
+      {
+        "role": "Body",
+        "font": "Geist, Geist Fallback",
+        "size": "16px",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Base Geist class usage"
+      },
+      {
+        "role": "H1",
+        "font": "inherit",
+        "size": "inherit",
+        "weight": "inherit",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Heading elements inherit size/weight from utility/context classes"
+      },
+      {
+        "role": "Mono",
+        "font": "JetBrains Mono, JetBrains Mono Fallback, var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "size": "16px",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Primary monospace class for code-like panels"
+      },
+      {
+        "role": "Mono",
+        "font": "var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "size": "1em",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "code/kbd/samp/pre sizing rule"
+      },
+      {
+        "role": "Small",
+        "font": "inherit",
+        "size": "80%",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Native small element scale"
+      },
+      {
+        "role": "Body",
+        "font": "inherit",
+        "size": "75%",
+        "weight": "400",
+        "lineHeight": "0",
+        "letterSpacing": "normal",
+        "notes": "sub/sup rule from CSS"
+      },
+      {
+        "role": "Body",
+        "font": "inherit",
+        "size": "var(--text-xs)",
+        "weight": "400",
+        "lineHeight": "var(--tw-leading,var(--text-xs--line-height))",
+        "letterSpacing": "normal",
+        "notes": "text-xs utility token"
+      },
+      {
+        "role": "Small",
+        "font": "inherit",
+        "size": "10.5px",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Tiny metadata/caption utility"
+      },
+      {
+        "role": "Small",
+        "font": "inherit",
+        "size": "10px",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Tiny metadata/caption utility"
+      },
+      {
+        "role": "Small",
+        "font": "inherit",
+        "size": "9.5px",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Dense log/meta utility"
+      },
+      {
+        "role": "Small",
+        "font": "inherit",
+        "size": "9px",
+        "weight": "400",
+        "lineHeight": "normal",
+        "letterSpacing": "normal",
+        "notes": "Smallest visible utility text"
+      }
+    ],
+    "principles": [
+      "Let large marketing headings be driven by contextual utility classes while semantic h1-h6 remain inherit-based.",
+      "Use sans for product/UI narrative; switch to mono for commands, logs, token values, and artifact content.",
+      "Preserve muted contrast for supporting copy and reserve bright text colors for stateful/semantic highlights."
+    ]
+  },
+  "components": {
+    "buttons": [
+      {
+        "variant": "Primary CTA (Join waitlist)",
+        "background": "#EDEDEE",
+        "textColor": "#0A0A0B",
+        "border": "1px solid #FFFFFF12",
+        "radius": "border-radius: var(--radius-md) and/or border-radius: .375rem",
+        "padding": "Compact horizontal CTA sizing (tokenized utilities); keep form-row fit",
+        "hoverShift": "Increase border emphasis toward #FFFFFF24 or subtle luminance shift while preserving dark/light polarity"
+      },
+      {
+        "variant": "Secondary outline (GitHub)",
+        "background": "#0000",
+        "textColor": "#EDEDEE",
+        "border": "1px solid #FFFFFF12",
+        "radius": "border-radius: var(--radius-md)",
+        "padding": "Small control padding suitable for top-nav action",
+        "hoverShift": "Slight surface fill to #101012 and border emphasis to #FFFFFF24"
+      }
+    ],
+    "cards": {
+      "description": "Cards/panels are dark layered containers with thin low-contrast strokes, used for hero editor preview, how-it-works dual panel, and surfaces grid cells.",
+      "tokens": [
+        "Backgrounds: #101012 / #141418 / #1A1A20",
+        "Border: #FFFFFF12 (default), #FFFFFF24 (strong)",
+        "Radii: var(--radius-lg), var(--radius-xl), 3px/4px for micro-elements",
+        "Separators: 1px lines and faint dashed rules using low-alpha neutrals"
+      ]
+    },
+    "inputs": {
+      "description": "Email and prompt-like inputs sit on dark surfaces with clear border definition and muted placeholder text; often paired inline with a contrasting primary button.",
+      "tokens": [
+        "Input background: #0000 or dark surface layer",
+        "Text: #EDEDEE / muted #EDEDEE99",
+        "Border: #FFFFFF12",
+        "Radius: border-radius 0 base reset, then var(--radius-md)/var(--radius-sm) utilities"
+      ]
+    },
+    "navigation": {
+      "description": "Top nav is a horizontally distributed dark bar with section links, active lime underline, and right-aligned outline action button.",
+      "tokens": [
+        "Header background: #0A0A0B",
+        "Link text: muted-to-foreground neutral",
+        "Active indicator: #A3E635",
+        "Dividers: 1px dashed/faint rules"
+      ]
+    },
+    "imageTreatment": {
+      "description": "No photography; visuals are interface simulations. Emphasis is on terminal/editor realism with syntax color coding and status metadata.",
+      "tokens": [
+        "Code accents: #60A5FA, #C084FC, #FBBF24, #F472B6, #A3E635",
+        "Panel surfaces: #101012/#141418/#1A1A20",
+        "Window dots: #FF5F56, #27C93F"
+      ]
+    },
+    "distinctive": [
+      {
+        "name": "Editor artifact hero panel",
+        "description": "Tabbed dark editor mock featuring markdown sections, color token chips, and a streaming status bar to reinforce generated output."
+      },
+      {
+        "name": "How-it-works split simulation",
+        "description": "Left pseudo-app UI + right backend run log, both styled with mono syntax colors and measurable outputs (timings, sections, KB)."
+      },
+      {
+        "name": "Five-surfaces grid with empty sixth cell",
+        "description": "Structured 3x2 grid where five cards are populated and one dim placeholder preserves system symmetry."
+      }
+    ]
+  },
+  "layout": {
+    "spacingScale": "1px, 3px, 8px, 480px, 560px, 100vh (from extracted spacing tokens; includes utility and structural values).",
+    "grid": "Centered max-width content with long-scroll stacked sections; key regions switch to two-column compositions (hero split, how-it-works split) and a 3x2 card grid for surfaces.",
+    "whitespace": "Generous vertical section spacing separated by faint dashed horizontal rules; compact internal spacing in mock terminal/editor panels for dense technical content.",
+    "radiusScale": "radius sm .25rem, radius md .375rem, radius lg .5rem, radius xl .75rem, border-radius 0, border-radius .25rem, border-radius 3px, border-radius 4px, border-radius 3.40282e38px, border-radius var(--radius-lg), border-radius var(--radius-md), border-radius var(--radius-sm), border-radius var(--radius-xl), border-bottom-right-radius var(--radius-sm), border-bottom-left-radius var(--radius-sm), border-radius 8px."
+  },
+  "depth": {
+    "levels": [
+      {
+        "level": "Base plane",
+        "use": "Global page canvas and major section backgrounds",
+        "shadow": "none"
+      },
+      {
+        "level": "Surface layering",
+        "use": "Cards, panels, and nested mock app regions differentiated by tone not elevation blur",
+        "shadow": "none"
+      },
+      {
+        "level": "Interactive emphasis",
+        "use": "Active states rely on color/border contrast, not drop shadows",
+        "shadow": "none"
+      }
+    ],
+    "philosophy": "Depth is intentionally flat and tonal; hierarchy comes from surface color steps, borders, and spacing rather than shadows."
+  },
+  "interaction": {
+    "hoverStates": "Link/button hover is conveyed through subtle border/surface contrast shifts and accent color emphasis (not shadow-driven). Active nav uses lime underline (#A3E635).",
+    "focusStates": "Form controls should use high-contrast border treatment against dark surfaces (base #FFFFFF12, stronger #FFFFFF24) while keeping text legible (#EDEDEE).",
+    "transitions": "No explicit transition/animation duration or easing tokens were provided in the extracted CSS facts; do not assume timing values."
+  },
+  "responsive": {
+    "breakpoints": [
+      {
+        "name": "bp-1",
+        "minWidth": "40rem",
+        "primaryChanges": "Small-to-medium layout enhancement; increase horizontal structure and breathing room."
+      },
+      {
+        "name": "bp-2",
+        "minWidth": "48rem",
+        "primaryChanges": "Core two-column sections become stable (hero and how-it-works split behavior)."
+      },
+      {
+        "name": "bp-3",
+        "minWidth": "64rem",
+        "primaryChanges": "Wider desktop composition with fuller grid expression and larger panel footprints."
+      },
+      {
+        "name": "bp-4",
+        "minWidth": "80rem",
+        "primaryChanges": "Max-width desktop refinement with sustained gutters and expanded negative space."
+      }
+    ],
+    "touchTargets": "Primary interactive targets (buttons, nav links, form controls) should maintain comfortably tappable heights via existing control padding and rounded tokens.",
+    "collapsingStrategy": "Progress from multi-column desktop sections to stacked single-column flow while preserving section order: hero, how-it-works, surfaces, CTA.",
+    "imageBehavior": "Interface mock panels scale within container bounds; preserve legibility by prioritizing text contrast and panel border clarity over decorative scaling effects."
+  },
+  "agentPromptGuide": {
+    "quickColorReference": [
+      "Background: #0A0A0B",
+      "Primary text: #EDEDEE",
+      "Muted text: #EDEDEE99",
+      "Primary accent: #A3E635",
+      "Border: #FFFFFF12",
+      "Strong border: #FFFFFF24",
+      "Surface steps: #101012 / #141418 / #1A1A20",
+      "Syntax: #60A5FA / #C084FC / #FBBF24 / #F472B6"
+    ],
+    "examplePrompts": [
+      "Build a dark developer-landing hero using #0A0A0B background, #EDEDEE headline, lime #A3E635 accent cursor, and a right-side editor mock panel.",
+      "Create a two-panel 'How it works' section with a pseudo app UI on the left and backend log on the right, using mono syntax colors from the token set.",
+      "Generate a 3x2 surfaces grid with five populated cards and one dim empty placeholder, borders in #FFFFFF12 and card surfaces in #101012/#141418."
+    ],
+    "iterationGuide": [
+      "Start with token fidelity: colors, radii, breakpoints, and typography values exactly as specified.",
+      "Tune hierarchy next: oversized claim, muted supporting text, compact mono metadata.",
+      "Add structural rhythm: dashed 1px separators and generous vertical spacing between major bands.",
+      "Validate interaction styling remains flat (shadow: none) and stateful via accent/border contrast only."
+    ]
+  }
+}

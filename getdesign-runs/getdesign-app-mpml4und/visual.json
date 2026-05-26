@@ -1,0 +1,45 @@
+{
+  "status": "captured",
+  "tiles": [
+    {
+      "file": "000.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "001.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "002.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    },
+    {
+      "file": "003.png",
+      "width": 1024,
+      "height": 768,
+      "format": "png"
+    }
+  ],
+  "documentHeight": 2847,
+  "documentWidth": 1024,
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "measurementMode": "cdp",
+  "installedI18nFonts": false,
+  "durationsMs": {
+    "sandboxCreate": 1507,
+    "prepare": 11722,
+    "chromiumLaunch": 2495,
+    "measure": 787,
+    "tiles": 6137,
+    "total": 24402
+  }
+}

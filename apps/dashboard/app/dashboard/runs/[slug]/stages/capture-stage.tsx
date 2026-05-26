@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { StoredVisual } from "@/lib/runs-store";
 
+import { TileLightbox } from "../tile-lightbox";
 import { tileUrl } from "../use-run-artifacts";
 
 export function CaptureStage({
@@ -17,6 +18,7 @@ export function CaptureStage({
 }) {
   const tiles = visual?.tiles ?? [];
   const [revealed, setRevealed] = useState(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,15 +64,23 @@ export function CaptureStage({
               );
             }
 
+            const url = tileUrl(runId, index);
             return (
-              <img
+              <button
                 key={tile.file}
-                src={tileUrl(runId, index)}
-                alt={`Tile ${index + 1}`}
-                width={tile.width}
-                height={tile.height}
-                className="w-full rounded-md border border-border/60 shadow-sm [animation:tileIn_500ms_ease-out]"
-              />
+                type="button"
+                onClick={() => setOpenIndex(index)}
+                className="group block w-full cursor-zoom-in overflow-hidden rounded-md border border-border/60 shadow-sm [animation:tileIn_500ms_ease-out]"
+                title={`Tile ${index + 1}`}
+              >
+                <img
+                  src={url}
+                  alt={`Tile ${index + 1}`}
+                  width={tile.width}
+                  height={tile.height}
+                  className="w-full transition-opacity group-hover:opacity-90"
+                />
+              </button>
             );
           })}
         </div>
@@ -88,6 +98,14 @@ export function CaptureStage({
           }
         }
       `}</style>
+
+      <TileLightbox
+        runId={runId}
+        tiles={tiles}
+        openIndex={openIndex}
+        onClose={() => setOpenIndex(null)}
+        onIndexChange={setOpenIndex}
+      />
     </div>
   );
 }

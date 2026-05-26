@@ -119,11 +119,7 @@ export function RunProgress({ initialRun }: { initialRun: RunState }) {
     if (run.status === "completed" || run.status === "failed") return;
 
     startedRef.current = true;
-    const timer = window.setTimeout(() => {
-      void runSteps();
-    }, 0);
-
-    return () => window.clearTimeout(timer);
+    void runSteps();
   }, [run.status, runSteps]);
 
   const phase = derivePhase(run, error);

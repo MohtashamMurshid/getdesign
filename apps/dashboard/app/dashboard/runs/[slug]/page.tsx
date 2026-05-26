@@ -12,9 +12,10 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { assertOwner, runDir } from "@/lib/runs-store"
+import { assertOwner, loadVisual, runDir } from "@/lib/runs-store"
 import { ExportActions } from "./export-actions"
 import { RunProgress } from "./run-progress"
+import { ScreenshotsButton } from "./screenshots-button"
 
 export default async function RunPage({
   params,
@@ -37,6 +38,16 @@ export default async function RunPage({
     ? fs.readFileSync(filePath, "utf-8")
     : null
 
+  let tiles: Array<{ file: string; width: number; height: number }> = []
+  if (content) {
+    try {
+      const visual = await loadVisual(slug)
+      if (visual.status === "captured") tiles = visual.tiles
+    } catch {
+      tiles = []
+    }
+  }
+
   return (
     <>
       <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
@@ -52,7 +63,12 @@ export default async function RunPage({
           </BreadcrumbList>
         </Breadcrumb>
         {content ? (
-          <ExportActions content={content} filename={`${slug}.md`} />
+          <div className="ml-auto flex items-center gap-1">
+            {tiles.length > 0 ? (
+              <ScreenshotsButton runId={slug} tiles={tiles} />
+            ) : null}
+            <ExportActions content={content} filename={`${slug}.md`} />
+          </div>
         ) : null}
       </header>
 
