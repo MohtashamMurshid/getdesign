@@ -1,5 +1,13 @@
 import { streamDesign, type DesignStreamEvent } from "@getdesign/sdk";
 
+import { getCurrentUser } from "../../_lib/auth";
+import { getUserCredentials } from "../../_lib/credentials";
+import {
+  resolveCredentials,
+  type ResolvedCredentials,
+} from "../../_lib/credentials-resolver";
+import { isWorkOSConfigured } from "../../_lib/workos";
+
 export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -38,6 +46,39 @@ function encodeLine(event: DesignStreamEvent, encoder: TextEncoder): Uint8Array 
   return encoder.encode(`${JSON.stringify(event)}\n`);
 }
 
+function envCredentials(): ResolvedCredentials {
+  return {
+    daytonaApiKey: process.env.DAYTONA_API_KEY,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+  };
+}
+
+/**
+ * Resolve the keys for a run by priority: request body (BYOK) > the signed-in
+ * user's WorkOS Vault secrets > local environment variables.
+ */
+async function resolveRunCredentials(request: ResolvedCredentials) {
+  let vault: ResolvedCredentials | undefined;
+
+  if (isWorkOSConfigured()) {
+    try {
+      const user = await getCurrentUser();
+      if (user) {
+        vault = await getUserCredentials(user.id);
+      }
+    } catch {
+      // Treat Vault/auth failures as "no stored credentials" and fall through
+      // to env-var resolution; the run still fails cleanly if nothing resolves.
+    }
+  }
+
+  return resolveCredentials({
+    request,
+    vault,
+    env: envCredentials(),
+  });
+}
+
 export async function POST(request: Request) {
   let body: DesignRequestBody;
   try {
@@ -55,15 +96,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const daytonaApiKey = stringField(body.daytonaApiKey);
-  const openaiApiKey = stringField(body.openaiApiKey);
-  if (!daytonaApiKey || !openaiApiKey) {
+  const credentials = await resolveRunCredentials({
+    daytonaApiKey: stringField(body.daytonaApiKey),
+    openaiApiKey: stringField(body.openaiApiKey),
+  });
+
+  if (credentials.missing.length > 0) {
     return jsonError(
       400,
       "missing_credentials",
-      "Provide your own Daytona and OpenAI API keys to run a design.",
+      "No Daytona and OpenAI keys found. Enter them below, save them in Settings, or set DAYTONA_API_KEY / OPENAI_API_KEY locally.",
     );
   }
+
+  const { daytonaApiKey, openaiApiKey } = credentials.credentials;
 
   const siteName = stringField(body.siteName);
   const visualRequirement =

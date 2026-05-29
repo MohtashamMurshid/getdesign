@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 
 import { JsonLd } from "./_components/json-ld";
 import { SITE_DOMAIN, SITE_GITHUB_URL, SITE_NAME } from "./_lib/site";
+import { isWorkOSConfigured } from "./_lib/workos";
 
 import "./globals.css";
 
@@ -146,11 +148,21 @@ export default function RootLayout({
     ],
   };
 
+  const content = (
+    <>
+      {children}
+      <JsonLd data={jsonLd} />
+    </>
+  );
+
   return (
     <html lang="en" className={`${geist.variable} ${jetbrains.variable}`}>
       <body>
-        {children}
-        <JsonLd data={jsonLd} />
+        {isWorkOSConfigured() ? (
+          <AuthKitProvider>{content}</AuthKitProvider>
+        ) : (
+          content
+        )}
       </body>
     </html>
   );
