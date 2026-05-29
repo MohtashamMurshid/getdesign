@@ -7,6 +7,7 @@ import type { DesignStreamEvent } from "@getdesign/sdk";
 import { PhaseList } from "./phase-list";
 import { ResultViewer } from "./result-viewer";
 import type {
+  DashboardAccess,
   DashboardResult,
   DashboardStatus,
   PhaseId,
@@ -44,7 +45,10 @@ const INITIAL_FORM: FormState = {
   rememberKeys: false,
 };
 
-export function DashboardRunner() {
+export function DashboardRunner({ access }: { access: DashboardAccess }) {
+  const daytonaFromServer = access.stored.daytona || access.env.daytona;
+  const openaiFromServer = access.stored.openai || access.env.openai;
+
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [status, setStatus] = useState<DashboardStatus>("idle");
   const [phases, setPhases] = useState<Record<PhaseId, PhaseState>>(
@@ -198,9 +202,20 @@ export function DashboardRunner() {
         setErrorMessage("Enter a URL to design.");
         return;
       }
-      if (!daytona || !openai) {
+
+      const daytonaReady = Boolean(daytona) || daytonaFromServer;
+      const openaiReady = Boolean(openai) || openaiFromServer;
+      if (!daytonaReady || !openaiReady) {
+        const missing = [
+          !daytonaReady ? "Daytona" : null,
+          !openaiReady ? "OpenAI" : null,
+        ]
+          .filter(Boolean)
+          .join(" and ");
         setStatus("error");
-        setErrorMessage("Provide both Daytona and OpenAI API keys.");
+        setErrorMessage(
+          `Provide your ${missing} key${missing.includes("and") ? "s" : ""}, or save ${missing.includes("and") ? "them" : "it"} in Settings.`,
+        );
         return;
       }
 
@@ -224,8 +239,8 @@ export function DashboardRunner() {
           body: JSON.stringify({
             url,
             siteName: form.siteName.trim() || undefined,
-            daytonaApiKey: daytona,
-            openaiApiKey: openai,
+            daytonaApiKey: daytona || undefined,
+            openaiApiKey: openai || undefined,
           }),
         });
 
@@ -291,7 +306,7 @@ export function DashboardRunner() {
         abortRef.current = null;
       }
     },
-    [applyEvent, form, persistKeys, status],
+    [applyEvent, daytonaFromServer, form, openaiFromServer, persistKeys, status],
   );
 
   const cancel = useCallback(() => {
@@ -371,10 +386,14 @@ export function DashboardRunner() {
 
           <div className="my-5 dashed-top h-px" />
 
+          <CredentialBanner access={access} />
+
           <div className="mb-3 flex items-center justify-between text-[10.5px] uppercase tracking-[0.2em] text-[var(--subtle)]">
             <span>BYOK credentials</span>
             <span className="font-mono normal-case tracking-normal text-[var(--subtle)]">
-              never persisted server-side
+              {daytonaFromServer && openaiFromServer
+                ? "optional override"
+                : "never persisted server-side"}
             </span>
           </div>
 
@@ -401,11 +420,10 @@ export function DashboardRunner() {
               type="password"
               autoComplete="off"
               spellCheck={false}
-              placeholder="dt_live_..."
+              placeholder={daytonaFromServer ? "Using saved key — override here" : "dt_live_..."}
               value={form.daytonaApiKey}
               onChange={(e) => handleField("daytonaApiKey", e.target.value)}
               disabled={isRunning}
-              required
               className="h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--background)] px-3 font-mono text-[13px] text-foreground placeholder:text-[var(--subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--border-strong)] disabled:opacity-60"
             />
           </Field>
@@ -433,11 +451,10 @@ export function DashboardRunner() {
               type="password"
               autoComplete="off"
               spellCheck={false}
-              placeholder="sk-..."
+              placeholder={openaiFromServer ? "Using saved key — override here" : "sk-..."}
               value={form.openaiApiKey}
               onChange={(e) => handleField("openaiApiKey", e.target.value)}
               disabled={isRunning}
-              required
               className="h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--background)] px-3 font-mono text-[13px] text-foreground placeholder:text-[var(--subtle)] focus:outline-none focus:ring-1 focus:ring-[var(--border-strong)] disabled:opacity-60"
             />
           </Field>
@@ -531,6 +548,64 @@ function formatElapsed(ms: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds - m * 60);
   return `${m}m${s.toString().padStart(2, "0")}s`;
+}
+
+function CredentialBanner({ access }: { access: DashboardAccess }) {
+  const bothStored = access.stored.daytona && access.stored.openai;
+  const bothEnv = access.env.daytona && access.env.openai;
+
+  let message: React.ReactNode;
+  let action: React.ReactNode = null;
+
+  if (access.workosConfigured && access.userEmail) {
+    message = bothStored ? (
+      <>
+        Using your saved keys for{" "}
+        <span className="text-foreground">{access.userEmail}</span>. Leave the
+        fields blank, or override below.
+      </>
+    ) : (
+      <>
+        Signed in as{" "}
+        <span className="text-foreground">{access.userEmail}</span>. Save your
+        keys once so you don&apos;t paste them every run.
+      </>
+    );
+    action = (
+      <a
+        href="/dashboard/settings"
+        className="btn-ghost shrink-0 rounded-md px-3 py-1.5 text-[11.5px]"
+      >
+        Settings
+      </a>
+    );
+  } else if (access.workosConfigured) {
+    message = <>Sign in to securely store your keys in WorkOS Vault and reuse them.</>;
+    action = (
+      <a
+        href="/login"
+        className="btn-ghost shrink-0 rounded-md px-3 py-1.5 text-[11.5px]"
+      >
+        Sign in
+      </a>
+    );
+  } else if (bothEnv) {
+    message = (
+      <>
+        Local keys detected from environment variables. Run without entering
+        anything, or override below.
+      </>
+    );
+  } else {
+    return null;
+  }
+
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-md border border-[var(--border-strong)] bg-[var(--background)] px-3 py-2.5 text-[11.5px] text-muted">
+      <span>{message}</span>
+      {action}
+    </div>
+  );
 }
 
 type FieldProps = {
