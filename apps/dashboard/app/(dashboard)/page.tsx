@@ -156,7 +156,7 @@ export default async function Page() {
             {runs.map((run) => (
               <Link
                 key={run.slug}
-                href={`/dashboard/runs/${run.slug}`}
+                href={`/runs/${run.slug}`}
                 className="flex items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors"
               >
                 {/* Color strip */}

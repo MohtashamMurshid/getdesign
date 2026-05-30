@@ -101,7 +101,7 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
                   render: "pending",
                 },
               });
-              router.push(`/dashboard/runs/${runId}`);
+              router.push(`/runs/${runId}`);
             } catch (err) {
               setError(err instanceof Error ? err.message : "Could not start run.");
             } finally {
@@ -116,7 +116,7 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
                 description: "Add an AI key in Settings.",
                 action: {
                   label: "Settings",
-                  onClick: () => router.push("/dashboard/account"),
+                  onClick: () => router.push("/account"),
                 },
               }
             : undefined

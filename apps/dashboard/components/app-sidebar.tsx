@@ -38,24 +38,24 @@ type NavItem = {
 }
 
 const NAV_MAIN: NavItem[] = [
-  { title: "Overview",  url: "/dashboard",         icon: DashboardBrowsingIcon },
-  { title: "Agent",     url: "/dashboard/agent",   icon: SparklesIcon },
-  { title: "API",       url: "/dashboard/api",     icon: ApiIcon },
-  { title: "CLI",       url: "/dashboard/cli",     icon: ComputerTerminalIcon },
-  { title: "SDK",       url: "/dashboard/sdk",     icon: CodeSquareIcon },
-  { title: "Skills",    url: "/dashboard/skills",  icon: MagicWand01Icon },
+  { title: "Overview",  url: "/",       icon: DashboardBrowsingIcon },
+  { title: "Agent",     url: "/agent",  icon: SparklesIcon },
+  { title: "API",       url: "/api",    icon: ApiIcon },
+  { title: "CLI",       url: "/cli",    icon: ComputerTerminalIcon },
+  { title: "SDK",       url: "/sdk",    icon: CodeSquareIcon },
+  { title: "Skills",    url: "/skills", icon: MagicWand01Icon },
 ]
 
 const NAV_SECONDARY: NavItem[] = [
-  { title: "Support",  url: "/dashboard/support", icon: CustomerSupportIcon },
-  { title: "Docs",     url: "/dashboard/docs",    icon: BookOpen02Icon },
-  { title: "Settings", url: "/dashboard/account", icon: Settings05Icon },
+  { title: "Support",  url: "/support", icon: CustomerSupportIcon },
+  { title: "Docs",     url: "/docs",    icon: BookOpen02Icon },
+  { title: "Settings", url: "/account", icon: Settings05Icon },
 ]
 
 function FlatNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
   const isActive =
     pathname === item.url ||
-    (item.url !== "/dashboard" && pathname?.startsWith(item.url))
+    (item.url !== "/" && pathname?.startsWith(item.url))
 
   return (
     <SidebarMenuItem>
@@ -89,7 +89,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       {/* Header: logo + trigger */}
       <SidebarHeader className="px-2 py-2">
         <div className="flex items-center justify-between">
-          <Link href="/dashboard" className="group-data-[collapsible=icon]:hidden flex items-center gap-2 px-1">
+          <Link href="/" className="group-data-[collapsible=icon]:hidden flex items-center gap-2 px-1">
             <BrandMark size={18} />
             <span className="truncate text-sm font-semibold">getdesign</span>
           </Link>

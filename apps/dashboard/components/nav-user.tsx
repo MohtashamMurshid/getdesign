@@ -93,11 +93,11 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link href="/dashboard/account" />}>
+              <DropdownMenuItem render={<Link href="/account" />}>
                 <HugeiconsIcon icon={CheckmarkBadgeIcon} strokeWidth={2} />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem render={<Link href="/dashboard/team" />}>
+              <DropdownMenuItem render={<Link href="/team" />}>
                 <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />
                 Team
               </DropdownMenuItem>

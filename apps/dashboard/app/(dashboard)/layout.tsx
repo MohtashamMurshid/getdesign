@@ -1,4 +1,5 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
+import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -8,7 +9,11 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const { user } = await withAuth();
+
+  if (!user) {
+    redirect("/sign-in");
+  }
 
   return (
     <SidebarProvider defaultOpen={false}>
