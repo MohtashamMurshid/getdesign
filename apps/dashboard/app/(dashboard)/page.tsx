@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { withAuth } from "@workos-inc/authkit-nextjs"
+import { redirect } from "next/navigation"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -79,7 +80,12 @@ function Favicon({ domain }: { domain: string }) {
 
 
 export default async function Page() {
-  const { user } = await withAuth({ ensureSignedIn: true })
+  const { user } = await withAuth()
+
+  if (!user) {
+    redirect("/sign-in")
+  }
+
   const convex = getConvexClient()
   const recent = await convex.query(api.designRuns.listRecent, {
     userId: user.id,
