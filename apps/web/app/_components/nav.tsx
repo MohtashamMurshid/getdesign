@@ -23,6 +23,7 @@ const LINKS: NavLink[] = [
     external: true,
   },
   { id: "design", label: "DESIGN", href: "/design", external: true },
+  { id: "dashboard", label: "DASHBOARD", href: "/dashboard", external: true },
   { id: "cta", label: "WAITLIST" },
 ];
 
