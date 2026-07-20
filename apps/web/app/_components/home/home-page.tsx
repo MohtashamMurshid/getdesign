@@ -1,17 +1,14 @@
-import { getWaitlistCount } from "../../_lib/waitlist-count";
 import { FrameSection } from "./frame-section";
 import { FinalCtaSection } from "./final-cta-section";
 import { HeroSection } from "./hero-section";
 import { HowItWorksSection } from "./how-it-works-section";
 import { SurfacesSection } from "./surfaces-section";
 
-export async function HomePage() {
-  const waitlistCount = await getWaitlistCount();
-
+export function HomePage() {
   return (
     <>
       <FrameSection fullHeight>
-        <HeroSection waitlistCount={waitlistCount} />
+        <HeroSection />
       </FrameSection>
       <FrameSection id="how">
         <HowItWorksSection />
@@ -20,7 +17,7 @@ export async function HomePage() {
         <SurfacesSection />
       </FrameSection>
       <FrameSection id="cta">
-        <FinalCtaSection waitlistCount={waitlistCount} />
+        <FinalCtaSection />
       </FrameSection>
     </>
   );

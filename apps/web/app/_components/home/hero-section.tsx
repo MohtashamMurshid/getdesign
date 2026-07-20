@@ -1,24 +1,19 @@
-import { PRODUCT_SURFACES } from "../../_lib/site";
-import { WaitlistCount } from "../waitlist-count";
-import WaitlistForm from "../waitlist-form";
+import {
+  PRODUCT_SURFACES,
+  SITE_APP_CTA_LABEL,
+  SITE_APP_CTA_SUBTEXT,
+  SITE_DASHBOARD_URL,
+} from "../../_lib/site";
 import HeroCard from "./hero-card";
 
-type HeroSectionProps = {
-  waitlistCount?: number | null;
-};
-
-export function HeroSection({ waitlistCount = null }: HeroSectionProps) {
+export function HeroSection() {
   return (
     <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-12">
       <div>
-        {waitlistCount != null && waitlistCount > 0 ? (
-          <WaitlistCount count={waitlistCount} />
-        ) : (
-          <div className="flex items-center gap-2 text-[12px] text-muted">
-            <span className="text-[var(--accent)]">✦</span>
-            Own your design system
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-[12px] text-muted">
+          <span className="text-[var(--accent)]">✦</span>
+          Own your design system
+        </div>
 
         <h1 className="display-hero mt-6 max-w-[560px]">
           The design system
@@ -34,9 +29,15 @@ export function HeroSection({ waitlistCount = null }: HeroSectionProps) {
         </p>
 
         <div className="mt-8">
-          <WaitlistForm variant="compact" />
+          <a
+            href={SITE_DASHBOARD_URL}
+            className="btn-accent inline-flex h-10 items-center gap-2 rounded-md px-5 text-[13px] font-medium transition-transform hover:-translate-y-[1px]"
+          >
+            {SITE_APP_CTA_LABEL}
+            <ArrowIcon />
+          </a>
           <p className="mt-2.5 text-[11px] text-[var(--subtle)]">
-            Private beta · Early access · No spam
+            {SITE_APP_CTA_SUBTEXT}
           </p>
         </div>
 
@@ -57,4 +58,22 @@ export function HeroSection({ waitlistCount = null }: HeroSectionProps) {
 
 function Dot() {
   return <span className="h-[3px] w-[3px] rounded-full bg-[var(--subtle)]" />;
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 8h8M9 4l4 4-4 4" />
+    </svg>
+  );
 }
