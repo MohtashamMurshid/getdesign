@@ -12,6 +12,8 @@ Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign
 
 ### Added
 
+- **[dashboard]** API, CLI, SDK, Skills, Docs, and Support pages with marketing-style animated demos, copy-paste quickstarts, and links to `docs.getdesign.app`. Documents that v1 has no getdesign API key; full runs use BYOK Daytona/OpenAI credentials.
+- **[content]** New `@getdesign/content` package for shared demo sites, surface metadata, docs URLs, and snippet builders (used by dashboard, web, and video).
 - **[tools]** `@getdesign/tools` now ships concrete `crawler`, `extractors`, `render`, and `daytona` modules with deterministic URL/CSS resolution, token extraction, markdown rendering, and typed Daytona helpers.
 - **[infra]** `infra/daytona/Dockerfile` and `infra/daytona/README.md` define the first in-repo Daytona snapshot for Chromium + computer-use flows.
 - **[skill]** New fifth surface: portable `SKILL.md` at `skills/getdesign/` that reproduces the 9-section `design.md` contract using any coding agent's built-in tools (WebFetch, browser, file write). Installable via `npx skills add MohtashamMurshid/getdesign`.

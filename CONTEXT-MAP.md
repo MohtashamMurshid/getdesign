@@ -20,19 +20,21 @@ Before changing code in a workspace, read that workspace’s `**CONTEXT.md*`*. E
 | **studio-site** | `[apps/studio-site/CONTEXT.md](apps/studio-site/CONTEXT.md)` | Studio marketing / web — Next.js                 |
 | **video**       | `[apps/video/CONTEXT.md](apps/video/CONTEXT.md)`             | Video app / asset pipeline                       |
 | **web**         | `[apps/web/CONTEXT.md](apps/web/CONTEXT.md)`                 | Main product web — Next.js + Convex              |
+| **dashboard**   | `[apps/dashboard/CONTEXT.md](apps/dashboard/CONTEXT.md)`     | Authenticated product dashboard — Next.js + WorkOS |
 
 
 ## Packages
 
 
-| Context    | CONTEXT.md path                                            | Scope                                                |
-| ---------- | ---------------------------------------------------------- | ---------------------------------------------------- |
-| **agent**  | `[packages/agent/CONTEXT.md](packages/agent/CONTEXT.md)`   | Coordinator + sub-agents — URL → validated DesignDoc |
-| **cli**    | `[packages/cli/CONTEXT.md](packages/cli/CONTEXT.md)`       | CLI (planned)                                        |
-| **config** | `[packages/config/CONTEXT.md](packages/config/CONTEXT.md)` | Shared TS / tooling config for workspaces            |
-| **sdk**    | `[packages/sdk/CONTEXT.md](packages/sdk/CONTEXT.md)`       | TypeScript SDK (planned)                             |
-| **tools**  | `[packages/tools/CONTEXT.md](packages/tools/CONTEXT.md)`   | Shared extraction / tool surface                     |
-| **types**  | `[packages/types/CONTEXT.md](packages/types/CONTEXT.md)`   | Shared types, schemas — DesignDoc, tokens, etc.      |
+| Context     | CONTEXT.md path                                              | Scope                                                |
+| ----------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| **agent**   | `[packages/agent/CONTEXT.md](packages/agent/CONTEXT.md)`     | Coordinator + sub-agents — URL → validated DesignDoc |
+| **cli**     | `[packages/cli/CONTEXT.md](packages/cli/CONTEXT.md)`         | CLI (planned)                                        |
+| **config**  | `[packages/config/CONTEXT.md](packages/config/CONTEXT.md)`   | Shared TS / tooling config for workspaces            |
+| **content** | `[packages/content/CONTEXT.md](packages/content/CONTEXT.md)` | Shared demo sites, surface meta, snippet builders    |
+| **sdk**     | `[packages/sdk/CONTEXT.md](packages/sdk/CONTEXT.md)`         | TypeScript SDK (planned)                             |
+| **tools**   | `[packages/tools/CONTEXT.md](packages/tools/CONTEXT.md)`     | Shared extraction / tool surface                     |
+| **types**   | `[packages/types/CONTEXT.md](packages/types/CONTEXT.md)`     | Shared types, schemas — DesignDoc, tokens, etc.      |
 
 
 ## Root (optional)

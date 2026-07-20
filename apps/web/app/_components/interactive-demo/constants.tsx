@@ -1,51 +1,36 @@
+import type { ReactNode } from "react";
 import {
   SiCursor,
   SiLinear,
   SiStripe,
 } from "@icons-pack/react-simple-icons";
+import {
+  CHROME_LABEL_TEMPLATES,
+  DEMO_SITES,
+  SURFACE_META,
+  type DemoSite,
+} from "@getdesign/content";
 
 import type { Site, Step, Surface } from "./types";
 
-export const SITES: Site[] = [
-  {
-    id: "cursor",
-    url: "cursor.com",
-    favicon: <SiCursor className="h-full w-full" />,
-    brandColor: "#ededed",
-    theme: "Warm minimalism meets code-editor elegance",
-    palette: ["#f2f1ed", "#26251e", "#f54e00", "#cf2d56"],
-    fonts: ["CursorGothic Display", "Berkeley Mono"],
-    sections: ["visualTheme", "palette", "typography", "components"],
-  },
-  {
-    id: "linear",
-    url: "linear.app",
-    favicon: <SiLinear className="h-full w-full" />,
-    brandColor: "#5E6AD2",
-    theme: "Hyper-precise dark UI with signal-gradient accents",
-    palette: ["#0a0a0b", "#e6e6e8", "#5e6ad2", "#ff4d6d"],
-    fonts: ["Inter Display", "Berkeley Mono"],
-    sections: ["visualTheme", "palette", "typography", "interaction"],
-  },
-  {
-    id: "stripe",
-    url: "stripe.com",
-    favicon: <SiStripe className="h-full w-full" />,
-    brandColor: "#635BFF",
-    theme: "Bright, confident, dense information architecture",
-    palette: ["#ffffff", "#0a2540", "#635bff", "#00d4ff"],
-    fonts: ["Sohne", "Sohne Mono"],
-    sections: ["visualTheme", "palette", "typography", "layout"],
-  },
-];
+const FAVICONS: Record<string, ReactNode> = {
+  cursor: <SiCursor className="h-full w-full" />,
+  linear: <SiLinear className="h-full w-full" />,
+  stripe: <SiStripe className="h-full w-full" />,
+};
 
-export const SURFACES: Array<{ id: Surface; label: string; hint: string }> = [
-  { id: "web", label: "web", hint: "getdesign.app" },
-  { id: "api", label: "api", hint: "api.getdesign.app" },
-  { id: "cli", label: "cli", hint: "npx @getdesign/cli" },
-  { id: "sdk", label: "sdk", hint: "@getdesign/sdk" },
-  { id: "skill", label: "skill", hint: "skills.sh" },
-];
+function toSite(demo: DemoSite): Site {
+  return {
+    ...demo,
+    fonts: demo.fonts,
+    favicon: FAVICONS[demo.id] ?? null,
+  };
+}
+
+export const SITES: Site[] = DEMO_SITES.map(toSite);
+
+export const SURFACES: Array<{ id: Surface; label: string; hint: string }> =
+  SURFACE_META.map(({ id, label, hint }) => ({ id, label, hint }));
 
 export function buildSteps(site: Site): Step[] {
   return [
@@ -138,9 +123,5 @@ export function buildSteps(site: Site): Step[] {
 }
 
 export const CHROME_LABELS: Record<Surface, string> = {
-  web: "getdesign.app",
-  api: "api.getdesign.app/?url={url}",
-  cli: "~ · zsh",
-  sdk: "app.ts · @getdesign/sdk",
-  skill: "claude-code · skill: getdesign",
+  ...CHROME_LABEL_TEMPLATES,
 };

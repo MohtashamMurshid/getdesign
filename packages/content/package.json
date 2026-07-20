@@ -1,0 +1,33 @@
+{
+  "name": "@getdesign/content",
+  "version": "0.1.0",
+  "description": "Shared surface metadata, demo sites, and snippet builders for getdesign apps.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "bun run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@getdesign/config": "workspace:*",
+    "@types/bun": "^1.3.14",
+    "typescript": "^6.0.3"
+  }
+}

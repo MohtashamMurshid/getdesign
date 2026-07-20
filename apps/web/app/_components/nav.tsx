@@ -3,7 +3,14 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { SITE_DOCS_URL, SITE_GITHUB_URL } from "../_lib/site";
+import {
+  SITE_APP_CTA_LABEL,
+  SITE_APP_CTA_SHORT,
+  SITE_APP_CTA_SUBTEXT,
+  SITE_DASHBOARD_URL,
+  SITE_DOCS_URL,
+  SITE_GITHUB_URL,
+} from "../_lib/site";
 import { Logo } from "./logo";
 
 type NavLink = {
@@ -23,7 +30,6 @@ const LINKS: NavLink[] = [
     external: true,
   },
   { id: "design", label: "DESIGN", href: "/design", external: true },
-  { id: "cta", label: "WAITLIST" },
 ];
 
 export default function Nav() {
@@ -84,7 +90,7 @@ export default function Nav() {
                 {...(openInNewTab
                   ? { target: "_blank", rel: "noreferrer" }
                   : {})}
-                className={`nav-link pb-[18px] ${isActive ? "is-active" : ""}`}
+                className={`nav-link py-2 ${isActive ? "is-active" : ""}`}
               >
                 {link.label}
               </a>
@@ -92,17 +98,44 @@ export default function Nav() {
           })}
         </nav>
 
-        <a
-          href={SITE_GITHUB_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="btn-ghost inline-flex h-8 items-center gap-2 rounded-md px-3 text-[12.5px] transition-transform hover:-translate-y-[1px]"
-        >
-          <GithubIcon />
-          GitHub
-        </a>
+        <div className="flex items-center gap-2.5">
+          <a
+            href={SITE_GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub"
+            className="btn-ghost hidden h-8 w-8 items-center justify-center rounded-md transition-transform hover:-translate-y-[1px] sm:inline-flex"
+          >
+            <GithubIcon />
+          </a>
+          <a
+            href={SITE_DASHBOARD_URL}
+            className="btn-accent inline-flex h-8 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-transform hover:-translate-y-[1px]"
+          >
+            {SITE_APP_CTA_SHORT}
+            <ArrowIcon />
+          </a>
+        </div>
       </div>
     </header>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 8h8M9 4l4 4-4 4" />
+    </svg>
   );
 }
 
@@ -110,8 +143,8 @@ function GithubIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="13"
-      height="13"
+      width="15"
+      height="15"
       fill="currentColor"
       aria-hidden
     >
