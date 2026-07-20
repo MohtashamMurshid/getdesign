@@ -1,5 +1,6 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { UserProfile } from "@workos-inc/widgets";
+import { redirect } from "next/navigation";
 
 import { WidgetLoadingGate } from "@/components/widget-loading-gate";
 import { WorkOsWidgetsProvider } from "@/components/workos-widgets-provider";
@@ -13,7 +14,11 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export default async function AccountPage() {
-  const { accessToken } = await withAuth({ ensureSignedIn: true });
+  const { accessToken, user } = await withAuth();
+
+  if (!user || !accessToken) {
+    redirect("/sign-in");
+  }
 
   return (
     <>

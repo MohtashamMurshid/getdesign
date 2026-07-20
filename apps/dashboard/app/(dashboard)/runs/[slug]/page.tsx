@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { withAuth } from "@workos-inc/authkit-nextjs"
@@ -21,7 +21,12 @@ export default async function RunPage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const { user } = await withAuth({ ensureSignedIn: true })
+  const { user } = await withAuth()
+
+  if (!user) {
+    redirect("/sign-in")
+  }
+
   const convex = getConvexClient()
   const run = await convex.query(api.designRuns.get, {
     id: slug as Id<"designRuns">,
