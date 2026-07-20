@@ -1,5 +1,6 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { UsersManagement } from "@workos-inc/widgets";
+import { redirect } from "next/navigation";
 
 import { WidgetLoadingGate } from "@/components/widget-loading-gate";
 import { WorkOsWidgetsProvider } from "@/components/workos-widgets-provider";
@@ -13,9 +14,11 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export default async function TeamPage() {
-  const { accessToken, organizationId } = await withAuth({
-    ensureSignedIn: true,
-  });
+  const { accessToken, organizationId, user } = await withAuth();
+
+  if (!user || !accessToken) {
+    redirect("/sign-in");
+  }
 
   return (
     <>
