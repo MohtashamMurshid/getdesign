@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { SKILL_INSTALL_CMD } from "@getdesign/content";
 
-const INSTALL_CMD = "npx skills add MohtashamMurshid/getdesign";
+const INSTALL_CMD = SKILL_INSTALL_CMD;
 
 type SkillInstallCommandProps = {
   compact?: boolean;

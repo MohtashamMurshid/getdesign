@@ -1,74 +1,22 @@
 /**
- * Mirrors `apps/web/app/_components/interactive-demo/constants.tsx` + site.ts
- * Copy is aligned with `architecture.md` (agent, API, SDK, Daytona, etc.).
+ * Re-exports shared demo constants from `@getdesign/content`, plus
+ * video-only architecture copy for Remotion scenes.
  */
 
-export type DemoSite = {
-  id: string;
-  url: string;
-  brandColor: string;
-  theme: string;
-  palette: string[];
-  fonts: [string, string];
-  sections: string[];
-};
+import {
+  DEMO_SITES,
+  DEFAULT_DEMO_SITE_ID,
+  SURFACE_META,
+  chromeLabel,
+  type DemoSite,
+  type SurfaceId,
+} from "@getdesign/content";
 
-export const DEMO_SITES: DemoSite[] = [
-  {
-    id: "cursor",
-    url: "cursor.com",
-    brandColor: "#ededed",
-    theme: "Warm minimalism meets code-editor elegance",
-    palette: ["#f2f1ed", "#26251e", "#f54e00", "#cf2d56"],
-    fonts: ["CursorGothic Display", "Berkeley Mono"],
-    sections: ["visualTheme", "palette", "typography", "components"],
-  },
-  {
-    id: "linear",
-    url: "linear.app",
-    brandColor: "#5E6AD2",
-    theme: "Hyper-precise dark UI with signal-gradient accents",
-    palette: ["#0a0a0b", "#e6e6e8", "#5e6ad2", "#ff4d6d"],
-    fonts: ["Inter Display", "Berkeley Mono"],
-    sections: ["visualTheme", "palette", "typography", "interaction"],
-  },
-  {
-    id: "stripe",
-    url: "stripe.com",
-    brandColor: "#635BFF",
-    theme: "Bright, confident, dense information architecture",
-    palette: ["#ffffff", "#0a2540", "#635bff", "#00d4ff"],
-    fonts: ["Sohne", "Sohne Mono"],
-    sections: ["visualTheme", "palette", "typography", "layout"],
-  },
-];
+export type { DemoSite, SurfaceId };
+export { DEMO_SITES, DEFAULT_DEMO_SITE_ID, chromeLabel };
 
-export type SurfaceId = "web" | "api" | "cli" | "sdk" | "skill";
-
-export const SURFACE_NAV: Array<{ id: SurfaceId; label: string }> = [
-  { id: "web", label: "web" },
-  { id: "api", label: "api" },
-  { id: "cli", label: "cli" },
-  { id: "sdk", label: "sdk" },
-  { id: "skill", label: "skill" },
-];
-
-export function chromeLabel(surface: SurfaceId, siteUrl: string): string {
-  switch (surface) {
-    case "web":
-      return "getdesign.app";
-    case "api":
-      return `api.getdesign.app/?url=${siteUrl}`;
-    case "cli":
-      return "~ · zsh";
-    case "sdk":
-      return "app.ts · @getdesign/sdk";
-    case "skill":
-      return "claude-code · skill: getdesign";
-    default:
-      return "getdesign.app";
-  }
-}
+export const SURFACE_NAV: Array<{ id: SurfaceId; label: string }> =
+  SURFACE_META.map(({ id, label }) => ({ id, label }));
 
 /** Longer explanations for the video — sourced from architecture.md + marketing copy. */
 export const SURFACE_ARCHITECTURE: Record<
@@ -119,5 +67,3 @@ export const AGENT_LAYERS = [
   "TokenExtractor - color, type, spacing, radii, and motion tokens into typed data.",
   "Synthesizer - deterministic render from structured tokens into nine-section design.md.",
 ] as const;
-
-export const DEFAULT_DEMO_SITE_ID = "stripe";

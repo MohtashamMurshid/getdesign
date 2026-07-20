@@ -131,3 +131,37 @@
     @apply font-sans;
     }
 }
+
+/* Developer surface demos — syntax tokens + playback motion */
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes caret-blink {
+  50% { opacity: 0; }
+}
+.fade-in-up {
+  animation: fade-in-up 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.caret::after {
+  content: "▍";
+  color: var(--foreground);
+  margin-left: 2px;
+  animation: caret-blink 1.1s steps(1) infinite;
+}
+.tok-key { color: #7c3aed; }
+.tok-str { color: #15803d; }
+.tok-fn  { color: #2563eb; }
+.tok-num { color: #b45309; }
+.tok-com { color: var(--muted-foreground); }
+.tok-var { color: #be185d; }
+.tok-punc { color: var(--muted-foreground); }
+.dark .tok-key { color: #c084fc; }
+.dark .tok-str { color: #a3e635; }
+.dark .tok-fn  { color: #60a5fa; }
+.dark .tok-num { color: #fbbf24; }
+.dark .tok-var { color: #f472b6; }
+@media (prefers-reduced-motion: reduce) {
+  .fade-in-up { animation: none; }
+  .caret::after { animation: none; }
+}
