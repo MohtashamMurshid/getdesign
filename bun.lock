@@ -43,6 +43,7 @@
         "@ai-sdk/react": "^3.0.180",
         "@base-ui/react": "^1.4.1",
         "@getdesign/agent": "workspace:*",
+        "@getdesign/content": "workspace:*",
         "@getdesign/sdk": "workspace:*",
         "@getdesign/tools": "workspace:*",
         "@getdesign/types": "workspace:*",
@@ -191,6 +192,7 @@
       "version": "1.0.0",
       "dependencies": {
         "@elevenlabs/elevenlabs-js": "^2.44.0",
+        "@getdesign/content": "workspace:*",
         "@remotion/captions": "4.0.451",
         "@remotion/cli": "4.0.451",
         "@remotion/elevenlabs": "4.0.451",
@@ -215,6 +217,7 @@
       "name": "web",
       "version": "0.1.0",
       "dependencies": {
+        "@getdesign/content": "workspace:*",
         "@icons-pack/react-simple-icons": "^13.13.0",
         "convex": "^1.35.1",
         "next": "16.2.4",
@@ -261,6 +264,14 @@
     "packages/config": {
       "name": "@getdesign/config",
       "version": "0.1.0",
+    },
+    "packages/content": {
+      "name": "@getdesign/content",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@getdesign/config": "workspace:*",
+        "typescript": "^6.0.3",
+      },
     },
     "packages/sdk": {
       "name": "@getdesign/sdk",
@@ -700,6 +711,8 @@
     "@getdesign/cli": ["@getdesign/cli@workspace:packages/cli"],
 
     "@getdesign/config": ["@getdesign/config@workspace:packages/config"],
+
+    "@getdesign/content": ["@getdesign/content@workspace:packages/content"],
 
     "@getdesign/sdk": ["@getdesign/sdk@workspace:packages/sdk"],
 

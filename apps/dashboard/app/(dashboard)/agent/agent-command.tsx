@@ -70,7 +70,7 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
         className="px-0 pb-0"
         status={isPending || isRunning ? "submitted" : "ready"}
         disabled={!aiReady || isRunning}
-        placeholder={aiReady ? "Enter a URL..." : "Add an AI key to start"}
+        placeholder={aiReady ? "Enter a URL..." : "Server AI key not configured"}
         onStop={() => {}}
         onSend={({ content }) => {
           setError(null);
@@ -113,10 +113,11 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
           !aiReady
             ? {
                 title: "Setup needed.",
-                description: "Add an AI key in Settings.",
+                description:
+                  "This deployment needs an AI key. For local CLI/SDK/API runs, see BYOK docs.",
                 action: {
-                  label: "Settings",
-                  onClick: () => router.push("/account"),
+                  label: "API docs",
+                  onClick: () => router.push("/api"),
                 },
               }
             : undefined

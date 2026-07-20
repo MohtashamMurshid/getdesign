@@ -15,6 +15,7 @@
     "@ai-sdk/react": "^3.0.180",
     "@base-ui/react": "^1.4.1",
     "@getdesign/agent": "workspace:*",
+    "@getdesign/content": "workspace:*",
     "@getdesign/sdk": "workspace:*",
     "@getdesign/tools": "workspace:*",
     "@getdesign/types": "workspace:*",
