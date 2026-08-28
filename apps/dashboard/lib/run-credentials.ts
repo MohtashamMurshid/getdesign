@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 
-import { getConvexClient } from "@/lib/convex-server";
 import { decryptCredential } from "@/lib/credential-crypto";
+import type { getConvexClient } from "@/lib/convex-server";
 
 export type RunCredentials = {
   daytonaApiKey?: string;
@@ -9,16 +9,13 @@ export type RunCredentials = {
 };
 
 export async function resolveRunCredentials(
-  userId: string,
+  convex: ReturnType<typeof getConvexClient>,
 ): Promise<RunCredentials> {
-  const convex = getConvexClient();
   const [daytona, openai] = await Promise.all([
     convex.query(api.userCredentials.getEncrypted, {
-      userId,
       provider: "daytona",
     }),
     convex.query(api.userCredentials.getEncrypted, {
-      userId,
       provider: "openai",
     }),
   ]);

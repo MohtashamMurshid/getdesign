@@ -31,9 +31,10 @@ describe("@getdesign/content", () => {
     expect(curl).toContain("Authorization: Bearer $WORKOS_ACCESS_TOKEN");
     expect(curl).toContain("x-daytona-api-key: $DAYTONA_API_KEY");
     expect(curl).toContain("x-openai-api-key: $OPENAI_API_KEY");
-    expect(buildApiRequest("stripe.com")).toContain(
-      "Authorization: Bearer $WORKOS_ACCESS_TOKEN",
-    );
+    const request = buildApiRequest("stripe.com");
+    expect(request).toContain("Authorization: Bearer $WORKOS_ACCESS_TOKEN");
+    expect(request).toContain("x-daytona-api-key: $DAYTONA_API_KEY");
+    expect(request).toContain("x-openai-api-key: $OPENAI_API_KEY");
     expect(buildCliCommand("cursor.com")).toContain("bunx @getdesign/cli");
     expect(buildSdkInstall()).toBe("bun add @getdesign/sdk");
   });

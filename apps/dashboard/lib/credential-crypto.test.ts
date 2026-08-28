@@ -38,6 +38,16 @@ describe("credential-crypto", () => {
     expect(first.iv).not.toBe(second.iv);
   });
 
+  test("decrypt rejects a different valid-size master key", async () => {
+    process.env.GETDESIGN_CREDENTIALS_KEY = HEX_KEY;
+    const encrypted = await encryptCredential("sk-private");
+
+    process.env.GETDESIGN_CREDENTIALS_KEY = "cd".repeat(32);
+    await expect(
+      decryptCredential(encrypted.ciphertext, encrypted.iv),
+    ).rejects.toThrow();
+  });
+
   test("keySuffix is the last four characters of the trimmed key", () => {
     expect(keySuffix("sk-abcdefgh")).toBe("efgh");
     expect(keySuffix("  dtn_wxyz  ")).toBe("wxyz");

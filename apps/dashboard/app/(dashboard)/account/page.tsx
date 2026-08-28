@@ -22,9 +22,10 @@ export default async function AccountPage() {
     redirect("/sign-in");
   }
 
-  const keys = await getConvexClient().query(api.userCredentials.listForUser, {
-    userId: user.id,
-  });
+  const keys = await getConvexClient(accessToken).query(
+    api.userCredentials.listForUser,
+    {},
+  );
 
   return (
     <>

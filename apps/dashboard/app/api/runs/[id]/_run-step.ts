@@ -15,16 +15,25 @@ import type { ScreenshotArtifact } from "@getdesign/tools/daytona";
 import type { DesignDoc, DesignTokens } from "@getdesign/types";
 
 import { getConvexClient } from "@/lib/convex-server";
+import { captureFailureMessage } from "@/lib/capture-policy";
 import {
   requireDaytonaCredential,
   requireOpenAiCredential,
   resolveRunCredentials,
 } from "@/lib/run-credentials";
 import type { RunStep } from "@/lib/runs-store";
+import { prependTextOnlyBanner } from "@/lib/text-only-banner";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 
 type StepStatus = "ok" | "skipped";
+
+type StoredRun = {
+  normalizedUrl: string;
+  siteName?: string;
+  mode?: "visual" | "text_only";
+  steps: Record<RunStep, "pending" | "running" | "ok" | "skipped" | "failed">;
+};
 
 type StoredVisual = {
   status: "captured" | "skipped" | "failed";
@@ -48,7 +57,7 @@ type StoredVisual = {
 
 type RunContext = {
   convex: ReturnType<typeof getConvexClient>;
-  run: any;
+  run: StoredRun;
   runId: Id<"designRuns">;
   userId: string;
   artifacts: Record<string, unknown>;
@@ -59,10 +68,10 @@ export function runStepHandler(step: RunStep) {
     _request: Request,
     { params }: { params: Promise<{ id: string }> },
   ) {
-    const { user } = await withAuth({ ensureSignedIn: true });
+    const { accessToken, user } = await withAuth({ ensureSignedIn: true });
     const { id } = await params;
     const runId = id as Id<"designRuns">;
-    const convex = getConvexClient();
+    const convex = getConvexClient(accessToken);
 
     const run = await convex.query(api.designRuns.get, {
       id: runId,
@@ -155,12 +164,14 @@ async function runCaptureStep({
   const crawl = await requireCrawl(artifacts);
   let daytonaApiKey: string;
   try {
-    const credentials = await resolveRunCredentials(userId);
+    const credentials = await resolveRunCredentials(convex);
     daytonaApiKey = requireDaytonaCredential(credentials);
   } catch (error) {
     throw new StepError(
       "capture",
-      error instanceof Error ? error.message : "Daytona credential unavailable.",
+      error instanceof Error
+        ? error.message
+        : "Daytona credential unavailable.",
       "capture_failed",
     );
   }
@@ -168,10 +179,7 @@ async function runCaptureStep({
   await beginStep(convex, runId, userId, "capture", "Capturing page");
   let captured: VisualResult;
   try {
-    captured = await runVisual(
-      { url: crawl.sourceUrl },
-      { daytonaApiKey },
-    );
+    captured = await runVisual({ url: crawl.sourceUrl }, { daytonaApiKey });
   } catch (error) {
     throw new StepError(
       "capture",
@@ -179,12 +187,9 @@ async function runCaptureStep({
       "capture_failed",
     );
   }
-  if (captured.status !== "captured") {
-    throw new StepError(
-      "capture",
-      captured.reason ?? "Visual capture failed.",
-      "capture_failed",
-    );
+  const captureFailure = captureFailureMessage(captured);
+  if (captureFailure) {
+    throw new StepError("capture", captureFailure, "capture_failed");
   }
   const visual = await storeVisual(convex, runId, userId, captured);
   await finishStep(
@@ -243,7 +248,7 @@ async function runDescribeStep({
     return;
   }
 
-  const credentials = await resolveRunCredentials(userId);
+  const credentials = await resolveRunCredentials(convex);
   const openaiApiKey = requireOpenAiCredential(credentials);
   await beginStep(convex, runId, userId, "describe", "Describing screenshots");
   const tiles = await loadTileArtifacts(convex, runId, userId, visual);
@@ -279,15 +284,21 @@ async function runSynthesizeStep({
   if (!tokens) throw new StepError("extract", "Token artifact missing.");
 
   const visual = artifacts.visual as StoredVisual | null;
-  const description = typeof artifacts.description === "string"
-    ? artifacts.description
-    : "";
-  const credentials = await resolveRunCredentials(userId);
+  const description =
+    typeof artifacts.description === "string" ? artifacts.description : "";
+  const credentials = await resolveRunCredentials(convex);
   const openaiApiKey = requireOpenAiCredential(credentials);
-  await beginStep(convex, runId, userId, "synthesize", "Synthesizing design doc");
-  const tiles = visual?.status === "captured"
-    ? await loadTileArtifacts(convex, runId, userId, visual)
-    : [];
+  await beginStep(
+    convex,
+    runId,
+    userId,
+    "synthesize",
+    "Synthesizing design doc",
+  );
+  const tiles =
+    visual?.status === "captured"
+      ? await loadTileArtifacts(convex, runId, userId, visual)
+      : [];
   const result = await runSynthesize({
     sourceUrl: crawl.sourceUrl,
     siteName: crawl.siteName,
@@ -321,7 +332,9 @@ async function runRenderStep({
   await beginStep(convex, runId, userId, "render", "Rendering markdown");
   const baseMarkdown = renderDesignMd(doc);
   const markdown =
-    run.mode === "text_only" ? prependTextOnlyBanner(baseMarkdown) : baseMarkdown;
+    run.mode === "text_only"
+      ? prependTextOnlyBanner(baseMarkdown)
+      : baseMarkdown;
   await saveText(convex, runId, userId, "markdown", markdown);
   await finishStep(convex, runId, userId, "render", "ok", "Ready", {
     status: "completed",
@@ -345,7 +358,12 @@ async function beginStep(
   step: RunStep,
   message: string,
 ) {
-  await convex.mutation(api.designRuns.beginStep, { id, userId, step, message });
+  await convex.mutation(api.designRuns.beginStep, {
+    id,
+    userId,
+    step,
+    message,
+  });
 }
 
 async function finishStep(
@@ -483,7 +501,9 @@ async function uploadPng(
   if (!response.ok) {
     throw new Error("Failed to upload screenshot tile.");
   }
-  const { storageId } = (await response.json()) as { storageId: Id<"_storage"> };
+  const { storageId } = (await response.json()) as {
+    storageId: Id<"_storage">;
+  };
   return storageId;
 }
 
@@ -505,7 +525,9 @@ async function uploadJson(
   if (!response.ok) {
     throw new Error("Failed to upload run artifact.");
   }
-  const { storageId } = (await response.json()) as { storageId: Id<"_storage"> };
+  const { storageId } = (await response.json()) as {
+    storageId: Id<"_storage">;
+  };
   return storageId;
 }
 
@@ -549,7 +571,8 @@ async function loadTileArtifacts(
       const url = tile.url ?? tileUrls[index]?.url;
       if (!url) throw new Error(`Missing stored tile ${tile.file}.`);
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`Could not read stored tile ${tile.file}.`);
+      if (!response.ok)
+        throw new Error(`Could not read stored tile ${tile.file}.`);
       const arrayBuffer = await response.arrayBuffer();
       return {
         imageBase64: Buffer.from(arrayBuffer).toString("base64"),
@@ -559,14 +582,6 @@ async function loadTileArtifacts(
       };
     }),
   );
-}
-
-function prependTextOnlyBanner(markdown: string) {
-  const banner = [
-    "> **Note:** This design.md was produced in text-only mode. The Daytona-based full landing page capture was unavailable for this run, so visual sections are derived from CSS tokens alone and may not reflect imagery, layout depth, or interaction polish from the live site.",
-    "",
-  ].join("\n");
-  return `${banner}\n${markdown}`;
 }
 
 class StepError extends Error {

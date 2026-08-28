@@ -10,7 +10,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 
 type AgentCommandProps = {
-  aiReady: boolean;
+  credentialsReady: boolean;
   user: {
     id: string;
     email?: string;
@@ -48,7 +48,7 @@ function isProbablyUrl(value: string) {
   }
 }
 
-export function AgentCommand({ aiReady, user }: AgentCommandProps) {
+export function AgentCommand({ credentialsReady, user }: AgentCommandProps) {
   const router = useRouter();
   const createRun = useMutation(api.designRuns.create);
   const [error, setError] = useState<string | null>(null);
@@ -69,8 +69,12 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
         size="lg"
         className="px-0 pb-0"
         status={isPending || isRunning ? "submitted" : "ready"}
-        disabled={!aiReady || isRunning}
-        placeholder={aiReady ? "Enter a URL..." : "Add an OpenAI key on Account"}
+        disabled={!credentialsReady || isRunning}
+        placeholder={
+          credentialsReady
+            ? "Enter a URL..."
+            : "Add Daytona and OpenAI keys on Account"
+        }
         onStop={() => {}}
         onSend={({ content }) => {
           setError(null);
@@ -103,18 +107,20 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
               });
               router.push(`/runs/${runId}`);
             } catch (err) {
-              setError(err instanceof Error ? err.message : "Could not start run.");
+              setError(
+                err instanceof Error ? err.message : "Could not start run.",
+              );
             } finally {
               setIsRunning(false);
             }
           });
         }}
         infoBar={
-          !aiReady
+          !credentialsReady
             ? {
                 title: "Setup needed.",
                 description:
-                  "Add an OpenAI key on Account to start a run. Capture still needs a Daytona key later.",
+                  "Add both Daytona and OpenAI keys on Account before starting a visual run.",
                 action: {
                   label: "Account",
                   onClick: () => router.push("/account"),
@@ -124,7 +130,9 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
         }
       />
 
-      {error ? <p className="mt-2 text-center text-xs text-destructive">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-center text-xs text-destructive">{error}</p>
+      ) : null}
       {run ? <RunProgress run={run} /> : null}
     </div>
   );
@@ -134,7 +142,9 @@ function RunProgress({ run }: { run: RunState }) {
   return (
     <div className="mt-5 rounded-lg border bg-background px-3 py-2">
       <div className="flex items-center justify-between gap-3">
-        <p className="truncate text-xs font-medium">{run.message ?? "Running"}</p>
+        <p className="truncate text-xs font-medium">
+          {run.message ?? "Running"}
+        </p>
         <p className="shrink-0 text-xs text-muted-foreground">{run.status}</p>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">

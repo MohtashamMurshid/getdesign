@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * M11 brand smoke (local / manual). Does not run on push/PR.
+ * M11 brand capture and grounding run. Does not run on push/PR.
  *
  *   bun ./scripts/brand-smoke.ts [--limit N] [--text-only] [--out dir]
  *
@@ -27,6 +27,7 @@ import {
   checkPaletteGrounding,
   joinStylesheetCss,
 } from "./brand-smoke/grounding.ts";
+import { createHumanReviewTemplate } from "./brand-smoke/review.ts";
 
 const P50_BUDGET_MS = 90_000;
 
@@ -117,7 +118,7 @@ async function smokeBrand(
       ...(grounding.pass
         ? {}
         : {
-            error: `palette hex missing from crawled CSS: ${grounding.misses.join(", ")}`,
+            error: `no supported hex/rgb match in crawled CSS: ${grounding.misses.join(", ")}`,
           }),
     };
 
@@ -208,7 +209,11 @@ async function main(): Promise<void> {
     process.stderr.write(
       `[brand-smoke] ${index + 1}/${selected.length} ${brand.name} ${brand.url}\n`,
     );
-    const row = await smokeBrand(brand, args.textOnly, resolve(outDir, brand.name));
+    const row = await smokeBrand(
+      brand,
+      args.textOnly,
+      resolve(outDir, brand.name),
+    );
     results.push(row);
     process.stderr.write(
       `[brand-smoke] ${brand.name} ${row.status} ${formatDuration(row.durationMs)} grounding=${
@@ -230,23 +235,36 @@ async function main(): Promise<void> {
     failed,
     results,
   };
+  const reviewPath = resolve(outDir, "human-review.json");
 
   await writeFile(
     resolve(outDir, "summary.json"),
     `${JSON.stringify(summary, null, 2)}\n`,
     "utf8",
   );
+  await writeFile(
+    reviewPath,
+    `${JSON.stringify(createHumanReviewTemplate(results), null, 2)}\n`,
+    "utf8",
+  );
 
   process.stderr.write(`\n${formatResultTable(results)}\n`);
   if (p50Ms !== null) {
-    process.stderr.write(`[brand-smoke] P50 ${formatDuration(p50Ms)} (${p50Ms}ms)\n`);
+    process.stderr.write(
+      `[brand-smoke] P50 ${formatDuration(p50Ms)} (${p50Ms}ms)\n`,
+    );
     if (p50Ms > P50_BUDGET_MS) {
       process.stderr.write(
         `[brand-smoke] warning: P50 ${p50Ms}ms exceeds ${P50_BUDGET_MS}ms (G5 is aspirational; not failing)\n`,
       );
     }
   }
-  process.stderr.write(`[brand-smoke] wrote ${resolve(outDir, "summary.json")}\n`);
+  process.stderr.write(
+    `[brand-smoke] wrote ${resolve(outDir, "summary.json")}\n`,
+  );
+  process.stderr.write(
+    `[brand-smoke] human review required: fill ${reviewPath}, then run bun ./scripts/brand-smoke-review.ts ${reviewPath}\n`,
+  );
 
   if (failed > 0) {
     process.exit(1);

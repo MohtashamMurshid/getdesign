@@ -6,12 +6,12 @@ on:
       limit:
         description: Live brand limit (used only if secrets are present)
         required: false
-        default: "1"
+        default: "20"
       text_only:
         description: Live run uses text-only fallback
         required: false
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
@@ -55,4 +55,12 @@ jobs:
             ARGS+=(--text-only)
           fi
           echo "Live step is optional and skipped unless repo secrets are present."
-          bun ./scripts/brand-smoke.ts "${ARGS[@]}"
+          bun ./scripts/brand-smoke.ts "${ARGS[@]}" --out getdesign-runs/brand-smoke/workflow
+
+      - name: Upload smoke results and human review sheet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brand-smoke-results
+          path: getdesign-runs/brand-smoke/workflow
+          if-no-files-found: ignore

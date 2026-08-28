@@ -25,8 +25,12 @@ const SITE_NAME_HEADER = "x-getdesign-site-name";
 
 type ResponseFormat = "markdown" | "json";
 
-function parseVisualRequirement(c: Context): RunDesignOptions["visualRequirement"] {
-  const requestedMode = (c.req.header(TEXT_ONLY_HEADER) ?? "").trim().toLowerCase();
+function parseVisualRequirement(
+  c: Context,
+): RunDesignOptions["visualRequirement"] {
+  const requestedMode = (c.req.header(TEXT_ONLY_HEADER) ?? "")
+    .trim()
+    .toLowerCase();
   return requestedMode === "text_only" ? "text_only_fallback" : "require";
 }
 
@@ -154,7 +158,11 @@ function publicEvent(event: RunDesignEvent) {
   if (event.phase === "render") {
     return event.status === "start"
       ? { phase: "render", status: "start" }
-      : { phase: "render", status: "ok", markdownLength: event.markdown.length };
+      : {
+          phase: "render",
+          status: "ok",
+          markdownLength: event.markdown.length,
+        };
   }
 
   return { phase: "run", status: "working" };
@@ -203,8 +211,7 @@ export function createGetDesignHandler(runDesign: RunDesignFn) {
             retryWith: {
               header: TEXT_ONLY_HEADER,
               value: "text_only",
-              note:
-                "Resend the request with this header to receive a text-only design.md.",
+              note: "Resend the request with this header to receive a text-only design.md.",
             },
           },
           409,

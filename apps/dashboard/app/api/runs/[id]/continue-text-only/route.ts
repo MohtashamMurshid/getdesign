@@ -11,10 +11,10 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const { accessToken, user } = await withAuth({ ensureSignedIn: true });
   const { id } = await params;
   const runId = id as Id<"designRuns">;
-  const convex = getConvexClient();
+  const convex = getConvexClient(accessToken);
 
   const run = await convex.query(api.designRuns.get, {
     id: runId,
@@ -42,11 +42,12 @@ export async function POST(
   try {
     await convex.mutation(api.designRuns.resumeTextOnly, {
       id: runId,
-      userId: user.id,
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Could not continue as text-only.";
+      error instanceof Error
+        ? error.message
+        : "Could not continue as text-only.";
     if (/already completed|already succeeded/i.test(message)) {
       return NextResponse.json({ error: message }, { status: 409 });
     }

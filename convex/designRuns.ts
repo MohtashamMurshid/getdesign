@@ -1,6 +1,11 @@
 import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
+import {
+  textOnlyResumePatch,
+  textOnlyResumeRejection,
+} from "./designRunPolicy";
+import { requireWorkOsUserId } from "./workosAuth";
 
 const stepSchema = v.union(
   v.literal("crawl"),
@@ -216,7 +221,12 @@ export const finishStep = mutation({
       steps: { ...run.steps, [args.step]: args.status },
       traceEvents: [
         ...(run.traceEvents ?? []),
-        { step: args.step, status: args.status, message: args.message, at: now },
+        {
+          step: args.step,
+          status: args.status,
+          message: args.message,
+          at: now,
+        },
       ],
       updatedAt: now,
     });
@@ -262,44 +272,17 @@ export const failStep = mutation({
 export const resumeTextOnly = mutation({
   args: {
     id: v.id("designRuns"),
-    userId: v.string(),
   },
   returns: v.object({ ok: v.literal(true) }),
   handler: async (ctx, args) => {
-    const run = await getOwnedRun(ctx, args.id, args.userId);
+    const userId = await requireWorkOsUserId(ctx);
+    const run = await getOwnedRun(ctx, args.id, userId);
     if (!run) throw new ConvexError("Run not found.");
-    if (run.status === "completed") {
-      throw new ConvexError({
-        code: "ALREADY_COMPLETED",
-        message: "Run already completed.",
-      });
-    }
-    if (run.steps.capture === "ok") {
-      throw new ConvexError({
-        code: "CAPTURE_ALREADY_OK",
-        message: "Visual capture already succeeded.",
-      });
-    }
+    const rejection = textOnlyResumeRejection(run);
+    if (rejection) throw new ConvexError(rejection);
 
     const now = Date.now();
-    await ctx.db.patch(args.id, {
-      status: "running",
-      currentStep: "extract",
-      message: "Continuing without screenshots",
-      mode: "text_only",
-      error: undefined,
-      steps: { ...run.steps, capture: "skipped" },
-      traceEvents: [
-        ...(run.traceEvents ?? []),
-        {
-          step: "capture",
-          status: "skipped",
-          message: "Continuing without screenshots",
-          at: now,
-        },
-      ],
-      updatedAt: now,
-    });
+    await ctx.db.patch(args.id, textOnlyResumePatch(run, now));
     return { ok: true as const };
   },
 });

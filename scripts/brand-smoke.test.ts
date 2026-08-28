@@ -13,6 +13,10 @@ import {
   collectCssColorKeys,
   joinStylesheetCss,
 } from "./brand-smoke/grounding.ts";
+import {
+  createHumanReviewTemplate,
+  evaluateHumanReview,
+} from "./brand-smoke/review.ts";
 
 const FIXTURE_CSS = `
   :root {
@@ -34,11 +38,7 @@ const FIXTURE_PALETTE = {
   groups: [
     {
       heading: "Primary",
-      entries: [
-        { hex: "#FFFFFF" },
-        { hex: "#0A0A0A" },
-        { hex: "#5e6ad2" },
-      ],
+      entries: [{ hex: "#FFFFFF" }, { hex: "#0A0A0A" }, { hex: "#5e6ad2" }],
     },
   ],
 };
@@ -103,11 +103,7 @@ describe("checkPaletteGrounding", () => {
     const result = checkPaletteGrounding(FIXTURE_CSS, {
       groups: [
         {
-          entries: [
-            { hex: "#fff" },
-            { hex: "#c0ffee" },
-            { hex: "#0a0a0a" },
-          ],
+          entries: [{ hex: "#fff" }, { hex: "#c0ffee" }, { hex: "#0a0a0a" }],
         },
       ],
     });
@@ -149,7 +145,13 @@ describe("brand-smoke CLI helpers", () => {
 
   test("parseBrandSmokeArgs reads --limit --text-only --out", () => {
     expect(
-      parseBrandSmokeArgs(["--limit", "2", "--text-only", "--out", "/tmp/smoke"]),
+      parseBrandSmokeArgs([
+        "--limit",
+        "2",
+        "--text-only",
+        "--out",
+        "/tmp/smoke",
+      ]),
     ).toEqual({
       limit: 2,
       textOnly: true,
@@ -197,5 +199,42 @@ describe("brand-smoke CLI helpers", () => {
     expect(table).toContain("pass");
     expect(table).toContain("fail(1)");
     expect(table).toContain("text_only");
+  });
+});
+
+describe("M3 human review gate", () => {
+  const results = Array.from({ length: 20 }, (_, index) => ({
+    brand: `brand-${index + 1}`,
+    url: `https://brand-${index + 1}.example`,
+  }));
+
+  test("requires ratings for 20 unique brands", () => {
+    const review = createHumanReviewTemplate(results);
+    expect(evaluateHumanReview(review)).toMatchObject({
+      total: 20,
+      pending: 20,
+      complete: false,
+      pass: false,
+    });
+  });
+
+  test("passes 18 correct ratings and fails 17", () => {
+    const review = createHumanReviewTemplate(results);
+    review.ratings.forEach((rating, index) => {
+      rating.primaryColorsCorrect = index < 18;
+    });
+    expect(evaluateHumanReview(review)).toMatchObject({
+      correct: 18,
+      incorrect: 2,
+      complete: true,
+      pass: true,
+    });
+
+    review.ratings[17]!.primaryColorsCorrect = false;
+    expect(evaluateHumanReview(review)).toMatchObject({
+      correct: 17,
+      complete: true,
+      pass: false,
+    });
   });
 });

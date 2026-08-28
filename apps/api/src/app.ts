@@ -1,9 +1,6 @@
 import { Hono } from "hono";
 
-import {
-  verifyWorkosAccessToken,
-  type VerifyAccessTokenFn,
-} from "./auth";
+import { verifyWorkosAccessToken, type VerifyAccessTokenFn } from "./auth";
 import type { RunDesignFn } from "./handlers/getDesign";
 import {
   createGetDesignHandler,
@@ -29,7 +26,11 @@ export function createApp({
 
   app.get("/", requireAuth, createGetDesignHandler(runDesign));
   app.get("/v1/design", requireAuth, createGetDesignHandler(runDesign));
-  app.get("/v1/design/stream", requireAuth, createStreamDesignHandler(runDesign));
+  app.get(
+    "/v1/design/stream",
+    requireAuth,
+    createStreamDesignHandler(runDesign),
+  );
 
   return app;
 }

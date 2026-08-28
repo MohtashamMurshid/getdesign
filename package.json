@@ -14,6 +14,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "smoke:npm": "node scripts/npm-package-smoke.mjs",
     "smoke:brands": "bun ./scripts/brand-smoke.ts",
+    "smoke:brands:review": "bun ./scripts/brand-smoke-review.ts",
     "postinstall": "bun run --cwd ./packages/types build && bun run --cwd ./packages/content build"
   },
   "packageManager": "bun@1.3.10",

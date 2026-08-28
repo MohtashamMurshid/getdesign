@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 
 import {
   mutation,
@@ -6,6 +6,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "./_generated/server";
+import { requireWorkOsUserId } from "./workosAuth";
 
 const providerSchema = v.union(v.literal("daytona"), v.literal("openai"));
 
@@ -19,26 +20,20 @@ type Provider = "daytona" | "openai";
 
 async function findOwnedCredential(
   ctx: QueryCtx | MutationCtx,
-  userId: string,
   provider: Provider,
 ) {
+  const userId = await requireWorkOsUserId(ctx);
   const row = await ctx.db
     .query("userCredentials")
     .withIndex("by_user_and_provider", (q) =>
       q.eq("userId", userId).eq("provider", provider),
     )
     .unique();
-
-  if (!row) return null;
-  if (row.userId !== userId) {
-    throw new ConvexError("Unauthorized");
-  }
-  return row;
+  return { row, userId };
 }
 
 export const upsertEncrypted = mutation({
   args: {
-    userId: v.string(),
     provider: providerSchema,
     ciphertext: v.string(),
     iv: v.string(),
@@ -46,7 +41,10 @@ export const upsertEncrypted = mutation({
   },
   returns: v.id("userCredentials"),
   handler: async (ctx, args) => {
-    const existing = await findOwnedCredential(ctx, args.userId, args.provider);
+    const { row: existing, userId } = await findOwnedCredential(
+      ctx,
+      args.provider,
+    );
     const now = Date.now();
 
     if (existing) {
@@ -60,7 +58,7 @@ export const upsertEncrypted = mutation({
     }
 
     return await ctx.db.insert("userCredentials", {
-      userId: args.userId,
+      userId,
       provider: args.provider,
       ciphertext: args.ciphertext,
       iv: args.iv,
@@ -72,12 +70,11 @@ export const upsertEncrypted = mutation({
 
 export const remove = mutation({
   args: {
-    userId: v.string(),
     provider: providerSchema,
   },
   returns: v.object({ ok: v.boolean() }),
   handler: async (ctx, args) => {
-    const existing = await findOwnedCredential(ctx, args.userId, args.provider);
+    const { row: existing } = await findOwnedCredential(ctx, args.provider);
     if (!existing) return { ok: false };
     await ctx.db.delete(existing._id);
     return { ok: true };
@@ -85,29 +82,25 @@ export const remove = mutation({
 });
 
 export const listForUser = query({
-  args: {
-    userId: v.string(),
-  },
+  args: {},
   returns: v.array(metadataSchema),
-  handler: async (ctx, { userId }) => {
+  handler: async (ctx) => {
+    const userId = await requireWorkOsUserId(ctx);
     const rows = await ctx.db
       .query("userCredentials")
       .withIndex("by_user_and_provider", (q) => q.eq("userId", userId))
       .collect();
 
-    return rows
-      .filter((row) => row.userId === userId)
-      .map((row) => ({
-        provider: row.provider,
-        keySuffix: row.keySuffix,
-        updatedAt: row.updatedAt,
-      }));
+    return rows.map((row) => ({
+      provider: row.provider,
+      keySuffix: row.keySuffix,
+      updatedAt: row.updatedAt,
+    }));
   },
 });
 
 export const getEncrypted = query({
   args: {
-    userId: v.string(),
     provider: providerSchema,
   },
   returns: v.union(
@@ -120,7 +113,7 @@ export const getEncrypted = query({
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const row = await findOwnedCredential(ctx, args.userId, args.provider);
+    const { row } = await findOwnedCredential(ctx, args.provider);
     if (!row) return null;
     return {
       provider: row.provider,

@@ -61,15 +61,17 @@ The test suite stubs `runDesign` via the factory's dependency injection, so it r
 
 ## Environment variables
 
-Consumed by `@getdesign/agent` at request time; set them on the Vercel project with `vercel env add`.
+Set deployment variables on the Vercel project with `vercel env add`.
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `WORKOS_CLIENT_ID` | yes | Used to fetch WorkOS JWKS and verify AuthKit access tokens. Unset means every design request is `401`. |
-| `AI_GATEWAY_API_KEY` | yes | Resolved by `@getdesign/agent`'s `resolveModel()` to talk to the Vercel AI Gateway. `OPENAI_API_KEY` also accepted as a fallback. |
-| `DAYTONA_API_KEY` | yes | Used by the visual sub-agent to spawn Daytona sandboxes for screenshots. |
-| `GETDESIGN_MODEL` | no | Override the default OpenAI model id. |
-| `PORT` | no | Local dev only; defaults to `3001`. |
+| Variable           | Required | Purpose                                                                                                |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------------ |
+| `WORKOS_CLIENT_ID` | yes      | Fetches the WorkOS JWKS used to verify AuthKit access tokens. Unset means every design request is `401`. |
+| `GETDESIGN_MODEL`  | no       | Overrides the default OpenAI model id.                                                                 |
+| `PORT`             | no       | Local development only; defaults to `3001`.                                                           |
+
+Daytona and OpenAI keys are request-scoped headers, not deployment variables.
+The API rejects a request before starting the agent when the required headers
+are absent.
 
 No `.env` file is committed. Copy from `vercel env pull` if you want a local `.env.local`.
 

@@ -63,6 +63,18 @@ test("GET / without Authorization returns 401 and does not run", async () => {
   expect(called).toBe(false);
 });
 
+test("GET /v1/design without Authorization returns 401 and does not run", async () => {
+  let called = false;
+  const app = authedApp(async () => {
+    called = true;
+    return stubResult("# hi");
+  });
+
+  const res = await app.fetch(request("/v1/design?url=https://example.com"));
+  expect(res.status).toBe(401);
+  expect(called).toBe(false);
+});
+
 test("GET / without injected verifier fails closed when WORKOS_CLIENT_ID is unset", async () => {
   const previous = process.env.WORKOS_CLIENT_ID;
   delete process.env.WORKOS_CLIENT_ID;
@@ -117,7 +129,9 @@ test("GET / with auth but missing BYOK headers returns 409 credentials_missing",
     return stubResult("# hi");
   });
 
-  const res = await app.fetch(request("/?url=https://example.com", { ...AUTH }));
+  const res = await app.fetch(
+    request("/?url=https://example.com", { ...AUTH }),
+  );
   expect(res.status).toBe(409);
   const body = (await res.json()) as {
     error: string;
@@ -141,7 +155,7 @@ test("GET /v1/design/stream without Authorization returns 401", async () => {
     request("/v1/design/stream?url=https://example.com"),
   );
   expect(res.status).toBe(401);
-  expect((await res.json() as { error: string }).error).toBe("unauthorized");
+  expect(((await res.json()) as { error: string }).error).toBe("unauthorized");
   expect(called).toBe(false);
 });
 
@@ -164,6 +178,26 @@ test("GET / text_only mode without Daytona but with OpenAI reaches runDesign", a
   );
   expect(res.status).toBe(200);
   expect(called).toBe(true);
+});
+
+test("GET / text_only mode without OpenAI returns 409 and does not run", async () => {
+  let called = false;
+  const app = authedApp(async () => {
+    called = true;
+    return stubResult("# hi");
+  });
+
+  const res = await app.fetch(
+    request("/?url=https://example.com", {
+      ...AUTH,
+      "x-getdesign-mode": "text_only",
+      "x-daytona-api-key": "dtn_test",
+    }),
+  );
+  expect(res.status).toBe(409);
+  const body = (await res.json()) as { error: string };
+  expect(body.error).toBe("credentials_missing");
+  expect(called).toBe(false);
 });
 
 test("GET / without url returns 400 JSON", async () => {
@@ -218,7 +252,11 @@ test("GET /v1/design?format=json returns structured result", async () => {
   );
   expect(res.status).toBe(200);
   expect(res.headers.get("cache-control")).toBe("no-store");
-  const body = (await res.json()) as { markdown: string; mode: string; tiles: number };
+  const body = (await res.json()) as {
+    markdown: string;
+    mode: string;
+    tiles: number;
+  };
   expect(body.markdown).toBe("# hi");
   expect(body.mode).toBe("visual");
   expect(body.tiles).toBe(0);
@@ -239,9 +277,9 @@ test("GET /v1/design/stream returns progress and result events", async () => {
   expect(res.status).toBe(200);
   const text = await res.text();
   expect(text).toContain("event: progress");
-  expect(text).toContain("\"phase\":\"crawl\"");
+  expect(text).toContain('"phase":"crawl"');
   expect(text).toContain("event: result");
-  expect(text).toContain("\"markdown\":\"# streamed\"");
+  expect(text).toContain('"markdown":"# streamed"');
 });
 
 test("GET / returns 409 when capture fails", async () => {

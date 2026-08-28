@@ -3,15 +3,11 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import { api } from "@convex/_generated/api";
 import { getConvexClient } from "@/lib/convex-server";
-import {
-  encryptCredential,
-  keySuffix,
-} from "@/lib/credential-crypto";
+import { encryptCredential, keySuffix } from "@/lib/credential-crypto";
 
 export const runtime = "nodejs";
 
-const PROVIDERS = ["daytona", "openai"] as const;
-type Provider = (typeof PROVIDERS)[number];
+type Provider = "daytona" | "openai";
 
 function isProvider(value: unknown): value is Provider {
   return value === "daytona" || value === "openai";
@@ -24,7 +20,7 @@ function readProvider(body: unknown): Provider | null {
 }
 
 export async function POST(request: Request) {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const { accessToken } = await withAuth({ ensureSignedIn: true });
 
   let body: unknown;
   try {
@@ -51,9 +47,8 @@ export async function POST(request: Request) {
   try {
     const { ciphertext, iv } = await encryptCredential(trimmed);
     const suffix = keySuffix(trimmed);
-    const convex = getConvexClient();
+    const convex = getConvexClient(accessToken);
     await convex.mutation(api.userCredentials.upsertEncrypted, {
-      userId: user.id,
       provider,
       ciphertext,
       iv,
@@ -72,7 +67,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const { accessToken } = await withAuth({ ensureSignedIn: true });
 
   let body: unknown;
   try {
@@ -89,9 +84,8 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const convex = getConvexClient();
+  const convex = getConvexClient(accessToken);
   const result = await convex.mutation(api.userCredentials.remove, {
-    userId: user.id,
     provider,
   });
   return NextResponse.json(result);
