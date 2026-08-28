@@ -119,4 +119,12 @@ export default defineSchema({
   })
     .index("by_run", ["runId"])
     .index("by_run_kind", ["runId", "kind"]),
+  userCredentials: defineTable({
+    userId: v.string(),
+    provider: v.union(v.literal("daytona"), v.literal("openai")),
+    ciphertext: v.string(),
+    iv: v.string(),
+    keySuffix: v.string(),
+    updatedAt: v.number(),
+  }).index("by_user_and_provider", ["userId", "provider"]),
 });

@@ -12,6 +12,7 @@ Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign
 
 ### Added
 
+- **[dashboard]** Account stores encrypted per-user Daytona and OpenAI keys. Dashboard runs decrypt those keys on the server and no longer read `DAYTONA_API_KEY` / `OPENAI_API_KEY` from the process environment.
 - **[dashboard]** API, CLI, SDK, Skills, Docs, and Support pages with marketing-style animated demos, copy-paste quickstarts, and links to `docs.getdesign.app`. Documents that v1 has no getdesign API key; full runs use BYOK Daytona/OpenAI credentials.
 - **[content]** New `@getdesign/content` package for shared demo sites, surface metadata, docs URLs, and snippet builders (used by dashboard, web, and video).
 - **[tools]** `@getdesign/tools` now ships concrete `crawler`, `extractors`, `render`, and `daytona` modules with deterministic URL/CSS resolution, token extraction, markdown rendering, and typed Daytona helpers.

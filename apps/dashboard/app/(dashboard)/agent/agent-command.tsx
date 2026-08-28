@@ -70,7 +70,7 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
         className="px-0 pb-0"
         status={isPending || isRunning ? "submitted" : "ready"}
         disabled={!aiReady || isRunning}
-        placeholder={aiReady ? "Enter a URL..." : "Server AI key not configured"}
+        placeholder={aiReady ? "Enter a URL..." : "Add an OpenAI key on Account"}
         onStop={() => {}}
         onSend={({ content }) => {
           setError(null);
@@ -114,10 +114,10 @@ export function AgentCommand({ aiReady, user }: AgentCommandProps) {
             ? {
                 title: "Setup needed.",
                 description:
-                  "This deployment needs an AI key. For local CLI/SDK/API runs, see BYOK docs.",
+                  "Add an OpenAI key on Account to start a run. Capture still needs a Daytona key later.",
                 action: {
-                  label: "API docs",
-                  onClick: () => router.push("/api"),
+                  label: "Account",
+                  onClick: () => router.push("/account"),
                 },
               }
             : undefined
