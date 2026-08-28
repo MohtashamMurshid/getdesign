@@ -1,4 +1,4 @@
-import type { DemoSite } from "@getdesign/content";
+import { buildApiRequest, type DemoSite } from "@getdesign/content";
 
 type ApiPreviewProps = {
   site: DemoSite;
@@ -14,12 +14,7 @@ export function ApiPreview({ site, visibleSteps, done }: ApiPreviewProps) {
           request
         </div>
         <pre className="m-0 mt-2 whitespace-pre-wrap break-words rounded-md border bg-muted/50 p-3 font-mono text-[12.5px] leading-relaxed text-foreground">
-          <span className="tok-key">GET</span>{" "}
-          <span className="tok-str">
-            https://api.getdesign.app/?url={site.url}
-          </span>
-          {"\n"}
-          <span className="tok-com">Accept: text/markdown</span>
+          {buildApiRequest(site.url)}
         </pre>
       </div>
 
