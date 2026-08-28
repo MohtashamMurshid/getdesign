@@ -24,6 +24,7 @@ Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign
 
 ### Changed
 
+- **[dashboard]** Capture failures now stop the run. Text-only is an explicit "Continue with text-only" choice, not a silent fallback.
 - **[web]** Surfaces section heading `"Four surfaces, one agent."` → `"Five surfaces, one agent."` with revised subhead.
 - **[web]** Footer GitHub link now points at [github.com/MohtashamMurshid/getdesign](https://github.com/MohtashamMurshid/getdesign) instead of the `github.com` placeholder.
 
