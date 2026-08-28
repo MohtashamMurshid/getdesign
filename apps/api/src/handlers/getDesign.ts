@@ -41,6 +41,46 @@ function parseSiteName(c: Context): string | undefined {
   return c.req.query("siteName") ?? c.req.header(SITE_NAME_HEADER) ?? undefined;
 }
 
+function headerValue(c: Context, name: string): string {
+  return (c.req.header(name) ?? "").trim();
+}
+
+function credentialsMissingReason(c: Context): string | null {
+  const textOnly = parseVisualRequirement(c) === "text_only_fallback";
+  const daytona = headerValue(c, DAYTONA_HEADER);
+  const openai = headerValue(c, OPENAI_HEADER);
+
+  if (textOnly) {
+    if (!openai) {
+      return "Missing x-openai-api-key request-scoped credential";
+    }
+    return null;
+  }
+
+  const missing: string[] = [];
+  if (!daytona) missing.push("x-daytona-api-key");
+  if (!openai) missing.push("x-openai-api-key");
+  const [firstMissing] = missing;
+  if (!firstMissing) return null;
+  if (missing.length === 2) {
+    return "Missing x-daytona-api-key and x-openai-api-key request-scoped credentials";
+  }
+  return `Missing ${firstMissing} request-scoped credential`;
+}
+
+function credentialsMissingResponse(c: Context) {
+  const reason = credentialsMissingReason(c);
+  if (!reason) return null;
+  return c.json(
+    {
+      error: "credentials_missing",
+      code: "credentials_missing",
+      reason,
+    },
+    409,
+  );
+}
+
 function parseFormat(c: Context): ResponseFormat {
   const format = (c.req.query("format") ?? "").trim().toLowerCase();
   if (format === "json") return "json";
@@ -131,6 +171,9 @@ export function createGetDesignHandler(runDesign: RunDesignFn) {
       return c.json({ error: message }, 400);
     }
 
+    const blocked = credentialsMissingResponse(c);
+    if (blocked) return blocked;
+
     try {
       const result = await runDesign(parsed.data, {
         visualRequirement: parseVisualRequirement(c),
@@ -183,6 +226,9 @@ export function createStreamDesignHandler(runDesign: RunDesignFn) {
         parsed.error.issues[0]?.message ?? "Invalid `url` query parameter";
       return c.json({ error: message }, 400);
     }
+
+    const blocked = credentialsMissingResponse(c);
+    if (blocked) return blocked;
 
     return streamSSE(c, async (stream) => {
       try {

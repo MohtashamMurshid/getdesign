@@ -1,6 +1,6 @@
 ---
 title: API
-description: HTTP endpoint that turns a URL into text/markdown. No auth in v1.
+description: HTTP endpoint that turns a URL into text/markdown.
 ---
 
 The API lives at `api.getdesign.app`. One endpoint, one response type: `text/markdown`.
@@ -9,6 +9,9 @@ The API lives at `api.getdesign.app`. One endpoint, one response type: `text/mar
 
 ```http
 GET https://api.getdesign.app/?url=<target>
+Authorization: Bearer <WorkOS access token>
+x-daytona-api-key: <key>
+x-openai-api-key: <key>
 Accept: text/markdown
 ```
 
@@ -16,6 +19,9 @@ Accept: text/markdown
 
 ```bash
 curl "https://api.getdesign.app/?url=https://stripe.com" \
+  -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
+  -H "x-daytona-api-key: $DAYTONA_API_KEY" \
+  -H "x-openai-api-key: $OPENAI_API_KEY" \
   -H "Accept: text/markdown" \
   -o stripe.design.md
 ```
@@ -31,10 +37,14 @@ curl "https://api.getdesign.app/?url=https://stripe.com" \
 
 - `200 OK` with `Content-Type: text/markdown; charset=utf-8` and the full `design.md` body.
 - `400 Bad Request` if `url` is missing or invalid.
+- `401 Unauthorized` if the WorkOS bearer token is missing or invalid.
+- `409` with `code: credentials_missing` if Daytona and/or OpenAI request-scoped keys are absent.
+- `409` with `code: capture_failed` if visual capture cannot finish. Retry with `x-getdesign-mode: text_only` if you accept degraded output.
 - `429 Too Many Requests` if you exceed the public rate limit.
 
 ## Notes
 
-- No authentication in v1.
+- Send `Authorization: Bearer <WorkOS access token>`. There is no getdesign API key in v1.
+- Visual runs need `x-daytona-api-key` and `x-openai-api-key`. Text-only still needs the OpenAI key. Daytona is optional in that mode.
 - The extractor renders the target in a real browser. First-run latency can be a few seconds.
 - Respect the target site's terms when using the output.

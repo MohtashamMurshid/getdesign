@@ -7,6 +7,9 @@ description: One-command usage of the getdesign HTTP API.
 
 ```bash
 curl "https://api.getdesign.app/?url=https://stripe.com" \
+  -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
+  -H "x-daytona-api-key: $DAYTONA_API_KEY" \
+  -H "x-openai-api-key: $OPENAI_API_KEY" \
   -H "Accept: text/markdown" \
   -o stripe.design.md
 ```
@@ -14,7 +17,11 @@ curl "https://api.getdesign.app/?url=https://stripe.com" \
 ## Pipe it straight into a file
 
 ```bash
-curl -sS "https://api.getdesign.app/?url=https://linear.app" > linear.design.md
+curl -sS "https://api.getdesign.app/?url=https://linear.app" \
+  -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
+  -H "x-daytona-api-key: $DAYTONA_API_KEY" \
+  -H "x-openai-api-key: $OPENAI_API_KEY" \
+  > linear.design.md
 ```
 
 ## Use with jq for palette only
@@ -23,6 +30,9 @@ The response is Markdown, not JSON, so `jq` does not apply directly. For palette
 
 ```bash
 curl -sS "https://api.getdesign.app/?url=https://stripe.com" \
+  -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
+  -H "x-daytona-api-key: $DAYTONA_API_KEY" \
+  -H "x-openai-api-key: $OPENAI_API_KEY" \
   | awk '/^## 2\./,/^## 3\./' > stripe.palette.md
 ```
 
