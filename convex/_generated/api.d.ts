@@ -10,6 +10,7 @@
 
 import type * as designRunArtifacts from "../designRunArtifacts.js";
 import type * as designRuns from "../designRuns.js";
+import type * as userCredentials from "../userCredentials.js";
 import type * as waitlist from "../waitlist.js";
 
 import type {
@@ -21,6 +22,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   designRunArtifacts: typeof designRunArtifacts;
   designRuns: typeof designRuns;
+  userCredentials: typeof userCredentials;
   waitlist: typeof waitlist;
 }>;
 
