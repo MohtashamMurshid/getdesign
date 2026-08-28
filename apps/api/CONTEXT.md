@@ -9,3 +9,5 @@ Terms and naming for the HTTP API workspace (`apps/api`). Expand as the domain s
 - **Request-scoped credentials** — Daytona and OpenAI keys sent only for the current request via headers. The API must forward them to the agent and must never log or echo them.
 - **Text-only retry** — A degraded run requested with `x-getdesign-mode: text_only` after visual capture fails or the user explicitly accepts non-visual output.
 - **Public progress event** — Sanitized progress data sent to SDK/CLI clients. It omits screenshot tile image data, raw crawl payloads, and credentials.
+- **WorkOS bearer auth** — Design endpoints accept `Authorization: Bearer <WorkOS AuthKit access token>`. There is no getdesign API key in v1.
+- **credentials_missing** — `409` when the caller is authenticated but required request-scoped Daytona and/or OpenAI keys are absent. Distinct from `capture_failed`.
