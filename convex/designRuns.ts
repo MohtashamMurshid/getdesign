@@ -258,3 +258,48 @@ export const failStep = mutation({
     return null;
   },
 });
+
+export const resumeTextOnly = mutation({
+  args: {
+    id: v.id("designRuns"),
+    userId: v.string(),
+  },
+  returns: v.object({ ok: v.literal(true) }),
+  handler: async (ctx, args) => {
+    const run = await getOwnedRun(ctx, args.id, args.userId);
+    if (!run) throw new ConvexError("Run not found.");
+    if (run.status === "completed") {
+      throw new ConvexError({
+        code: "ALREADY_COMPLETED",
+        message: "Run already completed.",
+      });
+    }
+    if (run.steps.capture === "ok") {
+      throw new ConvexError({
+        code: "CAPTURE_ALREADY_OK",
+        message: "Visual capture already succeeded.",
+      });
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.id, {
+      status: "running",
+      currentStep: "extract",
+      message: "Continuing without screenshots",
+      mode: "text_only",
+      error: undefined,
+      steps: { ...run.steps, capture: "skipped" },
+      traceEvents: [
+        ...(run.traceEvents ?? []),
+        {
+          step: "capture",
+          status: "skipped",
+          message: "Continuing without screenshots",
+          at: now,
+        },
+      ],
+      updatedAt: now,
+    });
+    return { ok: true as const };
+  },
+});

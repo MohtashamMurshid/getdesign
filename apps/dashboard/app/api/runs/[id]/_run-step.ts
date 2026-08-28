@@ -98,7 +98,7 @@ export function runStepHandler(step: RunStep) {
         userId: user.id,
         step: inferFailedStep(error, step),
         message: error instanceof Error ? error.message : "Run failed.",
-        code: error instanceof Error ? error.name : undefined,
+        code: inferErrorCode(error),
       });
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "Run failed." },
@@ -153,27 +153,49 @@ async function runCaptureStep({
   artifacts,
 }: RunContext) {
   const crawl = await requireCrawl(artifacts);
-  const credentials = await resolveRunCredentials(userId);
-  const daytonaApiKey = requireDaytonaCredential(credentials);
+  let daytonaApiKey: string;
+  try {
+    const credentials = await resolveRunCredentials(userId);
+    daytonaApiKey = requireDaytonaCredential(credentials);
+  } catch (error) {
+    throw new StepError(
+      "capture",
+      error instanceof Error ? error.message : "Daytona credential unavailable.",
+      "capture_failed",
+    );
+  }
 
   await beginStep(convex, runId, userId, "capture", "Capturing page");
-  const captured = await runVisual(
-    { url: crawl.sourceUrl },
-    { daytonaApiKey },
-  );
+  let captured: VisualResult;
+  try {
+    captured = await runVisual(
+      { url: crawl.sourceUrl },
+      { daytonaApiKey },
+    );
+  } catch (error) {
+    throw new StepError(
+      "capture",
+      error instanceof Error ? error.message : "Visual capture failed.",
+      "capture_failed",
+    );
+  }
+  if (captured.status !== "captured") {
+    throw new StepError(
+      "capture",
+      captured.reason ?? "Visual capture failed.",
+      "capture_failed",
+    );
+  }
   const visual = await storeVisual(convex, runId, userId, captured);
-  const mode = visual.status === "captured" ? "visual" : "text_only";
   await finishStep(
     convex,
     runId,
     userId,
     "capture",
-    visual.status === "captured" ? "ok" : "skipped",
-    visual.status === "captured"
-      ? `Captured ${visual.tiles.length} tiles`
-      : (visual.reason ?? "Capture skipped"),
+    "ok",
+    `Captured ${visual.tiles.length} tiles`,
     {
-      mode,
+      mode: "visual",
       tiles: visual.tiles.length,
     },
   );
@@ -551,13 +573,20 @@ class StepError extends Error {
   constructor(
     readonly step: RunStep,
     message: string,
+    readonly code?: string,
   ) {
     super(message);
-    this.name = "StepError";
+    this.name = code ?? "StepError";
   }
 }
 
 function inferFailedStep(error: unknown, fallback: RunStep): RunStep {
   if (error instanceof StepError) return error.step;
   return fallback;
+}
+
+function inferErrorCode(error: unknown): string | undefined {
+  if (error instanceof StepError) return error.code ?? error.name;
+  if (error instanceof Error) return error.name;
+  return undefined;
 }
