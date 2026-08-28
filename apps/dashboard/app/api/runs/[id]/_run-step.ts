@@ -15,6 +15,11 @@ import type { ScreenshotArtifact } from "@getdesign/tools/daytona";
 import type { DesignDoc, DesignTokens } from "@getdesign/types";
 
 import { getConvexClient } from "@/lib/convex-server";
+import {
+  requireDaytonaCredential,
+  requireOpenAiCredential,
+  resolveRunCredentials,
+} from "@/lib/run-credentials";
 import type { RunStep } from "@/lib/runs-store";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -148,17 +153,13 @@ async function runCaptureStep({
   artifacts,
 }: RunContext) {
   const crawl = await requireCrawl(artifacts);
-  if (!process.env.DAYTONA_API_KEY) {
-    throw new StepError(
-      "capture",
-      "No Daytona API key available; set DAYTONA_API_KEY before starting a visual run.",
-    );
-  }
+  const credentials = await resolveRunCredentials(userId);
+  const daytonaApiKey = requireDaytonaCredential(credentials);
 
   await beginStep(convex, runId, userId, "capture", "Capturing page");
   const captured = await runVisual(
     { url: crawl.sourceUrl },
-    { daytonaApiKey: process.env.DAYTONA_API_KEY },
+    { daytonaApiKey },
   );
   const visual = await storeVisual(convex, runId, userId, captured);
   const mode = visual.status === "captured" ? "visual" : "text_only";
@@ -220,6 +221,8 @@ async function runDescribeStep({
     return;
   }
 
+  const credentials = await resolveRunCredentials(userId);
+  const openaiApiKey = requireOpenAiCredential(credentials);
   await beginStep(convex, runId, userId, "describe", "Describing screenshots");
   const tiles = await loadTileArtifacts(convex, runId, userId, visual);
   const result = await runDescribe({
@@ -229,7 +232,7 @@ async function runDescribeStep({
     documentHeight: visual.documentHeight ?? visual.viewport.height,
     documentWidth: visual.documentWidth ?? visual.viewport.width,
     viewport: visual.viewport,
-    model: resolveModel({ apiKey: process.env.OPENAI_API_KEY }),
+    model: resolveModel({ apiKey: openaiApiKey }),
   });
   await saveText(convex, runId, userId, "description", result.description);
   const wordCount = result.description.split(/\s+/).filter(Boolean).length;
@@ -257,6 +260,8 @@ async function runSynthesizeStep({
   const description = typeof artifacts.description === "string"
     ? artifacts.description
     : "";
+  const credentials = await resolveRunCredentials(userId);
+  const openaiApiKey = requireOpenAiCredential(credentials);
   await beginStep(convex, runId, userId, "synthesize", "Synthesizing design doc");
   const tiles = visual?.status === "captured"
     ? await loadTileArtifacts(convex, runId, userId, visual)
@@ -268,7 +273,7 @@ async function runSynthesizeStep({
     tiles: tiles.length > 0 ? tiles : undefined,
     visualDescription: description.trim() || undefined,
     crawlNotes: crawl.notes,
-    model: resolveModel({ apiKey: process.env.OPENAI_API_KEY }),
+    model: resolveModel({ apiKey: openaiApiKey }),
   });
   await saveValue(convex, runId, userId, "doc", result.doc);
   await finishStep(

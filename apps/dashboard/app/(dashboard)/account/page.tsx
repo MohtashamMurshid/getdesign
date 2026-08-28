@@ -2,6 +2,7 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { UserProfile } from "@workos-inc/widgets";
 import { redirect } from "next/navigation";
 
+import { api } from "@convex/_generated/api";
 import { WidgetLoadingGate } from "@/components/widget-loading-gate";
 import { WorkOsWidgetsProvider } from "@/components/workos-widgets-provider";
 import {
@@ -10,6 +11,9 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
+import { getConvexClient } from "@/lib/convex-server";
+
+import { ProviderKeysCard } from "./provider-keys-card";
 
 export default async function AccountPage() {
   const { accessToken, user } = await withAuth();
@@ -17,6 +21,10 @@ export default async function AccountPage() {
   if (!user || !accessToken) {
     redirect("/sign-in");
   }
+
+  const keys = await getConvexClient().query(api.userCredentials.listForUser, {
+    userId: user.id,
+  });
 
   return (
     <>
@@ -32,6 +40,7 @@ export default async function AccountPage() {
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <ProviderKeysCard keys={keys} />
         <WorkOsWidgetsProvider>
           <WidgetLoadingGate>
             <UserProfile authToken={accessToken} />
