@@ -53,9 +53,13 @@ export function toRunState(run: Omit<RunState, "id"> & { id?: string }): RunStat
   return {
     ...run,
     id: run.id ?? String(run._id),
-    error:
-      typeof run.error === "object" && run.error
-        ? run.error.message
-        : run.error,
   };
+}
+
+export function runErrorMessage(
+  error: RunState["error"] | null | undefined,
+): string | null {
+  if (!error) return null;
+  if (typeof error === "string") return error;
+  return error.message;
 }
