@@ -14,8 +14,8 @@ const COPY: Record<
   { title: string; body: string }
 > = {
   api: {
-    title: "No getdesign API key yet",
-    body: "Public v1 calls need no getdesign auth. For full visual capture with your own infra, pass Daytona and OpenAI keys in request headers — never in query strings.",
+    title: "No getdesign API key",
+    body: "Send Authorization: Bearer <WorkOS access token> plus x-daytona-api-key and x-openai-api-key. Never put secrets in the query string.",
   },
   cli: {
     title: "Bring your own keys",

@@ -14,10 +14,13 @@ Pick a surface and paste a URL. Every surface returns the same `design.md`.
   <TabItem label="API">
     ```bash
     curl "https://api.getdesign.app/?url=https://stripe.com" \
+      -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
+      -H "x-daytona-api-key: $DAYTONA_API_KEY" \
+      -H "x-openai-api-key: $OPENAI_API_KEY" \
       -H "Accept: text/markdown" \
       -o stripe.design.md
     ```
-    No auth is required in v1. Rate limits apply.
+    Send a WorkOS access token plus the BYOK headers. Rate limits apply.
   </TabItem>
   <TabItem label="CLI">
     ```bash

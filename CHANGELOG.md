@@ -24,6 +24,7 @@ Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign
 
 ### Changed
 
+- **[api]** HTTP API now requires a WorkOS bearer token and request-scoped BYOK headers.
 - **[web]** Surfaces section heading `"Four surfaces, one agent."` → `"Five surfaces, one agent."` with revised subhead.
 - **[web]** Footer GitHub link now points at [github.com/MohtashamMurshid/getdesign](https://github.com/MohtashamMurshid/getdesign) instead of the `github.com` placeholder.
 

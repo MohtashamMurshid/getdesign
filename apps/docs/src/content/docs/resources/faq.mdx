@@ -21,7 +21,7 @@ The output describes publicly visible design choices of the target site. Respect
 
 ## Is there authentication?
 
-Not in v1. Rate limits apply.
+The HTTP API expects `Authorization: Bearer <WorkOS access token>`. There is no getdesign API key in v1. Visual runs also need `x-daytona-api-key` and `x-openai-api-key`.
 
 ## Is there a free tier?
 
