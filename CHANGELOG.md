@@ -22,6 +22,7 @@ Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign
 - **[skill]** `skills/README.md` — overview, install commands, and link to the [skills.sh](https://skills.sh) leaderboard.
 - **[web]** Landing page now advertises five surfaces: hero dots `Web · API · CLI · SDK · Skill`, the Surfaces section grid expanded from 4 to 5 cards, and the interactive demo gained a `skill` tab showing `npx skills add`, agent trace (`WebFetch`, `browser.screenshot`, `Write`), and the resulting `design.md`.
 - **[repo]** `LICENSE` (MIT), `CONTRIBUTING.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a GitHub issue + PR template set under `.github/`.
+- **[agent]** Local M11 brand-smoke harness (`bun run smoke:brands`) for 20 marketing sites: palette hex values must appear in crawled CSS, with wall-clock timings. CI (`workflow_dispatch` only) runs the grounding unit tests; live Daytona/OpenAI is skipped unless secrets are present.
 
 ### Changed
 
