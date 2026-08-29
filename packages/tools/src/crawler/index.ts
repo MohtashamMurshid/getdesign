@@ -1,4 +1,5 @@
 import { load } from "cheerio";
+import { StringDecoder } from "node:string_decoder";
 import { z } from "zod";
 
 const nonEmptyStringSchema = z.string().trim().min(1);
@@ -166,14 +167,20 @@ export async function crawlSite(input: CrawlSiteInput): Promise<CrawlSiteResult>
   const inlineStyles = extractInlineStyles(html);
   const stylesheets: CrawledStylesheet[] = [];
   const seenUrls = new Set<string>([parsedInput.url]);
+  const notes: string[] = [];
+  let fetchedLinkedStylesheets = 0;
 
   for (const stylesheetUrl of linkedStylesheets) {
-    const content = trimStylesheet(
-      await fetchText(fetcher, stylesheetUrl, {
+    let content: string;
+
+    try {
+      content = await fetchText(fetcher, stylesheetUrl, {
         maxBytes: parsedInput.maxStylesheetBytes,
-      }),
-      parsedInput.maxStylesheetBytes,
-    );
+      });
+    } catch (error) {
+      notes.push(stylesheetFailureNote("linked", stylesheetUrl, error));
+      continue;
+    }
 
     stylesheets.push({
       kind: "linked",
@@ -181,6 +188,7 @@ export async function crawlSite(input: CrawlSiteInput): Promise<CrawlSiteResult>
       content,
       url: stylesheetUrl,
     });
+    fetchedLinkedStylesheets += 1;
     seenUrls.add(stylesheetUrl);
 
     const importedStylesheets = await fetchImportedStylesheets({
@@ -190,6 +198,7 @@ export async function crawlSite(input: CrawlSiteInput): Promise<CrawlSiteResult>
       maxBytes: parsedInput.maxStylesheetBytes,
       maxDepth: parsedInput.maxImportDepth,
       visited: seenUrls,
+      notes,
     });
 
     stylesheets.push(...importedStylesheets);
@@ -199,14 +208,16 @@ export async function crawlSite(input: CrawlSiteInput): Promise<CrawlSiteResult>
     stylesheets.push({
       kind: "inline",
       source: `inline-style-${index + 1}`,
-      content: trimStylesheet(content, parsedInput.maxStylesheetBytes),
+      content: truncateUtf8(content, parsedInput.maxStylesheetBytes),
     });
   });
 
-  const notes = [
-    `Fetched ${linkedStylesheets.length} linked stylesheet${linkedStylesheets.length === 1 ? "" : "s"}.`,
+  notes.unshift(
+    fetchedLinkedStylesheets === linkedStylesheets.length
+      ? `Fetched ${fetchedLinkedStylesheets} linked stylesheet${fetchedLinkedStylesheets === 1 ? "" : "s"}.`
+      : `Fetched ${fetchedLinkedStylesheets} of ${linkedStylesheets.length} linked stylesheets.`,
     `Captured ${inlineStyles.length} inline style block${inlineStyles.length === 1 ? "" : "s"}.`,
-  ];
+  );
 
   if (stylesheets.length === 0) {
     notes.push("No crawlable stylesheets were discovered in the HTML document.");
@@ -247,6 +258,7 @@ async function fetchImportedStylesheets(input: {
   maxBytes: number;
   maxDepth: number;
   visited: Set<string>;
+  notes: string[];
   depth?: number;
 }): Promise<CrawledStylesheet[]> {
   const depth = input.depth ?? 0;
@@ -264,12 +276,16 @@ async function fetchImportedStylesheets(input: {
     }
 
     input.visited.add(importedUrl);
-    const content = trimStylesheet(
-      await fetchText(input.fetcher, importedUrl, {
+    let content: string;
+
+    try {
+      content = await fetchText(input.fetcher, importedUrl, {
         maxBytes: input.maxBytes,
-      }),
-      input.maxBytes,
-    );
+      });
+    } catch (error) {
+      input.notes.push(stylesheetFailureNote("imported", importedUrl, error));
+      continue;
+    }
 
     imported.push({
       kind: "imported",
@@ -341,7 +357,7 @@ async function fetchText(
       throw new Error(`Failed to fetch ${currentUrl}: ${response.status} ${response.statusText}`);
     }
 
-    return await readResponseText(response, currentUrl, options.maxBytes);
+    return await readResponseText(response, options.maxBytes);
   }
 
   throw new Error(`Too many redirects while fetching ${url}.`);
@@ -349,17 +365,11 @@ async function fetchText(
 
 async function readResponseText(
   response: Response,
-  url: string,
   maxBytes: number,
 ): Promise<string> {
   if (!response.body) {
     const text = await response.text();
-
-    if (Buffer.byteLength(text, "utf8") > maxBytes) {
-      throw new Error(`Response from ${url} exceeded ${maxBytes} bytes.`);
-    }
-
-    return text;
+    return truncateUtf8(text, maxBytes);
   }
 
   const reader = response.body.getReader();
@@ -377,27 +387,58 @@ async function readResponseText(
       continue;
     }
 
-    totalBytes += value.byteLength;
+    const remainingBytes = maxBytes - totalBytes;
 
-    if (totalBytes > maxBytes) {
+    if (value.byteLength > remainingBytes) {
+      if (remainingBytes > 0) {
+        chunks.push(value.subarray(0, remainingBytes));
+      }
       await reader.cancel();
-      throw new Error(`Response from ${url} exceeded ${maxBytes} bytes.`);
+      return decodeUtf8(chunks, true);
     }
 
     chunks.push(value);
+    totalBytes += value.byteLength;
+
+    if (totalBytes === maxBytes) {
+      const next = await reader.read();
+
+      if (!next.done) {
+        await reader.cancel();
+        return decodeUtf8(chunks, true);
+      }
+
+      return decodeUtf8(chunks, false);
+    }
   }
 
-  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString("utf8");
+  return decodeUtf8(chunks, false);
 }
 
-function trimStylesheet(content: string, maxBytes: number): string {
+function truncateUtf8(content: string, maxBytes: number): string {
   const buffer = Buffer.from(content, "utf8");
 
   if (buffer.byteLength <= maxBytes) {
     return content;
   }
 
-  return buffer.subarray(0, maxBytes).toString("utf8");
+  const decoder = new StringDecoder("utf8");
+  return decoder.write(buffer.subarray(0, maxBytes));
+}
+
+function decodeUtf8(chunks: Uint8Array[], truncated: boolean): string {
+  const decoder = new StringDecoder("utf8");
+  const buffer = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+  return truncated ? decoder.write(buffer) : decoder.end(buffer);
+}
+
+function stylesheetFailureNote(
+  kind: "linked" | "imported",
+  url: string,
+  error: unknown,
+): string {
+  const reason = error instanceof Error ? error.message : String(error);
+  return `Skipped ${kind} stylesheet ${url}: ${reason}`;
 }
 
 function resolveCrawlableUrl(rawUrl: string | undefined, baseUrl: string): string | null {

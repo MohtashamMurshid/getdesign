@@ -20,6 +20,13 @@ export function textOnlyResumeRejection(run: TextOnlyResumeRun) {
       message: "Visual capture already succeeded.",
     } as const;
   }
+  if (Object.values(run.steps).some((status) => status === "running")) {
+    return {
+      code: "STEP_RUNNING",
+      message:
+        "Wait for the active run steps to finish before continuing without screenshots.",
+    } as const;
+  }
   return null;
 }
 

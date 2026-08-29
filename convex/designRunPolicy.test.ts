@@ -37,6 +37,19 @@ describe("text-only resume policy", () => {
     });
   });
 
+  test("rejects continuation while a sibling pipeline step is running", () => {
+    expect(
+      textOnlyResumeRejection({
+        ...pendingRun,
+        steps: { ...pendingRun.steps, extract: "running" },
+      }),
+    ).toEqual({
+      code: "STEP_RUNNING",
+      message:
+        "Wait for the active run steps to finish before continuing without screenshots.",
+    });
+  });
+
   test("marks capture skipped only after explicit continuation", () => {
     expect(textOnlyResumeRejection(pendingRun)).toBeNull();
     const patch = textOnlyResumePatch(pendingRun, 123);

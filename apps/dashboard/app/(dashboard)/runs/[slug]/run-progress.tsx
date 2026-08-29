@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "convex/react";
 
 import { isCaptureFailure } from "@/lib/is-capture-failure";
+import { waitForStepGroup } from "@/lib/run-pipeline";
 import {
   runErrorMessage,
   toRunState,
@@ -104,7 +105,7 @@ export function RunProgress({
     async (dag: Array<RunStep | RunStep[]>) => {
       for (const group of dag) {
         if (Array.isArray(group)) {
-          await Promise.all(group.map((step) => postStep(run.id, step)));
+          await waitForStepGroup(group, (step) => postStep(run.id, step));
         } else {
           await postStep(run.id, group);
         }

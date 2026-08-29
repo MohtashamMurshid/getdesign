@@ -555,8 +555,13 @@ function extractShadows(root: Root): ShadowToken[] {
       return;
     }
 
+    const value = trimText(decl.value);
+    if (!value) {
+      return;
+    }
+
     shadows.push({
-      value: trimText(decl.value),
+      value,
       role: trimText(decl.prop.replace(/^--/, "").replace(/[-_]/g, " ")),
       source: declarationSource(decl),
     });

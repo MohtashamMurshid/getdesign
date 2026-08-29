@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import { getConvexClient } from "@/lib/convex-server";
+import { textOnlyResumeErrorStatus } from "@/lib/text-only-resume-error";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 
@@ -48,10 +49,10 @@ export async function POST(
       error instanceof Error
         ? error.message
         : "Could not continue as text-only.";
-    if (/already completed|already succeeded/i.test(message)) {
-      return NextResponse.json({ error: message }, { status: 409 });
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: message },
+      { status: textOnlyResumeErrorStatus(error) },
+    );
   }
 
   return NextResponse.json({ ok: true });
