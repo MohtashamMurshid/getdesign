@@ -7,22 +7,8 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
 import { getConvexClient } from "@/lib/convex-server"
 import { api } from "@convex/_generated/api"
-
-const MOCK_STATS = {
-  globalRuns: 3_201_056,
-  cachedSites: 12847,
-  topSites: [
-    "stripe.com",
-    "linear.app",
-    "vercel.com",
-    "notion.so",
-    "github.com",
-  ],
-}
-
 
 type DesignRun = {
   slug: string
@@ -58,26 +44,6 @@ function parseDesignMd(content: string): Pick<DesignRun, "title" | "theme" | "co
 
   return { title, theme, colors, accent }
 }
-
-function fmt(n: number) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`
-  return String(n)
-}
-
-function Favicon({ domain }: { domain: string }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
-      alt=""
-      width={16}
-      height={16}
-      className="rounded-sm opacity-80"
-    />
-  )
-}
-
 
 export default async function Page() {
   const { user } = await withAuth()
@@ -124,39 +90,18 @@ export default async function Page() {
 
       <div className="flex flex-1 flex-col gap-6 p-6">
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-xl border p-5">
-            <p className="text-xs text-muted-foreground mb-2">Your runs</p>
-            <p className="text-4xl font-semibold tracking-tight">{runs.length}</p>
-          </div>
-
-          <div className="rounded-xl border p-5">
-            <p className="text-xs text-muted-foreground mb-2">Total runs</p>
-            <p className="text-4xl font-semibold tracking-tight">{fmt(MOCK_STATS.globalRuns)}</p>
-          </div>
-
-          <div className="rounded-xl border p-5">
-            <p className="text-xs text-muted-foreground mb-2">Sites cached</p>
-            <p className="text-4xl font-semibold tracking-tight">{fmt(MOCK_STATS.cachedSites)}</p>
-            <ul className="mt-3 space-y-1.5 border-t pt-3">
-              {MOCK_STATS.topSites.map((site) => (
-                <li key={site} className="flex items-center gap-2">
-                  <Favicon domain={site} />
-                  <span className="text-xs text-muted-foreground">{site}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
         {/* Recent runs */}
         <div className="rounded-xl border">
-          <div className="flex items-center justify-between border-b px-5 py-3">
-            <p className="text-sm font-medium">Recent runs</p>
-            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground h-auto py-1">
-              View all
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Recent runs</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Completed runs with design files from your latest 24 runs.
+              </p>
+            </div>
+            <p className="shrink-0 text-xs text-muted-foreground">
+              {runs.length} shown
+            </p>
           </div>
           <div className="divide-y">
             {runs.map((run) => (
