@@ -20,3 +20,15 @@ environment. Users save both keys on Account before starting a visual run.
 bun test apps/dashboard/lib convex
 bun run --cwd apps/dashboard typecheck
 ```
+
+## App icons
+
+`app/icon.svg` is copied from `apps/web/app/icon.svg`, the existing getdesign
+brand mark. Its raster exports are `app/favicon.ico` with 16, 32 and 48px
+frames, `app/apple-icon.png` at 180px, and `public/icons/icon-{192,512}.png`.
+The PNG exports use the mark's opaque `#0a0a0b` background for home screens.
+Regenerate these exports from the source SVG when the brand mark changes.
+
+Next.js adds the SVG, ICO, Apple touch icon and manifest links through its
+metadata file conventions. The manifest keeps `display: "browser"` because
+the dashboard does not provide an offline or standalone app experience.
