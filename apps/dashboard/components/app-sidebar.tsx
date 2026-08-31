@@ -6,6 +6,13 @@ import { usePathname } from "next/navigation"
 
 import { BrandMark } from "@/components/brand-mark"
 import { NavUser } from "@/components/nav-user"
+import { DashboardCommandMenu } from "@/components/dashboard-command-menu"
+import {
+  NAV_MAIN,
+  NAV_SECONDARY,
+  type NavItem,
+} from "@/lib/dashboard-navigation"
+import { isApplePlatform } from "@/lib/navigation-shortcuts"
 import {
   Sidebar,
   SidebarContent,
@@ -16,41 +23,12 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar"
-import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
-import {
-  DashboardBrowsingIcon,
-  SparklesIcon,
-  ApiIcon,
-  ComputerTerminalIcon,
-  CodeSquareIcon,
-  MagicWand01Icon,
-  BookOpen02Icon,
-  Settings05Icon,
-  Search01Icon,
-  CustomerSupportIcon,
-} from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Search01Icon } from "@hugeicons/core-free-icons"
 
-type NavItem = {
-  title: string
-  url: string
-  icon: IconSvgElement
-}
-
-const NAV_MAIN: NavItem[] = [
-  { title: "Overview",  url: "/",       icon: DashboardBrowsingIcon },
-  { title: "Agent",     url: "/agent",  icon: SparklesIcon },
-  { title: "API",       url: "/api",    icon: ApiIcon },
-  { title: "CLI",       url: "/cli",    icon: ComputerTerminalIcon },
-  { title: "SDK",       url: "/sdk",    icon: CodeSquareIcon },
-  { title: "Skills",    url: "/skills", icon: MagicWand01Icon },
-]
-
-const NAV_SECONDARY: NavItem[] = [
-  { title: "Support",  url: "/support", icon: CustomerSupportIcon },
-  { title: "Docs",     url: "/docs",    icon: BookOpen02Icon },
-  { title: "Settings", url: "/account", icon: Settings05Icon },
-]
+const subscribePlatform = () => () => {}
 
 function FlatNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
   const isActive =
@@ -65,7 +43,11 @@ function FlatNavItem({ item, pathname }: { item: NavItem; pathname: string }) {
         render={<Link href={item.url} />}
         className="gap-2.5 py-1.5"
       >
-        <HugeiconsIcon icon={item.icon} strokeWidth={1.75} className="size-[18px] shrink-0" />
+        <HugeiconsIcon
+          icon={item.icon}
+          strokeWidth={1.75}
+          className="size-[18px] shrink-0"
+        />
         <span className="text-sm">{item.title}</span>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -82,50 +64,93 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
   const pathname = usePathname()
+  const [commandOpen, setCommandOpen] = React.useState(false)
+  const returnFocusRef = React.useRef<HTMLElement | null>(null)
+  const { setOpenMobile } = useSidebar()
+  const isMac = React.useSyncExternalStore(
+    subscribePlatform,
+    () => isApplePlatform(navigator.platform),
+    () => true
+  )
+  const changeCommandOpen = React.useCallback(
+    (open: boolean) => {
+      if (open) {
+        returnFocusRef.current =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null
+        setOpenMobile(false)
+      }
+      setCommandOpen(open)
+    },
+    [setOpenMobile]
+  )
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <>
+      <Sidebar collapsible="icon" {...props}>
+        {/* Header: logo + trigger */}
+        <SidebarHeader className="px-2 py-2">
+          <div className="flex items-center justify-between">
+            <Link
+              href="/"
+              className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:hidden"
+            >
+              <BrandMark size={18} />
+              <span className="truncate text-sm font-semibold">getdesign</span>
+            </Link>
+            <SidebarTrigger className="size-8 group-data-[collapsible=icon]:mx-auto [&_svg]:size-[18px]" />
+          </div>
 
-      {/* Header: logo + trigger */}
-      <SidebarHeader className="px-2 py-2">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="group-data-[collapsible=icon]:hidden flex items-center gap-2 px-1">
-            <BrandMark size={18} />
-            <span className="truncate text-sm font-semibold">getdesign</span>
-          </Link>
-          <SidebarTrigger className="size-8 group-data-[collapsible=icon]:mx-auto [&_svg]:size-[18px]" />
-        </div>
+          {/* Search */}
+          <button
+            type="button"
+            aria-label="Search pages"
+            aria-haspopup="dialog"
+            aria-expanded={commandOpen}
+            aria-keyshortcuts="Meta+K Control+K"
+            onClick={() => changeCommandOpen(true)}
+            className="mt-1 flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-3 py-2 text-sm text-sidebar-foreground/50 transition-colors group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent/70 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
+          >
+            <HugeiconsIcon
+              icon={Search01Icon}
+              strokeWidth={1.75}
+              className="size-4 shrink-0"
+            />
+            <span className="flex-1 text-left">Search</span>
+            <kbd className="font-mono text-xs opacity-60">
+              {isMac ? "⌘K" : "Ctrl+K"}
+            </kbd>
+          </button>
+        </SidebarHeader>
 
-        {/* Search */}
-        <button className="group-data-[collapsible=icon]:hidden mt-1 flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/40 px-3 py-2 text-sm text-sidebar-foreground/50 hover:bg-sidebar-accent/70 transition-colors">
-          <HugeiconsIcon icon={Search01Icon} strokeWidth={1.75} className="size-4 shrink-0" />
-          <span className="flex-1 text-left">Search</span>
-          <kbd className="font-mono text-xs opacity-60">⌘K</kbd>
-        </button>
-      </SidebarHeader>
+        {/* Main nav */}
+        <SidebarContent className="px-2">
+          <SidebarMenu>
+            {NAV_MAIN.map((item) => (
+              <FlatNavItem key={item.title} item={item} pathname={pathname} />
+            ))}
+          </SidebarMenu>
 
-      {/* Main nav */}
-      <SidebarContent className="px-2">
-        <SidebarMenu>
-          {NAV_MAIN.map((item) => (
-            <FlatNavItem key={item.title} item={item} pathname={pathname} />
-          ))}
-        </SidebarMenu>
+          <SidebarSeparator className="my-2" />
 
-        <SidebarSeparator className="my-2" />
+          <SidebarMenu>
+            {NAV_SECONDARY.map((item) => (
+              <FlatNavItem key={item.title} item={item} pathname={pathname} />
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
 
-        <SidebarMenu>
-          {NAV_SECONDARY.map((item) => (
-            <FlatNavItem key={item.title} item={item} pathname={pathname} />
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-
-      {/* Footer: user */}
-      <SidebarFooter className="px-2 pb-3">
-        <NavUser user={user} />
-      </SidebarFooter>
-
-    </Sidebar>
+        {/* Footer: user */}
+        <SidebarFooter className="px-2 pb-3">
+          <NavUser user={user} />
+        </SidebarFooter>
+      </Sidebar>
+      <DashboardCommandMenu
+        open={commandOpen}
+        onOpenChange={changeCommandOpen}
+        returnFocusRef={returnFocusRef}
+      />
+    </>
   )
 }
