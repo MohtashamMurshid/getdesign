@@ -71,10 +71,10 @@ export function PreviewPanel({
                 : "•"}
           </span>
           <span className="text-[var(--subtle)]">
-            {surface === "web" && `ask a follow-up about ${site.url}…`}
-            {surface === "api" && `curl api.getdesign.app/?url=${site.url}`}
-            {surface === "cli" && `npx @getdesign/cli ${site.url}`}
-            {surface === "sdk" && `streamDesign("${site.url}")`}
+            {surface === "web" && "Sign in and add provider keys to run your URL"}
+            {surface === "api" && "WorkOS bearer token + Daytona and OpenAI headers"}
+            {surface === "cli" && "Bun + DAYTONA_API_KEY + OPENAI_API_KEY"}
+            {surface === "sdk" && "Bun server + request-scoped provider credentials"}
             {surface === "skill" &&
               "npx skills add MohtashamMurshid/getdesign"}
           </span>

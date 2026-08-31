@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SITE_DASHBOARD_URL } from "../../_lib/site";
 
 import { BackendTrace } from "./backend-trace";
 import { buildSteps, CHROME_LABELS, SITES, SURFACES } from "./constants";
@@ -39,8 +40,10 @@ export default function InteractiveDemo() {
 
   const chromeLabel =
     surface === "api"
-      ? CHROME_LABELS.api.replace("{url}", site.url)
-      : CHROME_LABELS[surface];
+      ? `api.getdesign.app/v1/design?url=https://${site.url}`
+      : surface === "web"
+        ? new URL(SITE_DASHBOARD_URL).host
+        : CHROME_LABELS[surface];
 
   return (
     <div className="grid items-stretch gap-5 lg:h-[560px] lg:grid-cols-[1.7fr_1fr]">
@@ -62,7 +65,7 @@ export default function InteractiveDemo() {
         <div className="grid min-h-0 flex-1 grid-cols-[180px_1fr]">
           <div className="overflow-y-auto border-r border-[var(--border)] p-3">
             <div className="px-1 pb-2 text-[10.5px] uppercase tracking-[0.14em] text-[var(--subtle)]">
-              Try a URL
+              Sample sites
             </div>
             <div className="flex flex-col gap-1">
               {SITES.map((entry) => {
@@ -95,7 +98,7 @@ export default function InteractiveDemo() {
                 );
               })}
               <div className="mt-2 rounded-md border border-dashed border-[var(--border-strong)] px-2.5 py-2 text-[11.5px] text-[var(--subtle)]">
-                or paste any URL…
+                Paste your URL in the dashboard
               </div>
             </div>
 

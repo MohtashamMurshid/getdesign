@@ -4,9 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
-  SITE_APP_CTA_LABEL,
   SITE_APP_CTA_SHORT,
-  SITE_APP_CTA_SUBTEXT,
   SITE_DASHBOARD_URL,
   SITE_DOCS_URL,
   SITE_GITHUB_URL,

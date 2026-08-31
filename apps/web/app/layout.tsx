@@ -2,7 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
 
 import { JsonLd } from "./_components/json-ld";
-import { SITE_DOMAIN, SITE_GITHUB_URL, SITE_NAME } from "./_lib/site";
+import {
+  SITE_DOMAIN,
+  SITE_GITHUB_URL,
+  SITE_NAME,
+  SITE_RUN_COST_DESCRIPTION,
+} from "./_lib/site";
 
 import "./globals.css";
 
@@ -141,6 +146,7 @@ export default function RootLayout({
           "@type": "Offer",
           price: "0",
           priceCurrency: "USD",
+          description: SITE_RUN_COST_DESCRIPTION,
         },
       },
     ],

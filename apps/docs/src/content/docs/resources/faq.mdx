@@ -21,8 +21,8 @@ The output describes publicly visible design choices of the target site. Respect
 
 ## Is there authentication?
 
-The HTTP API expects `Authorization: Bearer <WorkOS access token>`. There is no getdesign API key in v1. Visual runs also need `x-daytona-api-key` and `x-openai-api-key`.
+The dashboard requires sign-in through WorkOS. Hosted design endpoints expect `Authorization: Bearer <WorkOS access token>`. There is no getdesign API key in V1. Visual API runs also need `x-daytona-api-key` and `x-openai-api-key` headers. The CLI and SDK run locally on Bun with provider credentials and do not need a WorkOS token.
 
-## Is there a free tier?
+## What does a run cost?
 
-Yes. The beta is free. Private beta early access is collected on the [home page](https://www.getdesign.app).
+V1 has no getdesign run billing. You pay Daytona for browser capture and OpenAI for model usage. Bring your own provider keys; getdesign does not supply provider credits. Costs vary by site and provider usage. To use the web app, [sign in to the dashboard](https://dashboard.getdesign.app) and save both keys in Account.

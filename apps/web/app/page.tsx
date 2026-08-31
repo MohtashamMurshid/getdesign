@@ -2,7 +2,12 @@ import { HomePage } from "./_components/home/home-page";
 import { JsonLd } from "./_components/json-ld";
 import { MarketingShell } from "./_components/marketing-shell";
 import { SiteFooter } from "./_components/site-footer";
-import { SITE_DOMAIN, SITE_NAME } from "./_lib/site";
+import {
+  SITE_AUTH_DESCRIPTION,
+  SITE_DOMAIN,
+  SITE_NAME,
+  SITE_RUN_COST_DESCRIPTION,
+} from "./_lib/site";
 
 const faqJsonLd = {
   "@context": "https://schema.org",
@@ -29,7 +34,7 @@ const faqJsonLd = {
       name: `What surfaces does ${SITE_NAME} provide?`,
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Five surfaces share one agent core: a web chat UI, an HTTP API at api.getdesign.app, a CLI published as @getdesign/cli, a TypeScript SDK published as @getdesign/sdk, and a portable Skill that runs inside Claude Code, Codex, and Cursor.",
+        text: "The dashboard and HTTP API run the hosted agent. The CLI and TypeScript SDK run it in-process on Bun. The portable Skill uses your coding agent's own tools.",
       },
     },
     {
@@ -45,7 +50,7 @@ const faqJsonLd = {
       name: "Is there authentication or a paid tier?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Not in v1. The beta is free, with rate limits. Private beta early access is available on the home page.",
+        text: `${SITE_AUTH_DESCRIPTION} ${SITE_RUN_COST_DESCRIPTION}`,
       },
     },
   ],

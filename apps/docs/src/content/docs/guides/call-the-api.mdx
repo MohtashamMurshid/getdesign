@@ -5,8 +5,10 @@ description: One-command usage of the getdesign HTTP API.
 
 ## Fetch a design.md
 
+Set a WorkOS access token and your Daytona and OpenAI keys in your shell. V1 has no getdesign API key or run billing. You pay those providers directly.
+
 ```bash
-curl "https://api.getdesign.app/?url=https://stripe.com" \
+curl "https://api.getdesign.app/v1/design?url=https://stripe.com" \
   -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
   -H "x-daytona-api-key: $DAYTONA_API_KEY" \
   -H "x-openai-api-key: $OPENAI_API_KEY" \
@@ -17,7 +19,7 @@ curl "https://api.getdesign.app/?url=https://stripe.com" \
 ## Pipe it straight into a file
 
 ```bash
-curl -sS "https://api.getdesign.app/?url=https://linear.app" \
+curl -sS "https://api.getdesign.app/v1/design?url=https://linear.app" \
   -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
   -H "x-daytona-api-key: $DAYTONA_API_KEY" \
   -H "x-openai-api-key: $OPENAI_API_KEY" \
@@ -26,14 +28,14 @@ curl -sS "https://api.getdesign.app/?url=https://linear.app" \
 
 ## Use with jq for palette only
 
-The response is Markdown, not JSON, so `jq` does not apply directly. For palette-only extraction today, grep the `## 2. Color Palette` section:
+Use `format=json` for a structured result, then select the palette:
 
 ```bash
-curl -sS "https://api.getdesign.app/?url=https://stripe.com" \
+curl -sS "https://api.getdesign.app/v1/design?url=https://stripe.com&format=json" \
   -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
   -H "x-daytona-api-key: $DAYTONA_API_KEY" \
   -H "x-openai-api-key: $OPENAI_API_KEY" \
-  | awk '/^## 2\./,/^## 3\./' > stripe.palette.md
+  | jq '.doc.palette' > stripe.palette.json
 ```
 
-A future release will add structured JSON output behind `Accept: application/json`.
+JSON output uses the `format=json` query parameter, not the `Accept` header. See the [API surface](/surfaces/api/) for progress streaming and error responses.

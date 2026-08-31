@@ -3,6 +3,7 @@ import {
   SITE_APP_CTA_DESCRIPTION,
   SITE_APP_CTA_LABEL,
   SITE_DASHBOARD_URL,
+  SITE_RUN_COST_DESCRIPTION,
 } from "../../_lib/site";
 import { SkillInstallCommand } from "../skill-install-command";
 
@@ -20,6 +21,9 @@ export function FinalCtaSection() {
 
       <p className="mt-3 text-[14px] text-muted">
         {SITE_APP_CTA_DESCRIPTION}
+      </p>
+      <p className="mt-2 text-[12px] text-[var(--subtle)]">
+        {SITE_RUN_COST_DESCRIPTION}
       </p>
 
       <div className="mt-8 flex flex-col items-center">

@@ -30,7 +30,7 @@ export function TypographySection() {
       </Specimen>
       <Specimen tag="mono" spec="JetBrains Mono / 12px / tnum">
         <span className="font-mono text-[12px] text-[var(--accent)]">
-          npx @getdesign/cli https://stripe.com
+          bunx @getdesign/cli https://stripe.com
         </span>
       </Specimen>
     </div>

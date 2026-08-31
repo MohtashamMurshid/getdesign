@@ -10,13 +10,16 @@ export function CliSurface({ site, visibleSteps, done }: CliSurfaceProps) {
   return (
     <div className="bg-[var(--background)] px-4 py-4 font-mono text-[12.5px] leading-relaxed">
       <div className="fade-in-up">
+        <p className="mb-2 text-[11px] text-[var(--subtle)]">
+          Requires Bun. Set DAYTONA_API_KEY and OPENAI_API_KEY in your shell.
+        </p>
         <span className="text-[var(--accent)]">$</span>{" "}
-        <span className="text-foreground">npx @getdesign/cli {site.url}</span>
+        <span className="text-foreground">bunx @getdesign/cli https://{site.url} --out design.md</span>
       </div>
 
       {visibleSteps >= 1 ? (
         <div className="fade-in-up mt-2 text-muted">
-          <span className="tok-com">↳ getdesign v0.1.0 · streaming to stdout</span>
+          <span className="tok-com">↳ sample progress · output file: design.md</span>
         </div>
       ) : null}
 
@@ -29,7 +32,7 @@ export function CliSurface({ site, visibleSteps, done }: CliSurfaceProps) {
 
       {visibleSteps >= 4 ? (
         <div className="fade-in-up text-muted">
-          <span className="tok-com">✓</span> screenshot 1440×900
+          <span className="tok-com">✓</span> full landing page capture
           <span className="text-[var(--subtle)]"> 1.2MB</span>
         </div>
       ) : null}
@@ -43,6 +46,8 @@ export function CliSurface({ site, visibleSteps, done }: CliSurfaceProps) {
 
       {visibleSteps >= 7 ? (
         <pre className="fade-in-up m-0 mt-3 whitespace-pre-wrap break-words font-mono text-[12.5px] leading-relaxed text-foreground">
+          <span className="tok-com"># Sample output file: design.md</span>
+          {"\n\n"}
           <span className="tok-key"># {site.url}</span>
           {"\n"}
           <span className="text-muted">
