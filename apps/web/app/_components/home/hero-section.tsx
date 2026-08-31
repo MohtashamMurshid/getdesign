@@ -1,8 +1,6 @@
 import {
   PRODUCT_SURFACES,
   SITE_APP_CTA_LABEL,
-  SITE_APP_CTA_DESCRIPTION,
-  SITE_APP_CTA_SUBTEXT,
   SITE_DASHBOARD_URL,
 } from "../../_lib/site";
 import HeroCard from "./hero-card";
@@ -37,12 +35,6 @@ export function HeroSection() {
             {SITE_APP_CTA_LABEL}
             <ArrowIcon />
           </a>
-          <p className="mt-2.5 max-w-[480px] text-[11px] text-[var(--subtle)]">
-            {SITE_APP_CTA_DESCRIPTION}
-          </p>
-          <p className="mt-1 max-w-[480px] text-[11px] text-[var(--subtle)]">
-            {SITE_APP_CTA_SUBTEXT}
-          </p>
         </div>
 
         <div className="mt-8 flex items-center gap-4 text-[11.5px] text-[var(--subtle)]">

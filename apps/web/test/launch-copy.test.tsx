@@ -28,16 +28,17 @@ describe("V1 launch copy and links", () => {
     expect(html).toContain("animated demo, not a live extraction");
   });
 
-  test("visible CTAs explain provider setup and provider-funded costs", () => {
-    for (const component of [<HeroSection />, <FinalCtaSection />]) {
-      const html = renderToStaticMarkup(component);
-      expect(html).toContain("Sign in");
-      expect(html).toContain("Daytona and OpenAI keys in Account");
-      expect(html).toContain(`href="${SITE_DASHBOARD_URL}"`);
-    }
+  test("hero keeps its CTA with setup and provider costs in the final section", () => {
     const hero = renderToStaticMarkup(<HeroSection />);
-    expect(hero).toContain("Pay those providers directly");
+    expect(hero).toContain(`href="${SITE_DASHBOARD_URL}"`);
+    expect(hero).toContain("Extract a design system");
+    expect(hero).not.toContain("Sign in");
+    expect(hero).not.toContain("Bring your own Daytona and OpenAI keys");
+    expect(hero).not.toContain("Pay those providers directly");
     const final = renderToStaticMarkup(<FinalCtaSection />);
+    expect(final).toContain(`href="${SITE_DASHBOARD_URL}"`);
+    expect(final).toContain("Sign in");
+    expect(final).toContain("Daytona and OpenAI keys in Account");
     expect(final).toContain("no getdesign run billing");
     expect(final).toContain("Daytona for browser capture and OpenAI for model usage");
   });
