@@ -1,3 +1,4 @@
+import { AnalyticsLink } from "@getdesign/analytics/react";
 import {
   SITE_APP_CTA_BADGE,
   SITE_APP_CTA_DESCRIPTION,
@@ -27,13 +28,14 @@ export function FinalCtaSection() {
       </p>
 
       <div className="mt-8 flex flex-col items-center">
-        <a
+        <AnalyticsLink
+            cta="final_extract"
           href={SITE_DASHBOARD_URL}
           className="btn-accent inline-flex h-10 items-center gap-2 rounded-md px-5 text-[13px] font-medium transition-transform hover:-translate-y-[1px]"
         >
           {SITE_APP_CTA_LABEL}
           <ArrowIcon />
-        </a>
+        </AnalyticsLink>
       </div>
 
       <div className="mt-6 flex flex-col items-center gap-3">

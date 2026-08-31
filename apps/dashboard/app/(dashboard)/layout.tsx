@@ -1,6 +1,7 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { redirect } from "next/navigation";
 
+import { AnalyticsIdentity } from "@/components/analytics-identity";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
@@ -9,7 +10,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = await withAuth();
+  const { user, impersonator } = await withAuth();
 
   if (!user) {
     redirect("/sign-in");
@@ -17,6 +18,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider defaultOpen={false}>
+      {!impersonator && <AnalyticsIdentity userId={user.id} />}
       <AppSidebar
         user={{
           name:

@@ -1,3 +1,4 @@
+import { AnalyticsLink } from "@getdesign/analytics/react";
 import {
   PRODUCT_SURFACES,
   SITE_APP_CTA_LABEL,
@@ -28,13 +29,14 @@ export function HeroSection() {
         </p>
 
         <div className="mt-8">
-          <a
+          <AnalyticsLink
+              cta="hero_extract"
             href={SITE_DASHBOARD_URL}
             className="btn-accent inline-flex h-10 items-center gap-2 rounded-md px-5 text-[13px] font-medium transition-transform hover:-translate-y-[1px]"
           >
             {SITE_APP_CTA_LABEL}
             <ArrowIcon />
-          </a>
+          </AnalyticsLink>
         </div>
 
         <div className="mt-8 flex items-center gap-4 text-[11.5px] text-[var(--subtle)]">

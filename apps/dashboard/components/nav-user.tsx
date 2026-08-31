@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 
+import { getAnalytics } from "@getdesign/analytics"
 import { signOutAction } from "@/app/actions/auth"
 import {
   Avatar,
@@ -106,6 +107,7 @@ export function NavUser({
             <DropdownMenuItem
               onSelect={(event) => {
                 event.preventDefault()
+                getAnalytics().reset()
                 void signOutAction()
               }}
             >

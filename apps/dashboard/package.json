@@ -43,7 +43,8 @@
     "streamdown": "^2.5.0",
     "tailwind-merge": "^3.6.0",
     "tw-animate-css": "^1.4.0",
-    "zod": "^4"
+    "zod": "^4",
+    "@getdesign/analytics": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.12",

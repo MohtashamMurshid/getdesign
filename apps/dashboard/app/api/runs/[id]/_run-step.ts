@@ -1,3 +1,4 @@
+import { runReceipt } from "@getdesign/analytics/lifecycle";
 import { NextResponse } from "next/server";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import {
@@ -100,7 +101,8 @@ export function runStepHandler(step: RunStep) {
         userId: user.id,
         artifacts,
       });
-      return NextResponse.json({ ok: true });
+      const persisted = await convex.query(api.designRuns.get, { id: runId, userId: user.id }).catch(() => null);
+      return NextResponse.json({ ok: true, analytics: persisted ? runReceipt(persisted, run.startedAt) : undefined });
     } catch (error) {
       await convex.mutation(api.designRuns.failStep, {
         id: runId,
@@ -109,8 +111,9 @@ export function runStepHandler(step: RunStep) {
         message: error instanceof Error ? error.message : "Run failed.",
         code: inferErrorCode(error),
       });
+      const persisted = await convex.query(api.designRuns.get, { id: runId, userId: user.id }).catch(() => null);
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Run failed." },
+        { error: error instanceof Error ? error.message : "Run failed.", analytics: persisted ? runReceipt(persisted, run.startedAt) : undefined },
         { status: 500 },
       );
     }
