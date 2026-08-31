@@ -1,13 +1,13 @@
 import { ImageResponse } from "next/og";
 
-import { PRODUCT_SURFACES, SITE_NAME } from "./_lib/site";
+import { PRODUCT_SURFACES } from "../_lib/site";
 
 export const runtime = "edge";
-export const alt = `${SITE_NAME} · the design system for any URL`;
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+const size = { width: 1200, height: 630 };
 
-export default async function OG() {
+// An explicit route keeps the configured production image URL in preview metadata.
+// Next's file-based image convention substitutes the preview deployment hostname.
+export async function GET() {
   return new ImageResponse(
     (
       <div
@@ -61,7 +61,9 @@ export default async function OG() {
             color: "rgba(237,237,238,0.6)",
           }}
         >
-          <span style={{ color: "#a3e635" }}>✦</span>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="#a3e635">
+            <path d="M10 0L13 7L20 10L13 13L10 20L7 13L0 10L7 7Z" />
+          </svg>
           <span>Own your design system</span>
         </div>
 

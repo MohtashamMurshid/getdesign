@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "../_components/json-ld";
 import { MarketingShell } from "../_components/marketing-shell";
 import { SiteFooter } from "../_components/site-footer";
-import { SITE_DOMAIN } from "../_lib/site";
+import { SITE_DOMAIN, SITE_NAME, SITE_SOCIAL_IMAGE } from "../_lib/site";
 import { ComponentsSection } from "./_components/components-section";
 import { DesignHeader } from "./_components/design-header";
 import { DesignSection } from "./_components/design-section";
@@ -25,10 +25,14 @@ export const metadata: Metadata = {
       "The living design.md behind getdesign. Tokens, components, motion, and voice.",
     url: "/design",
     type: "article",
+    siteName: SITE_NAME,
+    locale: "en_US",
+    images: [SITE_SOCIAL_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: "Design · getdesign",
+    images: [SITE_SOCIAL_IMAGE],
     description:
       "The living design.md behind getdesign. Tokens, components, motion, and voice.",
   },

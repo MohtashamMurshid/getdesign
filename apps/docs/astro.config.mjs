@@ -2,19 +2,20 @@ import sitemap from "@astrojs/sitemap";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 import { createStarlightTypeDocPlugin } from "starlight-typedoc";
+import { DOCS_ORIGIN, isProductionDeployment } from "./src/lib/site.ts";
 
 const [sdkTypeDoc, sdkTypeDocSidebar] = createStarlightTypeDocPlugin();
 
-const SITE = "https://docs.getdesign.app";
-
 export default defineConfig({
-  site: SITE,
+  site: DOCS_ORIGIN,
+  trailingSlash: "always",
   build: {
     format: "directory",
   },
   integrations: [
-    sitemap(),
+    sitemap({ filter: () => isProductionDeployment() }),
     starlight({
+      routeMiddleware: "./src/route-middleware.ts",
       title: "getdesign docs",
       description:
         "Documentation for getdesign: the design system for any URL. Web, API, CLI, SDK, and Skill.",
