@@ -1,6 +1,7 @@
 import type { Sandbox } from "@daytonaio/sdk";
 import sharp from "sharp";
 
+import { buildReadinessExpression, type ReadinessSnapshot } from "./readiness-inspection.js";
 import type {
   CaptureMeasurementMode,
   CapturePhaseHandler,
@@ -102,12 +103,57 @@ let websocketClientInstalled = new WeakSet<object>();
  * in the same Python process that triggered the install fails because
  * Python caches negative module lookups.
  */
-async function ensureWebsocketClient(sandbox: Sandbox): Promise<void> {
+async function ensureWebsocketClient(sandbox: Sandbox, timeoutMs = 15_000): Promise<void> {
   if (websocketClientInstalled.has(sandbox as object)) return;
   await sandbox.process.executeCommand(
     "python3 -m pip install --quiet --user websocket-client 2>&1 | tail -3 || true",
+    undefined, undefined, Math.max(1, Math.min(15, Math.ceil(timeoutMs / 1000))),
   );
   websocketClientInstalled.add(sandbox as object);
+}
+
+/** One read-only readiness measurement, over localhost CDP inside the sandbox. */
+export async function measurePageReadiness(sandbox: Sandbox, timeoutMs: number): Promise<ReadinessSnapshot> {
+  const started = Date.now();
+  await ensureWebsocketClient(sandbox, timeoutMs);
+  const remaining = timeoutMs - (Date.now() - started);
+  if (remaining <= 0) throw new Error("Readiness budget elapsed during probe setup.");
+  const seconds = Math.max(0.1, Math.min(5, remaining / 1000));
+  const script = [
+    "import json, time, urllib.request, websocket",
+    `deadline = time.monotonic() + ${seconds}`,
+    `with urllib.request.urlopen('http://127.0.0.1:9222/json', timeout=${seconds}) as r:`,
+    "    pages = json.load(r)",
+    "page = next(p for p in pages if p.get('type') == 'page')",
+    "ws = websocket.create_connection(page['webSocketDebuggerUrl'], timeout=max(0.1, deadline - time.monotonic()))",
+    "try:",
+    `    ws.send(json.dumps({'id': 1, 'method': 'Runtime.evaluate', 'params': {'expression': ${JSON.stringify(buildReadinessExpression())}, 'returnByValue': True}}))`,
+    "    while time.monotonic() < deadline:",
+    "        ws.settimeout(max(0.1, deadline - time.monotonic()))",
+    "        reply = json.loads(ws.recv())",
+    "        if reply.get('id') == 1:",
+    "            value = reply.get('result', {}).get('result', {}).get('value')",
+    "            if not isinstance(value, str): raise ValueError('readiness measurement failed')",
+    "            print(value)",
+    "            break",
+    "    else:",
+    "        raise TimeoutError('readiness measurement timed out')",
+    "finally:",
+    "    ws.close()",
+  ].join("\n");
+  const command = `echo ${b64(script)} | base64 -d > /tmp/getdesign-cdp-readiness.py && python3 /tmp/getdesign-cdp-readiness.py 2>&1`;
+  const response = await sandbox.process.executeCommand(command, undefined, undefined, Math.ceil(seconds) + 1);
+  if (response.exitCode !== 0) throw new Error("Readiness probe failed.");
+  const lastLine = (response.result ?? "").trim().split(/\r?\n/).at(-1) ?? "";
+  const snapshot = JSON.parse(lastLine) as ReadinessSnapshot;
+  const reasons = ["document_loading", "inspection_limit", "protected_gate", "loader_visible", "benign_intro", "ambiguous_gate", "blank_page", "content_visible"];
+  if (!snapshot || !["ready", "loading", "gate", "blocked"].includes(snapshot.state) ||
+    !reasons.includes(snapshot.reason) || typeof snapshot.signature !== "string" || snapshot.signature.length > 1024 ||
+    !snapshot.viewport || ![snapshot.viewport.width, snapshot.viewport.height, snapshot.viewport.dpr].every((n) => Number.isFinite(n) && n > 0) ||
+    (snapshot.state === "gate" && (!snapshot.target || ![snapshot.target.x, snapshot.target.y].every(Number.isFinite)))) {
+    throw new Error("Invalid readiness measurement.");
+  }
+  return snapshot;
 }
 
 async function measureViaCdp(
