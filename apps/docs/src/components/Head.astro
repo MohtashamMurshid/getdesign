@@ -1,8 +1,9 @@
 ---
 import Default from "@astrojs/starlight/components/Head.astro";
+import { DOCS_ORIGIN as SITE_URL, MARKETING_ORIGIN as ORIGIN_URL } from "../lib/site";
 
-const SITE_URL = "https://docs.getdesign.app";
-const ORIGIN_URL = "https://www.getdesign.app";
+const { entry, id, head } = Astro.locals.starlightRoute;
+const canonical = head.find(({ tag, attrs }) => tag === "link" && attrs?.rel === "canonical")?.attrs?.href;
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -25,19 +26,18 @@ const jsonLd = {
       publisher: { "@id": `${ORIGIN_URL}#organization` },
       inLanguage: "en-US",
     },
-    {
+    ...(id === "404" ? [] : [{
       "@type": "TechArticle",
-      "@id": `${Astro.url.href}#article`,
-      url: Astro.url.href,
-      headline: (Astro.props.entry?.data?.title as string | undefined) ?? "getdesign docs",
+      "@id": `${canonical}#article`,
+      url: canonical,
+      headline: entry.data.title,
       inLanguage: "en-US",
       isPartOf: { "@id": `${SITE_URL}#website` },
-    },
+    }]),
   ],
 };
 ---
 
-<Default {...Astro.props}><slot /></Default>
-<meta name="robots" content="index,follow,max-image-preview:large" />
+<Default />
 <meta name="theme-color" content="#0a0a0b" />
-<script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+<script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, "\\u003c")} />

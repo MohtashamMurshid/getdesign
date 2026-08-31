@@ -5,6 +5,12 @@ import {
 
 export const SITE_NAME = "getdesign";
 export const SITE_DOMAIN = "https://www.getdesign.app";
+export const SITE_SOCIAL_IMAGE = {
+  url: `${SITE_DOMAIN}/opengraph-image`,
+  width: 1200,
+  height: 630,
+  alt: "getdesign · the design system for any URL",
+};
 /** Product documentation (Astro Starlight on Vercel). */
 export const SITE_DOCS_URL = DOCS_BASE_URL;
 /** Hosted web app. */
