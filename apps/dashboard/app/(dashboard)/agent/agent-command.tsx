@@ -1,5 +1,6 @@
 "use client";
 
+import { getAnalytics } from "@getdesign/analytics";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
@@ -82,6 +83,7 @@ export function AgentCommand({ credentialsReady, user }: AgentCommandProps) {
         }
         onStop={() => {}}
         onSend={({ content }) => {
+          getAnalytics().capture({ event: "cta_clicked", properties: { cta: "dashboard_start" } });
           setError(null);
           setRun(null);
           if (!isProbablyUrl(content)) {

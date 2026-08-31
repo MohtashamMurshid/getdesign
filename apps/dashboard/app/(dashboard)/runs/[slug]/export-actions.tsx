@@ -1,5 +1,6 @@
 "use client"
 
+import { downloadDesignMd } from "@/lib/download-design-md"
 import { useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -35,17 +36,7 @@ export function ExportActions({
     }
   }
 
-  const handleDownload = () => {
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
+  const handleDownload = () => downloadDesignMd(content, filename)
 
   return (
     <TooltipProvider>

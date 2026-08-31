@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AnalyticsConsent } from "@getdesign/analytics/react";
 import { Geist, JetBrains_Mono } from "next/font/google";
 
 import { JsonLd } from "./_components/json-ld";
@@ -102,7 +103,7 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
-  referrer: "origin-when-cross-origin",
+  referrer: "no-referrer",
   formatDetection: {
     email: false,
     address: false,
@@ -156,6 +157,7 @@ export default function RootLayout({
     <html lang="en" className={`${geist.variable} ${jetbrains.variable}`}>
       <body>
         {children}
+        <AnalyticsConsent surface="marketing" />
         <JsonLd data={jsonLd} />
       </body>
     </html>

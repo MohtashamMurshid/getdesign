@@ -1,3 +1,4 @@
+import { AnalyticsConsent } from "@getdesign/analytics/react"
 import { Geist, Geist_Mono } from "next/font/google"
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components"
 
@@ -8,6 +9,8 @@ import "./globals.css"
 import { DashboardConvexProvider } from "@/components/convex-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
+
+export const metadata = { referrer: "no-referrer" as const }
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'})
 
@@ -33,6 +36,7 @@ export default function RootLayout({
             <ThemeProvider>{children}</ThemeProvider>
           </DashboardConvexProvider>
         </AuthKitProvider>
+        <AnalyticsConsent surface="dashboard" />
       </body>
     </html>
   )

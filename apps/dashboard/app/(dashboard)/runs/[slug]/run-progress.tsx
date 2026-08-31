@@ -1,5 +1,7 @@
 "use client";
 
+import { getAnalytics } from "@getdesign/analytics";
+import { captureRunReceipt, type RunReceipt } from "@getdesign/analytics/lifecycle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
@@ -254,12 +256,16 @@ export function RunProgress({
 }
 
 async function postStep(runId: string, step: RunStep) {
+  const analytics = getAnalytics();
+  const consentedAtStart = analytics.ready();
   const response = await fetch(`/api/runs/${runId}/${step}`, {
     method: "POST",
   });
   const payload = (await response.json().catch(() => ({}))) as {
     error?: string;
+    analytics?: RunReceipt;
   };
+  if (consentedAtStart) await captureRunReceipt(analytics, runId, payload.analytics);
   if (!response.ok) {
     throw new Error(payload.error ?? `${step} failed.`);
   }
