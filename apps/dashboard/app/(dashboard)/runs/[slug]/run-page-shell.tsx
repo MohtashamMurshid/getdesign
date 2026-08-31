@@ -56,7 +56,7 @@ export function RunPageShell({
     <LayoutGroup id={`run-${runId}`}>
       <div className="flex min-h-svh flex-1 items-stretch">
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-4 py-3">
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -64,7 +64,7 @@ export function RunPageShell({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{runId}</BreadcrumbPage>
+                  <BreadcrumbPage className="max-w-40 truncate sm:max-w-64">{runId}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -72,7 +72,7 @@ export function RunPageShell({
               <div className="ml-auto flex items-center gap-1">
                 <ExportActions
                   content={exportMarkdown}
-                  filename={`${runId}.md`}
+                  filename="design.md"
                 />
               </div>
             ) : null}

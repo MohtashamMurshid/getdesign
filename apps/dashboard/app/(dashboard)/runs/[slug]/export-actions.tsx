@@ -69,16 +69,17 @@ export function ExportActions({
           <TooltipTrigger
             render={
               <Button
-                variant="ghost"
-                size="icon-sm"
+                variant="outline"
+                size="sm"
                 onClick={handleDownload}
-                aria-label="Download markdown"
+                aria-label="Download design.md"
               >
                 <HugeiconsIcon icon={Download01Icon} />
+                Download design.md
               </Button>
             }
           />
-          <TooltipContent>Download markdown</TooltipContent>
+          <TooltipContent>Download design.md</TooltipContent>
         </Tooltip>
       </div>
     </TooltipProvider>

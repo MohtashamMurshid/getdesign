@@ -12,6 +12,7 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
 import { getConvexClient } from "@/lib/convex-server";
+import { hasRequiredRunCredentials } from "@/lib/credential-readiness";
 
 import { ProviderKeysCard } from "./provider-keys-card";
 
@@ -41,7 +42,10 @@ export default async function AccountPage() {
         </div>
       </header>
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <ProviderKeysCard keys={keys} />
+        <ProviderKeysCard
+          keys={keys}
+          credentialsReady={hasRequiredRunCredentials(keys)}
+        />
         <WorkOsWidgetsProvider>
           <WidgetLoadingGate>
             <UserProfile authToken={accessToken} />

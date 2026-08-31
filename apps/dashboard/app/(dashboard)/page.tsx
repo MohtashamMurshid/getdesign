@@ -7,6 +7,8 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
+import { EmptyDesignRuns } from "@/components/extraction-guide"
+import { ExtractionOnboarding } from "@/components/extraction-onboarding"
 import { getConvexClient } from "@/lib/convex-server"
 import { api } from "@convex/_generated/api"
 
@@ -90,6 +92,8 @@ export default async function Page() {
 
       <div className="flex flex-1 flex-col gap-6 p-6">
 
+        <ExtractionOnboarding />
+
         {/* Recent runs */}
         <div className="rounded-xl border">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-3">
@@ -104,6 +108,7 @@ export default async function Page() {
             </p>
           </div>
           <div className="divide-y">
+            {runs.length === 0 ? <EmptyDesignRuns /> : null}
             {runs.map((run) => (
               <Link
                 key={run.slug}
@@ -111,7 +116,7 @@ export default async function Page() {
                 className="flex items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors"
               >
                 {/* Color strip */}
-                <div className="flex h-8 w-32 shrink-0 rounded-md overflow-hidden border">
+                <div className="flex h-8 w-16 sm:w-32 shrink-0 rounded-md overflow-hidden border">
                   {run.colors.map((color, i) => (
                     <div
                       key={`${color}-${i}`}
@@ -131,7 +136,7 @@ export default async function Page() {
                 </div>
 
                 {/* Accent dot + hex */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="hidden sm:flex items-center gap-1.5 shrink-0">
                   <span
                     className="size-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: run.accent }}
@@ -140,7 +145,7 @@ export default async function Page() {
                 </div>
 
                 {/* Color count */}
-                <span className="text-xs text-muted-foreground shrink-0 w-20 text-right">
+                <span className="hidden sm:block text-xs text-muted-foreground shrink-0 w-20 text-right">
                   {run.colors.length} colors
                 </span>
               </Link>

@@ -61,12 +61,17 @@ export function AgentCommand({ credentialsReady, user }: AgentCommandProps) {
       <div className="mb-8 flex flex-col items-center text-center">
         <BrandMark size={34} />
         <p className="mt-4 text-lg font-medium tracking-tight text-foreground">
-          What are we designing today?
+          Extract a design system
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Enter a public website URL. When the run finishes, download design.md
+          from the run page.
         </p>
       </div>
 
       <InputBar
         size="lg"
+        sendLabel="Start extraction"
         className="px-0 pb-0"
         status={isPending || isRunning ? "submitted" : "ready"}
         disabled={!credentialsReady || isRunning}
@@ -122,8 +127,8 @@ export function AgentCommand({ credentialsReady, user }: AgentCommandProps) {
                 description:
                   "Add both Daytona and OpenAI keys on Account before starting a visual run.",
                 action: {
-                  label: "Account",
-                  onClick: () => router.push("/account"),
+                  label: "Set up provider keys",
+                  onClick: () => router.push("/account#provider-keys"),
                 },
               }
             : undefined
