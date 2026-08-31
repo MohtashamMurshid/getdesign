@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { ExtractionGuide } from "../components/extraction-guide";
 
 type RunFixture = {
   _id: string;
@@ -15,12 +16,16 @@ const query = mock(async (_reference: unknown, args: Record<string, unknown>) =>
   return recent.slice(0, Number(args.limit));
 });
 
-// Only auth and data access are mocked. Render the actual Overview page.
+// Mock auth/data and the independently tested onboarding server boundary.
+// Keep the real onboarding UI in this render to check the combined Overview.
 mock.module("@workos-inc/authkit-nextjs", () => ({
   withAuth: async () => ({ user: { id: "overview-test-user" } }),
 }));
 mock.module("./convex-server", () => ({
   getConvexClient: () => ({ query }),
+}));
+mock.module("../components/extraction-onboarding", () => ({
+  ExtractionOnboarding: () => <ExtractionGuide credentialsReady={false} />,
 }));
 
 const { default: Page } = await import("../app/(dashboard)/page");
@@ -37,6 +42,16 @@ function completedRun(id: string): RunFixture {
 }
 
 describe("Overview recent-run summary", () => {
+  test("keeps onboarding above recent runs and explains the empty state", async () => {
+    const html = renderToStaticMarkup(await Page());
+
+    expect(html).toContain('href="/agent"');
+    expect(html).toContain("Extract a design system");
+    expect(html.indexOf("Extract a design system")).toBeLessThan(html.indexOf("Recent runs"));
+    expect(html).toContain("No completed design systems yet");
+    expect(html).toContain('href="/account#provider-keys"');
+  });
+
   test("removes unsupported statistics, cached sites, and the inactive View all control", async () => {
     const html = renderToStaticMarkup(await Page());
 

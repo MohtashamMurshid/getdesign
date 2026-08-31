@@ -1,13 +1,13 @@
 # Beta to-do list
 
-Follow-up work for the beta. These items are planned, not implemented.
+Implementation status and remaining beta checks. See [the V1 integration review](docs/launch/v1-integration-review.md) for the five completed implementation tasks and verification limits.
 
 ## Overview CTA
 
-- [ ] Add a prominent CTA to the dashboard Overview page that links to `/agent`.
-  - Draft label: **Extract a design system**. Confirm the final copy before implementation.
-  - Make it visible above the recent runs list, including for users with no runs yet.
-  - Check the link, keyboard access, and mobile placement.
+- [x] Add a prominent CTA to the dashboard Overview page that links to `/agent`.
+  - Label: Extract a design system.
+  - Visible above recent runs, with an empty state and provider-key setup guidance.
+  - Link, layout, and server credential-readiness tests pass. Native browser activation still needs the smoke check below.
 
 ## Cached sites on the overview
 
@@ -15,7 +15,7 @@ Follow-up work for the beta. These items are planned, not implemented.
   - Choose the initial sites and the source of their saved results.
   - Show each site's name/domain and a small design preview.
   - Open the saved result without silently starting a new paid run.
-  - Replace the current placeholder cached-site list and counts with real data, or hide unavailable counts.
+  - The placeholder cached-site list and unavailable global/cache counts have been removed. A real gallery remains unimplemented.
   - Decide how results are refreshed and show a useful empty state when none are available.
   - Use curated examples or results the current user is allowed to view; do not expose another user's private runs.
 
@@ -29,10 +29,16 @@ Follow-up work for the beta. These items are planned, not implemented.
 
 ## Cmd+K
 
-- [ ] Fix the dashboard's Cmd+K shortcut and command menu.
-  - Reproduce and record the current issue before implementing a fix.
-  - Verify that Cmd+K opens the menu, keyboard navigation works, and Escape closes it.
-  - Check that menu actions navigate to the expected pages.
+- [x] Implement the dashboard's Cmd+K shortcut and command menu.
+  - The pre-fix reproduction and final checks are recorded in [command menu verification](docs/launch/cmd-k-verification.md).
+  - Fixture checks pass for Cmd/Ctrl+K, filtering, arrow navigation, Enter selection, Escape and all nine destinations.
+  - Native Tab/Shift+Tab and Enter/Space button activation, plus authenticated Next navigation, remain unverified.
+
+## Other completed V1 implementations
+
+- [x] Remove unsupported Overview statistics and the inactive View all control; label the displayed run count accurately.
+- [x] Add bounded capture readiness and conservative intro-gate handling, with failure propagation and explicit text-only opt-in preserved.
+- [x] Align public launch copy, examples, linked setup docs and CTAs with WorkOS authentication and Daytona/OpenAI BYOK.
 
 ## Dashboard favicons
 
@@ -63,6 +69,13 @@ Follow-up work for the beta. These items are planned, not implemented.
   - Review the Overview and Agent pages for spacing, typography, button hierarchy, and mobile layout.
   - Capture screenshots and list the agreed changes here.
   - Verify the finished pages with both populated and empty states.
+
+## Remaining launch smoke checks
+
+- [ ] Use a fresh signed-in account to verify provider-key save, refresh, removal and return to Agent.
+- [ ] Verify Cmd+K and navigation with native keyboard events, including Tab/Shift+Tab and Enter/Space activation.
+- [ ] Run approved live captures of ordinary, loading and gated pages. Automated capture checks currently use simulated DOM geometry and mocked Daytona calls.
+- [ ] Verify a completed live run downloads a usable `design.md` to disk.
 
 ## Starting points
 
