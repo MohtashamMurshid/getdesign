@@ -13,6 +13,9 @@ bun run --cwd apps/docs dev
 
 Dev server: `http://localhost:4321`.
 
+Development reads the checked-in SDK reference files without regenerating
+them. TypeDoc runs only for a production build.
+
 ## Build
 
 ```bash

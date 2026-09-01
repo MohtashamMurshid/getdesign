@@ -5,6 +5,14 @@ import { createStarlightTypeDocPlugin } from "starlight-typedoc";
 import { DOCS_ORIGIN, isProductionDeployment } from "./src/lib/site.ts";
 
 const [sdkTypeDoc, sdkTypeDocSidebar] = createStarlightTypeDocPlugin();
+const generateSdkReference = process.argv.includes("build");
+const sdkSidebar = generateSdkReference
+  ? sdkTypeDocSidebar
+  : {
+      label: "SDK",
+      collapsed: false,
+      autogenerate: { directory: "reference/sdk" },
+    };
 
 export default defineConfig({
   site: DOCS_ORIGIN,
@@ -61,23 +69,25 @@ export default defineConfig({
       ],
       lastUpdated: true,
       pagination: true,
-      plugins: [
-        sdkTypeDoc({
-          entryPoints: ["../../packages/sdk/src/index.ts"],
-          // Use tsconfig.typedoc.json so TypeDoc does not traverse @getdesign/agent (Daytona, etc.),
-          // which can break `astro build` in CI with “Browser APIs are not available on the server”.
-          tsconfig: "../../packages/sdk/tsconfig.typedoc.json",
-          output: "reference/sdk",
-          sidebar: {
-            label: "SDK",
-            collapsed: false,
-          },
-          typeDoc: {
-            excludeInternal: true,
-            excludePrivate: true,
-          },
-        }),
-      ],
+      plugins: generateSdkReference
+        ? [
+            sdkTypeDoc({
+              entryPoints: ["../../packages/sdk/src/index.ts"],
+              // Use tsconfig.typedoc.json so TypeDoc does not traverse @getdesign/agent (Daytona, etc.),
+              // which can break `astro build` in CI with “Browser APIs are not available on the server”.
+              tsconfig: "../../packages/sdk/tsconfig.typedoc.json",
+              output: "reference/sdk",
+              sidebar: {
+                label: "SDK",
+                collapsed: false,
+              },
+              typeDoc: {
+                excludeInternal: true,
+                excludePrivate: true,
+              },
+            }),
+          ]
+        : [],
       sidebar: [
         {
           label: "Start here",
@@ -110,7 +120,7 @@ export default defineConfig({
         {
           label: "Reference",
           items: [
-            sdkTypeDocSidebar,
+            sdkSidebar,
             {
               label: "CLI",
               autogenerate: { directory: "reference/cli" },
