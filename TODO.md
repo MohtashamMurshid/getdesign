@@ -42,13 +42,13 @@ Implementation status and remaining beta checks. See [the V1 integration review]
 
 ## Dashboard favicons
 
-- [ ] Add the getdesign favicon and app icons to the dashboard.
+- [x] Add the getdesign favicon and app icons to the dashboard.
   - Reuse the existing brand assets.
   - Verify the icon appears on dashboard browser tabs and bookmarks.
 
 ## Site SEO
 
-- [ ] Review and improve SEO across the public sites, including marketing and documentation.
+- [x] Review and improve SEO across the public sites, including marketing and documentation.
   - Add or correct page titles, descriptions, canonical URLs, and social-sharing metadata/images.
   - Check sitemaps, robots directives, and heading structure.
   - Keep private dashboard pages and preview deployments out of search indexing.
@@ -56,7 +56,7 @@ Implementation status and remaining beta checks. See [the V1 integration review]
 
 ## PostHog analytics
 
-- [ ] Add PostHog to the marketing site and dashboard.
+- [x] Add PostHog to the marketing site and dashboard.
   - Define events for CTA clicks, completed signup, run started, run completed/failed, and downloads.
   - Track the journey from the marketing CTA to a user's first completed run.
   - Keep provider keys, auth tokens, submitted URLs, and generated content out of analytics payloads.
@@ -69,6 +69,14 @@ Implementation status and remaining beta checks. See [the V1 integration review]
   - Review the Overview and Agent pages for spacing, typography, button hierarchy, and mobile layout.
   - Capture screenshots and list the agreed changes here.
   - Verify the finished pages with both populated and empty states.
+
+## HTML output link
+
+- [ ] Add an HTML link for completed runs.
+  - Decide whether the link opens a rendered preview or downloads an HTML file.
+  - Show it only when the run has an HTML artifact.
+  - Keep private output behind the same run-owner checks as `design.md`.
+  - Verify keyboard access, mobile layout, and missing-artifact behavior.
 
 ## Remaining launch smoke checks
 
