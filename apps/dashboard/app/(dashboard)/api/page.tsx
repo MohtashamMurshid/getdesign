@@ -81,17 +81,21 @@ export default function ApiPage() {
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Authentication</h2>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li>No getdesign API key in v1 — public calls need no Bearer token.</li>
           <li>
-            Optional BYOK headers for full capture:{" "}
+            Send{" "}
+            <code className="font-mono text-xs text-foreground">
+              Authorization: Bearer &lt;WorkOS access token&gt;
+            </code>{" "}
+            plus{" "}
             <code className="font-mono text-xs text-foreground">
               x-daytona-api-key
-            </code>
-            ,{" "}
+            </code>{" "}
+            and{" "}
             <code className="font-mono text-xs text-foreground">
               x-openai-api-key
             </code>
-            . Never put secrets in the query string.
+            . There is no getdesign API key in v1. Never put secrets in the query
+            string.
           </li>
           <li>
             Optional:{" "}

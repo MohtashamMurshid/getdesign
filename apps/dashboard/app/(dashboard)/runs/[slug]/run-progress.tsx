@@ -1,11 +1,20 @@
 "use client";
 
+import { getAnalytics } from "@getdesign/analytics";
+import { captureRunReceipt, type RunReceipt } from "@getdesign/analytics/lifecycle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "convex/react";
 
-import { toRunState, type RunState, type RunStep } from "@/lib/runs-store";
+import { isCaptureFailure } from "@/lib/is-capture-failure";
+import { waitForStepGroup } from "@/lib/run-pipeline";
+import {
+  runErrorMessage,
+  toRunState,
+  type RunState,
+  type RunStep,
+} from "@/lib/runs-store";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 
@@ -32,6 +41,13 @@ const STEP_ORDER: RunStep[] = [
 const STEP_DAG: Array<RunStep | RunStep[]> = [
   "crawl",
   ["capture", "extract"],
+  "describe",
+  "synthesize",
+  "render",
+];
+
+const TEXT_ONLY_DAG: Array<RunStep | RunStep[]> = [
+  "extract",
   "describe",
   "synthesize",
   "render",
@@ -68,10 +84,11 @@ export function RunProgress({
     userId,
   });
   const run = liveRun ? toRunState(liveRun) : initialRun;
-  const runError =
-    typeof run.error === "object" && run.error ? run.error.message : run.error;
-  const [error, setError] = useState<string | null>(runError ?? null);
-  const [isRunning, setIsRunning] = useState(false);
+  const runError = runErrorMessage(run.error);
+  const [error, setError] = useState<string | null>(runError);
+  const [pendingAction, setPendingAction] = useState<"retry" | "text-only" | null>(
+    null,
+  );
   const startedRef = useRef(false);
 
   const artifacts = useRunArtifacts(run, userId);
@@ -86,25 +103,54 @@ export function RunProgress({
   );
   const progress = Math.round((completedCount / STEP_ORDER.length) * 100);
 
-  const runSteps = useCallback(async () => {
-    setIsRunning(true);
-    setError(null);
-
-    try {
-      for (const group of STEP_DAG) {
+  const runPipeline = useCallback(
+    async (dag: Array<RunStep | RunStep[]>) => {
+      for (const group of dag) {
         if (Array.isArray(group)) {
-          await Promise.all(group.map((step) => postStep(run.id, step)));
+          await waitForStepGroup(group, (step) => postStep(run.id, step));
         } else {
           await postStep(run.id, group);
         }
       }
       router.refresh();
+    },
+    [router, run.id],
+  );
+
+  const runSteps = useCallback(async () => {
+    setPendingAction("retry");
+    setError(null);
+
+    try {
+      await runPipeline(STEP_DAG);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Run failed.");
     } finally {
-      setIsRunning(false);
+      setPendingAction(null);
     }
-  }, [router, run.id]);
+  }, [runPipeline]);
+
+  const continueTextOnly = useCallback(async () => {
+    setPendingAction("text-only");
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/runs/${run.id}/continue-text-only`, {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Could not continue as text-only.");
+      }
+      await runPipeline(TEXT_ONLY_DAG);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Run failed.");
+    } finally {
+      setPendingAction(null);
+    }
+  }, [run.id, runPipeline]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -126,7 +172,13 @@ export function RunProgress({
   }, [runError]);
 
   const onRetry = useCallback(() => void runSteps(), [runSteps]);
+  const onContinueTextOnly = useCallback(
+    () => void continueTextOnly(),
+    [continueTextOnly],
+  );
   const onOpen = useCallback(() => router.refresh(), [router]);
+  const showTextOnly =
+    isCaptureFailure(run.error) || isCaptureFailure(error);
 
   const siteCaption = run.siteName ?? safeHostname(run.url);
 
@@ -185,7 +237,10 @@ export function RunProgress({
                 <FailedStage
                   error={error ?? runError ?? "Run failed."}
                   onRetry={onRetry}
-                  isRetrying={isRunning}
+                  onContinueTextOnly={onContinueTextOnly}
+                  isRetrying={pendingAction === "retry"}
+                  isContinuing={pendingAction === "text-only"}
+                  showTextOnly={showTextOnly}
                 />
               ) : null}
             </motion.div>
@@ -201,12 +256,16 @@ export function RunProgress({
 }
 
 async function postStep(runId: string, step: RunStep) {
+  const analytics = getAnalytics();
+  const consentedAtStart = analytics.ready();
   const response = await fetch(`/api/runs/${runId}/${step}`, {
     method: "POST",
   });
   const payload = (await response.json().catch(() => ({}))) as {
     error?: string;
+    analytics?: RunReceipt;
   };
+  if (consentedAtStart) await captureRunReceipt(analytics, runId, payload.analytics);
   if (!response.ok) {
     throw new Error(payload.error ?? `${step} failed.`);
   }

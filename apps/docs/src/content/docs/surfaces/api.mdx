@@ -1,21 +1,27 @@
 ---
 title: API
-description: HTTP endpoint that turns a URL into text/markdown. No auth in v1.
+description: HTTP endpoint that turns a URL into text/markdown.
 ---
 
-The API lives at `api.getdesign.app`. One endpoint, one response type: `text/markdown`.
+The hosted API lives at `api.getdesign.app`. Design endpoints require a WorkOS bearer token and your own provider keys.
 
 ## Endpoint
 
 ```http
-GET https://api.getdesign.app/?url=<target>
+GET https://api.getdesign.app/v1/design?url=<absolute-url>
+Authorization: Bearer <WorkOS access token>
+x-daytona-api-key: <key>
+x-openai-api-key: <key>
 Accept: text/markdown
 ```
 
 ## Example
 
 ```bash
-curl "https://api.getdesign.app/?url=https://stripe.com" \
+curl "https://api.getdesign.app/v1/design?url=https://stripe.com" \
+  -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
+  -H "x-daytona-api-key: $DAYTONA_API_KEY" \
+  -H "x-openai-api-key: $OPENAI_API_KEY" \
   -H "Accept: text/markdown" \
   -o stripe.design.md
 ```
@@ -25,16 +31,28 @@ curl "https://api.getdesign.app/?url=https://stripe.com" \
 | Name       | Type   | Required | Description                                              |
 | ---------- | ------ | -------- | -------------------------------------------------------- |
 | `url`      | string | yes      | Absolute URL to extract from. Must be publicly reachable. |
-| `viewport` | string | no       | Target viewport, e.g. `1440x900`. Defaults to desktop.   |
+| `format`   | string | no       | `json` for a structured result; otherwise Markdown. |
 
 ## Response
 
 - `200 OK` with `Content-Type: text/markdown; charset=utf-8` and the full `design.md` body.
+- `200 OK` with `Content-Type: application/json` when `format=json`. Includes `markdown`, `doc`, `tokens`, capture metadata, and run mode.
 - `400 Bad Request` if `url` is missing or invalid.
-- `429 Too Many Requests` if you exceed the public rate limit.
+- `401 Unauthorized` if the WorkOS bearer token is missing or invalid.
+- `409` with `code: credentials_missing` if Daytona and/or OpenAI request-scoped keys are absent.
+- `409` with `code: capture_failed` if visual capture cannot finish. Retry with `x-getdesign-mode: text_only` if you accept degraded output.
+- `500` with `error: internal` if the run fails unexpectedly.
+
+## Progress stream
+
+`GET /v1/design/stream?url=<absolute-url>` accepts the same authentication and provider headers. It returns `text/event-stream`, with `progress` events followed by a `result` or `error` event. The result includes the full Markdown. It does not stream Markdown chunks.
+
+`GET /?url=<absolute-url>` remains a Markdown compatibility route with the same authentication and provider requirements. `GET /health` is unauthenticated.
 
 ## Notes
 
-- No authentication in v1.
-- The extractor renders the target in a real browser. First-run latency can be a few seconds.
+- Send `Authorization: Bearer <WorkOS access token>`. There is no getdesign API key in v1.
+- Visual runs need `x-daytona-api-key` and `x-openai-api-key`. Text-only still needs the OpenAI key. Daytona is optional in that mode.
+- Send provider keys in headers over HTTPS, never in URLs. API credentials are request-scoped, not saved to your dashboard Account.
+- V1 has no getdesign run billing. You pay Daytona and OpenAI directly; run duration and provider costs vary by site.
 - Respect the target site's terms when using the output.

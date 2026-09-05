@@ -1,12 +1,14 @@
 ---
 title: SDK
-description: Typed TypeScript client. getDesign(url) and streamDesign(url).
+description: Run the agent in-process on Bun with typed results and progress events.
 ---
 
-Install from npm:
+The execution SDK runs the agent in-process on your Bun server using request-scoped Daytona and OpenAI credentials. It does not call the hosted API or need a WorkOS token. You pay the providers directly.
+
+It is not a browser or edge-runtime client. Node support is not promised for V1.
 
 ```bash
-npm i @getdesign/sdk
+bun add @getdesign/sdk
 ```
 
 ## Usage
@@ -14,18 +16,32 @@ npm i @getdesign/sdk
 ```ts
 import { getDesign, streamDesign } from "@getdesign/sdk";
 
-const md = await getDesign("https://stripe.com");
+const options = {
+  credentials: {
+    daytonaApiKey: process.env.DAYTONA_API_KEY,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+  },
+};
+const result = await getDesign("https://stripe.com", options);
+console.log(result.markdown);
 
-for await (const chunk of streamDesign("https://stripe.com")) {
-  process.stdout.write(chunk);
+// Alternative: run with progress events instead.
+for await (const event of streamDesign("https://stripe.com", options)) {
+  if (event.type === "progress") console.log(event.event);
+  if (event.type === "result") console.log(event.result.markdown);
+  if (event.type === "error") throw new Error(event.error.error);
 }
 ```
+
+Each call starts a separate run. Use `getDesign` for a structured result or `streamDesign` for progress followed by a result or error. The stream does not yield Markdown chunks. Keep provider keys in server-side environment variables, never in browser code.
 
 ## Options
 
 ```ts
 await getDesign("https://stripe.com", {
-  viewport: "1440x900",
+  ...options,
+  siteName: "Stripe",
+  visualRequirement: "require",
 });
 ```
 

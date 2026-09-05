@@ -12,6 +12,7 @@ Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign
 
 ### Added
 
+- **[dashboard]** Account stores encrypted per-user Daytona and OpenAI keys. Dashboard runs decrypt those keys on the server and no longer read `DAYTONA_API_KEY` / `OPENAI_API_KEY` from the process environment.
 - **[dashboard]** API, CLI, SDK, Skills, Docs, and Support pages with marketing-style animated demos, copy-paste quickstarts, and links to `docs.getdesign.app`. Documents that v1 has no getdesign API key; full runs use BYOK Daytona/OpenAI credentials.
 - **[content]** New `@getdesign/content` package for shared demo sites, surface metadata, docs URLs, and snippet builders (used by dashboard, web, and video).
 - **[tools]** `@getdesign/tools` now ships concrete `crawler`, `extractors`, `render`, and `daytona` modules with deterministic URL/CSS resolution, token extraction, markdown rendering, and typed Daytona helpers.
@@ -21,9 +22,13 @@ Changes that affect the public surfaces (HTTP API, `@getdesign/sdk`, `@getdesign
 - **[skill]** `skills/README.md` — overview, install commands, and link to the [skills.sh](https://skills.sh) leaderboard.
 - **[web]** Landing page now advertises five surfaces: hero dots `Web · API · CLI · SDK · Skill`, the Surfaces section grid expanded from 4 to 5 cards, and the interactive demo gained a `skill` tab showing `npx skills add`, agent trace (`WebFetch`, `browser.screenshot`, `Write`), and the resulting `design.md`.
 - **[repo]** `LICENSE` (MIT), `CONTRIBUTING.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a GitHub issue + PR template set under `.github/`.
+- **[agent]** Manual M11 brand smoke for 20 visual runs, CSS palette grounding, recorded human ratings, and an 18-of-20 M3 gate. The dispatch-only workflow skips live work unless provider secrets are present.
 
 ### Changed
 
+- **[dashboard]** Capture failures now stop the run. Text-only is an explicit "Continue with text-only" choice, not a silent fallback.
+- **[api]** HTTP API now requires a WorkOS bearer token and request-scoped BYOK headers.
+- **[content]** `buildCurlExample` and `buildApiRequest` include the WorkOS bearer header and request-scoped Daytona/OpenAI keys.
 - **[web]** Surfaces section heading `"Four surfaces, one agent."` → `"Five surfaces, one agent."` with revised subhead.
 - **[web]** Footer GitHub link now points at [github.com/MohtashamMurshid/getdesign](https://github.com/MohtashamMurshid/getdesign) instead of the `github.com` placeholder.
 

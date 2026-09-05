@@ -3,9 +3,9 @@ import sharp from "sharp";
 import { launchChromiumKiosk } from "./chromium.js";
 import {
   measurePageHeight,
-  waitForReadyState,
   type MeasurementMode,
 } from "./measurement.js";
+import { assertCaptureStillReady, waitForCaptureReadiness } from "./readiness.js";
 import {
   createCaptureSandbox,
   disposeCaptureSandbox,
@@ -29,6 +29,8 @@ export type CaptureFullPageOptions = {
   stableScreenshots?: number;
   pixelDiffThreshold?: number;
   measurementMode?: MeasurementMode;
+  /** Visible-content readiness budget per attempt, capped at 30 seconds. */
+  readinessTimeoutMs?: number;
   onPhase?: CapturePhaseHandler;
 };
 
@@ -83,10 +85,13 @@ export async function captureFullPage(
   });
   const chromiumLaunchDuration = Date.now() - chromiumStarted;
 
-  // Wait until document.readyState === "complete" before any screenshot or
-  // measurement — the first screenshot otherwise often returns blank
-  // Chromium chrome (~19KB PNG).
-  await waitForReadyState(sandbox, { onPhase });
+  // Document readiness alone can still leave a loader or entry gate visible.
+  // A failed readiness check must stop this attempt before measuring or tiling.
+  await waitForCaptureReadiness(sandbox, {
+    viewport,
+    timeoutMs: options.readinessTimeoutMs,
+    onPhase,
+  });
 
   // measurement
   const measureStart = Date.now();
@@ -110,6 +115,7 @@ export async function captureFullPage(
   // Reset to top.
   await sandbox.computerUse.keyboard.press("Home", ["ctrl"]);
   await new Promise((r) => setTimeout(r, 300));
+  await assertCaptureStillReady(sandbox, onPhase);
 
   for (let i = 0; i < tileCount; i += 1) {
     const yOffset = i * viewport.height;

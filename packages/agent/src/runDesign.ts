@@ -143,19 +143,25 @@ export async function runDesign(
   await options.onPhase?.({ phase: "crawl", status: "ok", crawl });
 
   await options.onPhase?.({ phase: "visual", status: "start" });
-  const visual = await runVisual(
-    {
-      url: crawl.sourceUrl,
-      installI18nFonts: options.installI18nFonts,
-      measurementMode: options.measurementMode,
-    },
-    {
-      daytonaApiKey: credentials?.daytonaApiKey,
-      onCapturePhase: (event) => {
-        void options.onPhase?.({ phase: "capture", event });
-      },
-    },
-  );
+  const visual: VisualResult =
+    visualRequirement === "text_only_fallback"
+      ? {
+          status: "skipped",
+          reason: "Text-only mode was explicitly requested.",
+        }
+      : await runVisual(
+          {
+            url: crawl.sourceUrl,
+            installI18nFonts: options.installI18nFonts,
+            measurementMode: options.measurementMode,
+          },
+          {
+            daytonaApiKey: credentials?.daytonaApiKey,
+            onCapturePhase: (event) => {
+              void options.onPhase?.({ phase: "capture", event });
+            },
+          },
+        );
   await options.onPhase?.({ phase: "visual", status: "ok", visual });
 
   if (visual.status === "failed") {

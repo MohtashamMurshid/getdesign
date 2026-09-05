@@ -1,44 +1,58 @@
 ---
 title: Quickstart
-description: Get your first design.md in under a minute using the surface you prefer.
+description: Set up provider keys and generate your first design.md.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
-Pick a surface and paste a URL. Every surface returns the same `design.md`.
+For a visual run, bring your own Daytona and OpenAI keys. V1 has no getdesign run billing. You pay Daytona for browser capture and OpenAI for model usage. Run duration and provider costs vary by site.
 
 <Tabs>
   <TabItem label="Web">
-    Open [getdesign.app](https://www.getdesign.app), paste a URL, and watch the streaming chat panel write a live `design.md`.
+    Open the [dashboard](https://dashboard.getdesign.app), sign in, and save both provider keys in Account. Then paste a URL to generate a `design.md`.
   </TabItem>
   <TabItem label="API">
     ```bash
-    curl "https://api.getdesign.app/?url=https://stripe.com" \
+    curl "https://api.getdesign.app/v1/design?url=https://stripe.com" \
+      -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \
+      -H "x-daytona-api-key: $DAYTONA_API_KEY" \
+      -H "x-openai-api-key: $OPENAI_API_KEY" \
       -H "Accept: text/markdown" \
       -o stripe.design.md
     ```
-    No auth is required in v1. Rate limits apply.
+    Send a WorkOS access token plus the provider headers over HTTPS. There is no getdesign API key. See the [API surface](/surfaces/api/) for JSON and progress events.
   </TabItem>
   <TabItem label="CLI">
     ```bash
-    npx @getdesign/cli https://stripe.com
-    npx @getdesign/cli https://stripe.com --out stripe.design.md
+    bunx @getdesign/cli https://stripe.com
+    bunx @getdesign/cli https://stripe.com --out stripe.design.md
     ```
-    Run without arguments to open the interactive REPL.
+    Requires Bun, with `DAYTONA_API_KEY` and `OPENAI_API_KEY` set in your shell. No WorkOS token is needed. Default output is `./getdesign-runs/<slug>/design.md`; there is no interactive REPL.
   </TabItem>
   <TabItem label="SDK">
     ```bash
-    npm i @getdesign/sdk
+    bun add @getdesign/sdk
     ```
     ```ts
     import { getDesign, streamDesign } from "@getdesign/sdk";
 
-    const md = await getDesign("https://stripe.com");
+    const options = {
+      credentials: {
+        daytonaApiKey: process.env.DAYTONA_API_KEY,
+        openaiApiKey: process.env.OPENAI_API_KEY,
+      },
+    };
+    const result = await getDesign("https://stripe.com", options);
+    console.log(result.markdown);
 
-    for await (const chunk of streamDesign("https://stripe.com")) {
-      process.stdout.write(chunk);
+    // Alternative: run with progress events instead.
+    for await (const event of streamDesign("https://stripe.com", options)) {
+      if (event.type === "progress") console.log(event.event);
+      if (event.type === "result") console.log(event.result.markdown);
+      if (event.type === "error") throw new Error(event.error.error);
     }
     ```
+    Run either example on a Bun server. Each call starts a separate provider-funded run. The SDK executes locally, not through the hosted API, and does not need a WorkOS token. It is not a browser or edge-runtime client.
   </TabItem>
   <TabItem label="Skill">
     Inside Claude Code, Codex, or Cursor:
@@ -56,4 +70,4 @@ Pick a surface and paste a URL. Every surface returns the same `design.md`.
 - Bookmark [Official URLs](/resources/official-urls/) for every entry point (web app, docs, API, npm, GitHub).
 - Learn what a `design.md` contains in [Concepts](/concepts/).
 - Pick a surface to go deeper: [Web](/surfaces/web/), [API](/surfaces/api/), [CLI](/surfaces/cli/), [SDK](/surfaces/sdk/), [Skill](/surfaces/skill/).
-- Integrate in an app with [SDK in Next.js](/guides/sdk-in-next/).
+- Read the [Next.js runtime notes](/guides/sdk-in-next/) before integrating.

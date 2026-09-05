@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { SITE_DOMAIN } from "./_lib/site";
+import { isProductionDeployment } from "./_lib/indexing";
 
 // Explicitly allow AI answer engines and training crawlers. These rules are
 // identical to the wildcard `*` rule today, but listing the user agents
@@ -31,6 +32,9 @@ const AI_CRAWLERS = [
 ];
 
 export default function robots(): MetadataRoute.Robots {
+  if (!isProductionDeployment()) {
+    return { rules: { userAgent: "*", disallow: "/" } };
+  }
   return {
     rules: [
       {

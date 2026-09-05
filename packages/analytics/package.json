@@ -1,0 +1,31 @@
+{
+  "name": "@getdesign/analytics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client.ts",
+    "./react": "./src/react.tsx",
+    "./config": "./src/config.ts",
+    "./schema": "./src/schema.ts",
+    "./relay": "./src/relay.ts",
+    "./auth": "./src/auth.ts",
+    "./lifecycle": "./src/lifecycle.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "posthog-js": "1.422.5"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/react": "^19",
+    "happy-dom": "^20.12.0",
+    "typescript": "^6.0.3"
+  }
+}

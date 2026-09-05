@@ -2,26 +2,26 @@ const SURFACE_ITEMS = [
   {
     tag: "01",
     title: "Web",
-    domain: "getdesign.app",
-    body: "Streaming chat UI with a live design.md artifact panel.",
+    domain: "dashboard.getdesign.app",
+    body: "Sign in, save your Daytona and OpenAI keys, then generate a design.md.",
   },
   {
     tag: "02",
     title: "API",
     domain: "api.getdesign.app",
-    body: "GET /?url=… returns text/markdown. No auth in v1.",
+    body: "GET /v1/design returns Markdown or JSON. WorkOS bearer auth and provider keys required.",
   },
   {
     tag: "03",
     title: "CLI",
-    domain: "npx @getdesign/cli",
-    body: "One-shot and interactive REPL. Single Bun binary.",
+    domain: "bunx @getdesign/cli",
+    body: "Run on Bun with your Daytona and OpenAI keys. Writes design.md to a local file.",
   },
   {
     tag: "04",
     title: "SDK",
-    domain: "npm i @getdesign/sdk",
-    body: "Typed client. getDesign(url) + streamDesign(url).",
+    domain: "bun add @getdesign/sdk",
+    body: "Run the agent in-process on Bun. Typed results and progress events, with your provider keys.",
   },
   {
     tag: "05",

@@ -1,3 +1,5 @@
+import type { Metadata } from "next"
+import { AnalyticsConsent } from "@getdesign/analytics/react"
 import { Geist, Geist_Mono } from "next/font/google"
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components"
 
@@ -16,6 +18,12 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+export const metadata: Metadata = {
+  applicationName: "getdesign",
+  appleWebApp: { title: "getdesign", capable: false },
+  referrer: "no-referrer",
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +41,7 @@ export default function RootLayout({
             <ThemeProvider>{children}</ThemeProvider>
           </DashboardConvexProvider>
         </AuthKitProvider>
+        <AnalyticsConsent surface="dashboard" />
       </body>
     </html>
   )

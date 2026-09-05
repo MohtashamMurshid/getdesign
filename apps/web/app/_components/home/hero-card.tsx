@@ -210,11 +210,26 @@ function CodeView() {
         <span className="tok-key">await</span>{" "}
         <span className="tok-fn">getDesign</span>
         <span className="tok-punc">(</span>
-        <span className="tok-str">&quot;cursor.com&quot;</span>
-        <span className="tok-punc">)</span>
+        <span className="tok-str">&quot;https://cursor.com&quot;</span>
+        <span className="tok-punc">{", {"}</span>
       </LineNumber>
-      <LineNumber n={4}>&nbsp;</LineNumber>
+      <LineNumber n={4}>
+        <span className="tok-punc">{"  credentials: {"}</span>
+      </LineNumber>
       <LineNumber n={5}>
+        <span className="tok-punc">{"    daytonaApiKey: process.env.DAYTONA_API_KEY,"}</span>
+      </LineNumber>
+      <LineNumber n={6}>
+        <span className="tok-punc">{"    openaiApiKey: process.env.OPENAI_API_KEY,"}</span>
+      </LineNumber>
+      <LineNumber n={7}>
+        <span className="tok-punc">{"  },"}</span>
+      </LineNumber>
+      <LineNumber n={8}>
+        <span className="tok-punc">{"})"}</span>
+      </LineNumber>
+      <LineNumber n={9}>&nbsp;</LineNumber>
+      <LineNumber n={10}>
         <span className="tok-fn">console</span>
         <span className="tok-punc">.</span>
         <span className="tok-fn">log</span>
@@ -224,20 +239,23 @@ function CodeView() {
         <span className="tok-var">markdown</span>
         <span className="tok-punc">)</span>
       </LineNumber>
-      <LineNumber n={6}>&nbsp;</LineNumber>
-      <LineNumber n={7}>
+      <LineNumber n={11}>&nbsp;</LineNumber>
+      <LineNumber n={12}>
+        <span className="tok-com">// Run on Bun with your provider keys.</span>
+      </LineNumber>
+      <LineNumber n={13}>
         <span className="tok-com">// → # Design System Inspired by Cursor</span>
       </LineNumber>
-      <LineNumber n={8}>
+      <LineNumber n={14}>
         <span className="tok-com">// → ## 1. Visual Theme &amp; Atmosphere</span>
       </LineNumber>
-      <LineNumber n={9}>
+      <LineNumber n={15}>
         <span className="tok-com">// → ## 2. Color Palette</span>
       </LineNumber>
-      <LineNumber n={10}>
+      <LineNumber n={16}>
         <span className="tok-com">// → ## 3. Typography</span>
       </LineNumber>
-      <LineNumber n={11}>
+      <LineNumber n={17}>
         <span className="tok-com">// → …6 more sections</span>
       </LineNumber>
     </pre>

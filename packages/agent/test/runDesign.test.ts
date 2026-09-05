@@ -137,6 +137,28 @@ test("runDesign end-to-end with stubbed fetch and mocked LLM (text-only)", async
   expect(result.markdown).toContain("## 1. Visual Theme & Atmosphere");
 });
 
+test("explicit text-only mode skips capture even when Daytona is configured", async () => {
+  process.env.DAYTONA_API_KEY = "dtn_should_not_be_used";
+  const captureEvents: string[] = [];
+
+  const result = await runDesign("https://example.com", {
+    model: makeMockModel(),
+    visualRequirement: "text_only_fallback",
+    onPhase: (event) => {
+      if (event.phase === "capture") captureEvents.push(event.event.phase);
+    },
+  });
+
+  expect(captureEvents).toEqual([]);
+  expect(result.visual).toEqual({
+    status: "skipped",
+    reason: "Text-only mode was explicitly requested.",
+  });
+  expect(result.mode).toBe("text_only");
+  expect(result.tiles).toBe(0);
+  expect(result.markdown).toStartWith("> **Note:** This design.md was produced in text-only mode.");
+});
+
 test("synthesizer caps tiles at MAX_SYNTHESIS_TILES and notes the omission", async () => {
   const calls: { tileImageCount: number; userText: string }[] = [];
   const mockModel = new MockLanguageModelV3({

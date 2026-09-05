@@ -86,6 +86,109 @@ test("crawlSite blocks redirects to private targets", async () => {
   );
 });
 
+test("crawlSite safely truncates oversized HTML and stylesheets", async () => {
+  const htmlPrefix = `
+    <html>
+      <head>
+        <title>Example</title>
+        <link rel="stylesheet" href="/styles/app.css" />
+      </head>
+      <body>`;
+  const stylesheetPrefix = ".hero { color: #123456; }";
+  const htmlLimit = Buffer.byteLength(htmlPrefix, "utf8") + 2;
+  const stylesheetLimit = Buffer.byteLength(stylesheetPrefix, "utf8") + 2;
+
+  const crawl = await crawlSite({
+    url: "https://example.com",
+    maxHtmlBytes: htmlLimit,
+    maxStylesheetBytes: stylesheetLimit,
+    fetch: async (url) => {
+      if (url === "https://example.com") {
+        return new Response(`${htmlPrefix}😀 ignored tail`);
+      }
+      if (url === "https://example.com/styles/app.css") {
+        return new Response(`${stylesheetPrefix}😀 ignored tail`);
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    },
+  });
+
+  assert.equal(crawl.html, htmlPrefix);
+  assert.equal(crawl.stylesheets[0]?.content, stylesheetPrefix);
+  assert.ok(Buffer.byteLength(crawl.html, "utf8") <= htmlLimit);
+  assert.ok(
+    Buffer.byteLength(crawl.stylesheets[0]?.content ?? "", "utf8") <=
+      stylesheetLimit,
+  );
+  assert.doesNotMatch(crawl.html, /�/u);
+  assert.doesNotMatch(crawl.stylesheets[0]?.content ?? "", /�/u);
+});
+
+test("crawlSite skips failed linked and imported stylesheets", async () => {
+  const html = `
+    <html>
+      <head>
+        <title>Example</title>
+        <link rel="stylesheet" href="/styles/app.css" />
+        <link rel="stylesheet" href="/styles/missing.css" />
+      </head>
+    </html>`;
+  const appCss = `
+    @import url("./missing-fonts.css");
+    @import url("./theme.css");
+    body { color: #111111; }`;
+
+  const crawl = await crawlSite({
+    url: "https://example.com",
+    fetch: async (url) => {
+      if (url === "https://example.com") return new Response(html);
+      if (url === "https://example.com/styles/app.css") {
+        return new Response(appCss);
+      }
+      if (url === "https://example.com/styles/theme.css") {
+        return new Response(":root { --accent: #5e6ad2; }");
+      }
+      if (url === "https://example.com/styles/missing-fonts.css") {
+        return new Response("Not found", {
+          status: 404,
+          statusText: "Not Found",
+        });
+      }
+      if (url === "https://example.com/styles/missing.css") {
+        throw new Error("network unavailable");
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    },
+  });
+
+  assert.deepEqual(
+    crawl.stylesheets.map((stylesheet) => [stylesheet.kind, stylesheet.url]),
+    [
+      ["linked", "https://example.com/styles/app.css"],
+      ["imported", "https://example.com/styles/theme.css"],
+    ],
+  );
+  assert.ok(
+    crawl.notes.some(
+      (note) =>
+        note.includes("Skipped imported stylesheet") &&
+        note.includes("missing-fonts.css") &&
+        note.includes("404 Not Found"),
+    ),
+  );
+  assert.ok(
+    crawl.notes.some(
+      (note) =>
+        note.includes("Skipped linked stylesheet") &&
+        note.includes("missing.css") &&
+        note.includes("network unavailable"),
+    ),
+  );
+  assert.ok(crawl.notes.includes("Fetched 1 of 2 linked stylesheets."));
+});
+
 test("deriveSiteName falls back when the cleaned title is empty", () => {
   const html = `
     <html>
@@ -167,6 +270,27 @@ test("extractDesignTokens derives a grounded token set", () => {
   assert.equal(tokens.colors.accent[0]?.hex, "#5E6AD2");
   assert.equal(tokens.typography.fontFamilies[0]?.family, "Inter");
   assert.equal(tokens.breakpoints[0]?.minWidth, "1024px");
+});
+
+test("extractDesignTokens ignores empty shadow declarations", () => {
+  const tokens = extractDesignTokens({
+    sourceUrl: "https://example.com",
+    siteName: "Example",
+    html: "<html><head><title>Example</title></head><body></body></html>",
+    stylesheets: [
+      {
+        kind: "inline",
+        source: "inline-style-1",
+        content:
+          ":root { --shadow-empty: ; --shadow-card: 0 2px 8px #0003; } body { font-family: system-ui; font-size: 16px; }",
+      },
+    ],
+  });
+
+  assert.deepEqual(
+    tokens.shadows.map((shadow) => shadow.value),
+    ["0 2px 8px #0003"],
+  );
 });
 
 test("extractDesignTokens merges repeated font-face weights and preserves inline stylesheet sources", () => {

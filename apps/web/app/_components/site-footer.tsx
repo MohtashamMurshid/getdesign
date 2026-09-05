@@ -1,3 +1,4 @@
+import { AnalyticsLink } from "@getdesign/analytics/react";
 import {
   SITE_APP_CTA_SHORT,
   SITE_COPYRIGHT,
@@ -39,9 +40,9 @@ export function SiteFooter({ variant = "marketing" }: SiteFooterProps) {
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <a href={SITE_DASHBOARD_URL} className="hover:text-foreground">
+            <AnalyticsLink cta="footer_dashboard" href={SITE_DASHBOARD_URL} className="hover:text-foreground">
               {SITE_APP_CTA_SHORT}
-            </a>
+            </AnalyticsLink>
             <a
               href={SITE_DOCS_URL}
               target="_blank"

@@ -1,12 +1,20 @@
+import {
+  SITE_APP_CTA_BADGE,
+  SITE_APP_CTA_SHORT,
+  SITE_DASHBOARD_URL,
+} from "../../_lib/site";
 import { ComponentTile } from "./design-primitives";
 
 export function ComponentsSection() {
   return (
     <div className="grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--border)] md:grid-cols-2">
       <ComponentTile name="Button · primary">
-        <button className="btn-primary inline-flex h-9 items-center rounded-md px-4 text-[13px]">
-          Join the waitlist
-        </button>
+        <a
+          href={SITE_DASHBOARD_URL}
+          className="btn-primary inline-flex h-9 items-center rounded-md px-4 text-[13px]"
+        >
+          {SITE_APP_CTA_SHORT}
+        </a>
       </ComponentTile>
       <ComponentTile name="Button · ghost">
         <button className="btn-ghost inline-flex h-9 items-center rounded-md px-4 text-[13px]">
@@ -33,7 +41,7 @@ export function ComponentsSection() {
       <ComponentTile name="Chip · status">
         <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-100)] px-3 py-1 text-[11px] uppercase tracking-[0.14em] text-muted">
           <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-          Shipping Q2 2026
+          {SITE_APP_CTA_BADGE}
         </span>
       </ComponentTile>
       <ComponentTile name="Nav link · active">
@@ -58,10 +66,10 @@ export function ComponentsSection() {
             <span className="tok-fn">await</span>{" "}
             <span className="tok-fn">getDesign</span>
             <span className="tok-punc">(</span>
-            <span className="tok-str">&quot;stripe.com&quot;</span>
-            <span className="tok-punc">);</span>
+            <span className="tok-str">&quot;https://stripe.com&quot;</span>
+            <span className="tok-punc">, options);</span>
           </span>
-          <span className="tok-com">// → design.md</span>
+          <span className="tok-com">// options.credentials: your Daytona and OpenAI keys</span>
         </div>
       </ComponentTile>
     </div>

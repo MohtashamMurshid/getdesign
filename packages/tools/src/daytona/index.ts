@@ -21,6 +21,8 @@ export {
   measurePageHeight,
   waitForReadyState,
 } from "./measurement.js";
+
+export { CaptureReadinessError, waitForCaptureReadiness } from "./readiness.js";
 export type {
   MeasurementMode,
   MeasurementResult,

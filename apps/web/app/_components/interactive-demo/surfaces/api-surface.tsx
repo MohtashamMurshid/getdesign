@@ -16,19 +16,25 @@ export function ApiSurface({ site, visibleSteps, done }: ApiSurfaceProps) {
         <pre className="m-0 mt-2 whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 font-mono text-[12.5px] leading-relaxed text-foreground">
           <span className="tok-key">GET</span>{" "}
           <span className="tok-str">
-            https://api.getdesign.app/?url={site.url}
+            https://api.getdesign.app/v1/design?url=https://{site.url}
           </span>
+          {"\n"}
+          <span className="tok-com">Authorization: Bearer $WORKOS_ACCESS_TOKEN</span>
+          {"\n"}
+          <span className="tok-com">x-daytona-api-key: $DAYTONA_API_KEY</span>
+          {"\n"}
+          <span className="tok-com">x-openai-api-key: $OPENAI_API_KEY</span>
           {"\n"}
           <span className="tok-com">Accept: text/markdown</span>
         </pre>
       </div>
 
-      {visibleSteps >= 2 ? (
+      {done ? (
         <div className="fade-in-up mt-5">
           <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-[0.16em] text-[var(--subtle)]">
             response
             <span className="rounded-[3px] border border-[var(--border-strong)] px-1 py-[1px] text-[9.5px] text-[var(--accent)]">
-              {done ? "200 OK" : "200 streaming"}
+              200 OK
             </span>
           </div>
           <pre className="m-0 mt-2 whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[var(--surface-200)] p-3 font-mono text-[12.5px] leading-relaxed text-muted">

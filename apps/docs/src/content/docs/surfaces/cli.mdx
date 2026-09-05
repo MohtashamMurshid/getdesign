@@ -1,42 +1,38 @@
 ---
 title: CLI
-description: One-shot or interactive REPL. Single Bun binary published to npm.
+description: Run on Bun with your provider keys and write design.md to a local file.
 ---
 
-The CLI is published as `@getdesign/cli`. It runs under Bun or Node 18+.
+`@getdesign/cli` runs locally on Bun. Set `DAYTONA_API_KEY` and `OPENAI_API_KEY` in your shell before starting a visual run. No WorkOS token or getdesign API key is needed for local execution. You pay the providers directly.
 
 ## Install
 
 ```bash
-npm i -g @getdesign/cli
+bun add -g @getdesign/cli
 ```
 
 or run ad-hoc:
 
 ```bash
-npx @getdesign/cli https://stripe.com
+bunx @getdesign/cli https://stripe.com
 ```
 
 ## One-shot
 
 ```bash
-npx @getdesign/cli https://stripe.com
-npx @getdesign/cli https://stripe.com --out stripe.design.md
+bunx @getdesign/cli https://stripe.com
+bunx @getdesign/cli https://stripe.com --out stripe.design.md
 ```
 
-## Interactive REPL
-
-```bash
-npx @getdesign/cli
-```
-
-Opens a prompt where you can paste URLs and inspect the result inline.
+Without `--out`, output goes to `./getdesign-runs/<slug>/design.md`. Progress goes to stderr. The CLI requires a URL and does not provide an interactive REPL. Node support is not promised for V1.
 
 ## Flags
 
 | Flag        | Description                                |
 | ----------- | ------------------------------------------ |
 | `--out`     | Write the result to a file path.            |
+| `--site-name` | Override the detected site name. |
+| `--text-only-fallback` | Accept degraded output if visual capture is unavailable. |
 | `--version` | Print the installed version.                |
 | `--help`    | Show help.                                  |
 

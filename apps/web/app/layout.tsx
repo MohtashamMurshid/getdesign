@@ -1,8 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { AnalyticsConsent } from "@getdesign/analytics/react";
 import { Geist, JetBrains_Mono } from "next/font/google";
 
 import { JsonLd } from "./_components/json-ld";
-import { SITE_DOMAIN, SITE_GITHUB_URL, SITE_NAME } from "./_lib/site";
+import { isProductionDeployment } from "./_lib/indexing";
+import {
+  SITE_DOMAIN,
+  SITE_GITHUB_URL,
+  SITE_NAME,
+  SITE_SOCIAL_IMAGE,
+  SITE_RUN_COST_DESCRIPTION,
+} from "./_lib/site";
 
 import "./globals.css";
 
@@ -20,7 +28,9 @@ const jetbrains = JetBrains_Mono({
 
 const SITE_TITLE = `${SITE_NAME} · the design system for any URL`;
 const SITE_DESCRIPTION =
-  "Paste a URL. An agent opens it in a real browser, extracts palette, typography, and components, and returns a production-grade design.md. Web, API, CLI, TypeScript SDK, and Skill.";
+  "Turn any public URL into a design.md with colors, typography, and components from the site's real CSS. Use the web app, API, CLI, SDK, or coding agent skill.";
+
+const indexable = isProductionDeployment();
 
 export const viewport: Viewport = {
   themeColor: [
@@ -70,11 +80,11 @@ export const metadata: Metadata = {
     },
   },
   robots: {
-    index: true,
-    follow: true,
+    index: indexable,
+    follow: indexable,
     googleBot: {
-      index: true,
-      follow: true,
+      index: indexable,
+      follow: indexable,
       "max-snippet": -1,
       "max-image-preview": "large",
       "max-video-preview": -1,
@@ -87,17 +97,18 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     type: "website",
     locale: "en_US",
+    images: [SITE_SOCIAL_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE,
-    description:
-      "On-demand design systems from any URL. Five surfaces, one agent.",
+    description: SITE_DESCRIPTION,
+    images: [SITE_SOCIAL_IMAGE],
   },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
-  referrer: "origin-when-cross-origin",
+  referrer: "no-referrer",
   formatDetection: {
     email: false,
     address: false,
@@ -141,6 +152,7 @@ export default function RootLayout({
           "@type": "Offer",
           price: "0",
           priceCurrency: "USD",
+          description: SITE_RUN_COST_DESCRIPTION,
         },
       },
     ],
@@ -150,6 +162,7 @@ export default function RootLayout({
     <html lang="en" className={`${geist.variable} ${jetbrains.variable}`}>
       <body>
         {children}
+        <AnalyticsConsent surface="marketing" />
         <JsonLd data={jsonLd} />
       </body>
     </html>

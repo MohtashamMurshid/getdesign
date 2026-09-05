@@ -51,6 +51,7 @@ export type InputBarProps = {
   status: ChatStatus;
   onStop: () => void;
   placeholder?: string;
+  sendLabel?: string;
   className?: string;
   size?: "default" | "lg";
 
@@ -133,6 +134,7 @@ export const InputBar = memo(function InputBar({
   status,
   onStop,
   placeholder,
+  sendLabel = "Send",
   className,
   size = "default",
   onAttach,
@@ -563,7 +565,11 @@ export const InputBar = memo(function InputBar({
                   <AttachmentButton onClick={onAttach} />
                 )}
                 {/* Send / Stop button */}
-                <div
+                <button
+                  type="button"
+                  aria-label={isStreaming ? "Stop" : sendLabel}
+                  title={isStreaming ? "Stop" : sendLabel}
+                  disabled={!isStreaming && (!hasInput || disabled)}
                   onClick={() => {
                     if (isStreaming) {
                       onStop();
@@ -571,7 +577,7 @@ export const InputBar = memo(function InputBar({
                       handleSubmit();
                     }
                   }}
-                  className="cursor-pointer"
+                  className="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default"
                 >
                   <SendButton
                     state={
@@ -582,7 +588,7 @@ export const InputBar = memo(function InputBar({
                           : "idle"
                     }
                   />
-                </div>
+                </button>
               </div>
             </div>
           </div>

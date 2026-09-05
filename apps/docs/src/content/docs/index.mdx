@@ -10,7 +10,7 @@ hero:
       icon: right-arrow
       variant: primary
     - text: Web app
-      link: https://www.getdesign.app/
+      link: https://dashboard.getdesign.app/
       icon: external
       variant: secondary
     - text: GitHub
@@ -23,27 +23,27 @@ import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
 ## Five surfaces, one agent
 
-getdesign ships five surfaces that share one agent core. Only the transport changes between them.
+The web, API, CLI, and SDK share the agent core. The Skill uses your coding agent's own tools. Visual runs need your Daytona and OpenAI keys. V1 has no getdesign run billing; you pay those providers directly.
 
 <CardGrid>
   <LinkCard
     title="Web"
-    description="Streaming chat UI with a live design.md artifact panel."
+    description="Sign in, save your Daytona and OpenAI keys, and generate a design.md."
     href="/surfaces/web/"
   />
   <LinkCard
     title="API"
-    description="GET /?url=... returns text/markdown. No auth in v1."
+    description="GET /v1/design returns Markdown or JSON. WorkOS bearer token plus provider headers."
     href="/surfaces/api/"
   />
   <LinkCard
     title="CLI"
-    description="One-shot or interactive REPL. Single Bun binary."
+    description="Run on Bun with your provider keys. Writes design.md to a local file."
     href="/surfaces/cli/"
   />
   <LinkCard
     title="SDK"
-    description="Typed client. getDesign(url) + streamDesign(url)."
+    description="In-process Bun SDK with typed results and progress events."
     href="/surfaces/sdk/"
   />
   <LinkCard
@@ -57,7 +57,7 @@ getdesign ships five surfaces that share one agent core. Only the transport chan
 
 <CardGrid>
   <LinkCard title="Official URLs" href="/resources/official-urls/" description="Web app, docs, API, npm, and repo in one place." />
-  <LinkCard title="Quickstart" href="/quickstart/" description="Get your first design.md in 60 seconds." />
+  <LinkCard title="Quickstart" href="/quickstart/" description="Set up provider keys and generate your first design.md." />
   <LinkCard title="Concepts" href="/concepts/" description="What a design.md is, what is in it, and how it is grounded." />
   <LinkCard title="SDK reference" href="/reference/sdk/" description="Auto-generated from the @getdesign/sdk source." />
   <LinkCard title="CLI reference" href="/reference/cli/" description="Auto-extracted from @getdesign/cli --help." />

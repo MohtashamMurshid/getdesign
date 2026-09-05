@@ -1,6 +1,11 @@
 import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
+import {
+  textOnlyResumePatch,
+  textOnlyResumeRejection,
+} from "./designRunPolicy";
+import { requireWorkOsUserId } from "./workosAuth";
 
 const stepSchema = v.union(
   v.literal("crawl"),
@@ -216,7 +221,12 @@ export const finishStep = mutation({
       steps: { ...run.steps, [args.step]: args.status },
       traceEvents: [
         ...(run.traceEvents ?? []),
-        { step: args.step, status: args.status, message: args.message, at: now },
+        {
+          step: args.step,
+          status: args.status,
+          message: args.message,
+          at: now,
+        },
       ],
       updatedAt: now,
     });
@@ -256,5 +266,23 @@ export const failStep = mutation({
       updatedAt: now,
     });
     return null;
+  },
+});
+
+export const resumeTextOnly = mutation({
+  args: {
+    id: v.id("designRuns"),
+  },
+  returns: v.object({ ok: v.literal(true) }),
+  handler: async (ctx, args) => {
+    const userId = await requireWorkOsUserId(ctx);
+    const run = await getOwnedRun(ctx, args.id, userId);
+    if (!run) throw new ConvexError("Run not found.");
+    const rejection = textOnlyResumeRejection(run);
+    if (rejection) throw new ConvexError(rejection);
+
+    const now = Date.now();
+    await ctx.db.patch(args.id, textOnlyResumePatch(run, now));
+    return { ok: true as const };
   },
 });

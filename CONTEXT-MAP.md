@@ -28,6 +28,7 @@ Before changing code in a workspace, read that workspace’s `**CONTEXT.md*`*. E
 
 | Context     | CONTEXT.md path                                              | Scope                                                |
 | ----------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| **analytics** | `[packages/analytics/CONTEXT.md](packages/analytics/CONTEXT.md)` | Consent-gated marketing and dashboard analytics |
 | **agent**   | `[packages/agent/CONTEXT.md](packages/agent/CONTEXT.md)`     | Coordinator + sub-agents — URL → validated DesignDoc |
 | **cli**     | `[packages/cli/CONTEXT.md](packages/cli/CONTEXT.md)`         | CLI (planned)                                        |
 | **config**  | `[packages/config/CONTEXT.md](packages/config/CONTEXT.md)`   | Shared TS / tooling config for workspaces            |

@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { DOCS_ORIGIN, isProductionDeployment } from "../lib/site";
 
 const AI_CRAWLERS = [
   "GPTBot",
@@ -23,8 +24,12 @@ const AI_CRAWLERS = [
   "YouBot",
 ];
 
-export const GET: APIRoute = ({ site }) => {
-  const origin = site?.toString().replace(/\/$/, "") ?? "https://docs.getdesign.app";
+export const GET: APIRoute = () => {
+  if (!isProductionDeployment()) {
+    return new Response("User-agent: *\nDisallow: /\n", {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
 
   const lines: string[] = [];
   lines.push("User-agent: *");
@@ -37,8 +42,8 @@ export const GET: APIRoute = ({ site }) => {
     lines.push("");
   }
 
-  lines.push(`Sitemap: ${origin}/sitemap-index.xml`);
-  lines.push(`Host: ${origin}`);
+  lines.push(`Sitemap: ${DOCS_ORIGIN}/sitemap-index.xml`);
+  lines.push(`Host: ${DOCS_ORIGIN}`);
 
   return new Response(lines.join("\n"), {
     headers: { "Content-Type": "text/plain; charset=utf-8" },

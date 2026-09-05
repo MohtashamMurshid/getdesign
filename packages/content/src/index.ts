@@ -121,14 +121,27 @@ export function exampleUrl(siteUrl: string): string {
 
 export function buildApiRequest(siteUrl: string): string {
   const url = exampleUrl(siteUrl);
-  return `GET ${API_BASE_URL}/?url=${url}\nAccept: text/markdown`;
+  return [
+    `GET ${API_BASE_URL}/?url=${url}`,
+    "Authorization: Bearer $WORKOS_ACCESS_TOKEN",
+    "x-daytona-api-key: $DAYTONA_API_KEY",
+    "x-openai-api-key: $OPENAI_API_KEY",
+    "Accept: text/markdown",
+  ].join("\n");
 }
 
 export function buildCurlExample(siteUrl: string): string {
   const url = exampleUrl(siteUrl);
   const host = siteUrl.replace(/^https?:\/\//, "").split("/")[0] ?? "site";
   const slug = host.replace(/\./g, "-");
-  return `curl "${API_BASE_URL}/?url=${url}" \\\n  -H "Accept: text/markdown" \\\n  -o ${slug}.design.md`;
+  return [
+    `curl "${API_BASE_URL}/?url=${url}" \\`,
+    `  -H "Authorization: Bearer $WORKOS_ACCESS_TOKEN" \\`,
+    `  -H "x-daytona-api-key: $DAYTONA_API_KEY" \\`,
+    `  -H "x-openai-api-key: $OPENAI_API_KEY" \\`,
+    `  -H "Accept: text/markdown" \\`,
+    `  -o ${slug}.design.md`,
+  ].join("\n");
 }
 
 export function buildCliCommand(siteUrl: string): string {

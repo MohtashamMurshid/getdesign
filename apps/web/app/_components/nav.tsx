@@ -1,12 +1,12 @@
 "use client";
 
+import { AnalyticsLink } from "@getdesign/analytics/react";
+
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import {
-  SITE_APP_CTA_LABEL,
   SITE_APP_CTA_SHORT,
-  SITE_APP_CTA_SUBTEXT,
   SITE_DASHBOARD_URL,
   SITE_DOCS_URL,
   SITE_GITHUB_URL,
@@ -108,13 +108,14 @@ export default function Nav() {
           >
             <GithubIcon />
           </a>
-          <a
+          <AnalyticsLink
+            cta="nav_get_started"
             href={SITE_DASHBOARD_URL}
             className="btn-accent inline-flex h-8 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-transform hover:-translate-y-[1px]"
           >
             {SITE_APP_CTA_SHORT}
             <ArrowIcon />
-          </a>
+          </AnalyticsLink>
         </div>
       </div>
     </header>
